@@ -1,0 +1,297 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 219 78% 30%; /* HSL of #113A87 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 45 93% 58%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 50% 93%; /* HSL of #E7EDF5 */
+    --input: 214 50% 93%;
+    --ring: 219 78% 30%;
+
+    --radius: 1.25rem;
+
+    --sidebar-background: 210 40% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 219 78% 30%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 50% 93%;
+    --sidebar-ring: 219 78% 30%;
+
+    /* Bento Premium Tokens */
+    --glass-bg: 0 0% 100%;
+    --glass-border: 214 50% 93%;
+    --highlight: 45 93% 58%;
+    --highlight-foreground: 222 47% 11%;
+    --live: 0 84% 60%;
+    --live-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --info: 199 89% 48%;
+
+    /* Surface depth system */
+    --surface-base: #FAFCFF;
+    --surface-raised: #ffffff;
+    --surface-sunken: #f7f5f2;
+    --bento-brand: #113a87;
+    --bento-brand-light: #e8eef7;
+  }
+
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 213 94% 68%;
+    --primary-foreground: 222 47% 6%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 45 93% 58%;
+    --accent-foreground: 222 47% 6%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 213 94% 68%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+
+  body {
+    @apply text-foreground font-body antialiased;
+    background-color: #FCFCFD;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: url('/bg.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+    opacity: 0.56;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Make grey fonts darker */
+  .text-gray-400 { color: #6b7280 !important; } /* tailwind gray-500 */
+  .text-gray-500 { color: #4b5563 !important; } /* tailwind gray-600 */
+  .text-slate-400 { color: #64748b !important; } /* tailwind slate-500 */
+  .text-slate-500 { color: #475569 !important; } /* tailwind slate-600 */
+
+
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+
+  /* Refined selection colour */
+  ::selection {
+    background: rgba(17, 58, 135, 0.12);
+    color: #1a1a1a;
+  }
+}
+
+@layer components {
+  /* ── Base Glass Card ── */
+  .glass-card {
+    @apply bg-white border border-[#E7EDF5] rounded-2xl shadow-soft
+           transition-all duration-200 ease-out;
+  }
+  .glass-card:hover {
+    @apply border-slate-300 shadow-glass;
+  }
+
+  /* ── Premium Subtle Glass Panel ── */
+  .glass-panel {
+    @apply bg-white border border-[#E7EDF5] rounded-3xl shadow-soft;
+  }
+
+  /* ── Bento Card — the workhorse ── */
+  .bento-card {
+    @apply bg-white rounded-2xl border border-[#E7EDF5] shadow-soft
+           transition-all duration-200 ease-out;
+  }
+  .bento-card:hover {
+    @apply shadow-glass border-slate-300;
+  }
+
+  /* ── Bento Metric — premium stat block ── */
+  .bento-metric {
+    @apply bg-white rounded-2xl border border-[#E7EDF5] shadow-soft p-5
+           transition-all duration-200 ease-out;
+  }
+  .bento-metric:hover {
+    @apply shadow-glass border-slate-300;
+  }
+
+  /* ── Status indicators ── */
+  .status-live {
+    @apply bg-live text-live-foreground;
+  }
+
+  .highlight-card {
+    @apply bg-highlight/10 border-highlight/20;
+  }
+
+  /* ── Nav glass ── */
+  .nav-glass {
+    @apply bg-white/80 backdrop-blur-md border-b border-white/50;
+  }
+
+  /* ── Subtle gradient accent line ── */
+  .gradient-accent {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(17, 58, 135, 0.08) 20%,
+      rgba(17, 58, 135, 0.12) 50%,
+      rgba(17, 58, 135, 0.08) 80%,
+      transparent 100%
+    );
+    height: 1px;
+  }
+
+  /* ── Shimmer on hover (for boosted badges, premium accents) ── */
+  .shimmer-hover {
+    background: linear-gradient(
+      110deg,
+      transparent 33%,
+      rgba(255, 255, 255, 0.3) 50%,
+      transparent 67%
+    );
+    background-size: 200% 100%;
+  }
+  .shimmer-hover:hover {
+    animation: shimmer 1.5s ease-in-out;
+  }
+}
+
+@layer utilities {
+  /* Animated counter helper — JS drives the value */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Stagger children animations */
+  .stagger-children > * {
+    opacity: 0;
+    animation: fade-in-up 0.5s ease-out forwards;
+  }
+  .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-children > *:nth-child(2) { animation-delay: 60ms; }
+  .stagger-children > *:nth-child(3) { animation-delay: 120ms; }
+  .stagger-children > *:nth-child(4) { animation-delay: 180ms; }
+  .stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+  .stagger-children > *:nth-child(6) { animation-delay: 300ms; }
+  @keyframes fade-in-up {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+}
+
+/* PDF Print & Page Break Styles */
+.pdf-page-break {
+  page-break-before: always;
+  break-before: page;
+}
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* ── Stable Flexbox Layout System ── */
+.stable-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  position: relative;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.stable-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+.stable-main {
+  flex: 1 1 auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 80px; /* Space to prevent overlap from fixed footer */
+}
+
+.stable-content {
+  width: 100%;
+  max-width: 1200px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.stable-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+
