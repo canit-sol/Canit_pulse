@@ -102,7 +102,14 @@ def generate_report(
         
         facebook_data = {}
         if client.fb_page_id and client.fb_page_token:
-            facebook_data = get_client_facebook_stats(client_keys, month=data.month, year=data.year)
+            month_map = {
+                "January": 1, "February": 2, "March": 3, "April": 4,
+                "May": 5, "June": 6, "July": 7, "August": 8,
+                "September": 9, "October": 10, "November": 11, "December": 12
+            }
+            month_num = month_map.get(data.month, 1)
+            facebook_data = get_client_facebook_stats(client_keys, month=month_num, year=data.year)
+
 
         youtube_data = {}
         if client.youtube_channel_id:
@@ -410,6 +417,37 @@ def get_single_report(report_id: str, db: Session = Depends(get_db)):
     }
 
 @router_v3.get("/clients/{client_id}/analytics")
+
+# Debug endpoint to inspect stored Facebook data
+@router_v3.get("/debug/client/{client_id}/facebook-data")
+
+def debug_client_facebook_data(client_id: str, month: str = None, year: str = None, db: Session = Depends(get_db)):
+    from datetime import datetime
+    from facebook import get_client_facebook_stats
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    stored = client.facebook_data or {}
+    live = {}
+    if client.fb_page_id and client.fb_page_token:
+        try:
+            live = get_client_facebook_stats(
+                {
+                    "fb_page_id": client.fb_page_id,
+                    "fb_page_token": client.fb_page_token,
+                    "ad_account_id": client.ad_account_id or "",
+                },
+                month=month or str(datetime.utcnow().month),
+                year=year or str(datetime.utcnow().year),
+            )
+        except Exception as e:
+            print(f"[DEBUG] Failed to fetch live Facebook data: {e}")
+    return {
+        "stored": stored,
+        "live": live,
+        "merged": {**stored, **live}
+    }
+
 def get_client_analytics(client_id: str, month: str = None, year: str = None, db: Session = Depends(get_db)):
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
@@ -497,28 +535,103 @@ def download_report_pdf(
         
     # 3. Extract Platform Stats
     ig_raw = report.ig_data
+    print(f"[PDF DEBUG] Raw ig_data type: {type(ig_raw)}")
+    print(f"[PDF DEBUG] Raw ig_data: {ig_raw}")
     if isinstance(ig_raw, str):
         ig_raw = json.loads(ig_raw)
+        print(f"[PDF DEBUG] After json.loads: {ig_raw}")
     
+    # Handle both data formats:
+    # New format: {"platforms": {"instagram": {...}, "facebook": {...}, ...}}
+    # Old format: {"instagram": {...}, "facebook": {...}, "synopsis": "...", ...}
     platforms = ig_raw.get("platforms", {})
-    instagram_data = platforms.get("instagram", {})
-    facebook_data = platforms.get("facebook", {})
-    synopsis = ig_raw.get("synopsis", "")
+    if platforms:  # New format
+        instagram_data = platforms.get("instagram", {})
+        facebook_data = platforms.get("facebook", {})
+    else:  # Old format
+        instagram_data = ig_raw.get("instagram", {})
+        facebook_data = ig_raw.get("facebook", {})
     
-    # 4. Resolve Previous Report for MoM comparisons in Brand Health
-    def get_previous_month_year(month_name: str, year_str: str):
-        months = [
-            "January", "February", "March", "April", "May", "June",
-            "July", "August", "September", "October", "November", "December"
-        ]
+    synopsis = ig_raw.get("synopsis", "")
+    print(f"[PDF DEBUG] platforms: {platforms}")
+    print(f"[PDF DEBUG] instagram_data extracted: {instagram_data}")
+    print(f"[PDF DEBUG] facebook_data extracted: {facebook_data}")
+    print(f"[PDF DEBUG] synopsis: {synopsis}")
+
+    # 4a. Fetch live Facebook data (like client portal does)
+    if client.fb_page_id and client.fb_page_token:
         try:
-            idx = months.index(month_name)
-            if idx == 0:
-                return months[11], str(int(year_str) - 1)
+            month_map = {
+                "January": 1, "February": 2, "March": 3, "April": 4,
+                "May": 5, "June": 6, "July": 7, "August": 8,
+                "September": 9, "October": 10, "November": 11, "December": 12
+            }
+            month_num = month_map.get(report.month, 1)
+            live_fb_data = get_client_facebook_stats(
+                {
+                    "fb_page_id": client.fb_page_id,
+                    "fb_page_token": client.fb_page_token,
+                    "ad_account_id": client.ad_account_id or "",
+                },
+                month=month_num,
+                year=report.year,
+            )
+            if live_fb_data and live_fb_data.get("status") == "success":
+                facebook_data.update(live_fb_data)
+                facebook_data["posts"] = live_fb_data.get("posts", []) or facebook_data.get("posts", [])
+                facebook_data["active_days"] = live_fb_data.get("active_days", []) or facebook_data.get("active_days", [])
+                facebook_data["weekly_posts"] = live_fb_data.get("weekly_posts", []) or facebook_data.get("weekly_posts", [])
+                facebook_data["type_counts"] = live_fb_data.get("type_counts", {}) or facebook_data.get("type_counts", {})
+                print(f"[PDF DEBUG] Merged live Facebook data: total_reach={facebook_data.get('total_reach')}, total_impressions={facebook_data.get('total_impressions')}, total_posts={facebook_data.get('total_posts')}")
             else:
-                return months[idx - 1], year_str
-        except ValueError:
-            return None, None
+                print(f"[PDF DEBUG] Live Facebook data not available or error: {live_fb_data}")
+        except Exception as e:
+            print(f"[PDF DEBUG] Failed to fetch live Facebook data: {e}")
+        else:
+            print(f"[PDF DEBUG] No Facebook credentials configured for client {client.id}")
+        # Normalize Facebook metrics for PDF rendering (expected keys in the template)
+        # The PDF template reads fb_page_reach, fb_impressions, fb_reactions, fb_comments, fb_shares, fb_followers, fb_engagement, fb_posts
+        facebook_data['page_reach'] = facebook_data.get('total_reach') or 0
+        facebook_data['impressions'] = facebook_data.get('total_impressions') or 0
+        facebook_data['page_likes'] = facebook_data.get('total_likes') or 0
+        facebook_data['page_comments'] = facebook_data.get('total_comments') or 0
+        facebook_data['page_shares'] = facebook_data.get('total_shares') or 0
+        facebook_data['page_saves'] = facebook_data.get('total_saves') or 0
+        # Map total_reactions/total_likes to 'reactions' for PDF template
+        facebook_data['reactions'] = facebook_data.get('total_reactions') or facebook_data.get('total_likes') or 0
+        facebook_data['comments'] = facebook_data.get('total_comments') or 0
+        facebook_data['shares'] = facebook_data.get('total_shares') or 0
+        # Ensure followers and engagement_rate are preserved from live data
+        # (they come from live_fb_data via facebook_data.update(live_fb_data))
+        # Normalize total post count for Facebook (PDF expects a numeric value)
+        facebook_data['posts'] = len(facebook_data.get('posts', [])) if isinstance(facebook_data.get('posts'), list) else 0
+        # Map Facebook type_counts to template expected format (Photos, Video / Reels, Link Shares)
+        fb_type_counts = facebook_data.get('type_counts', {})
+        if fb_type_counts:
+            mapped_type_counts = {
+                'Photos': fb_type_counts.get('IMAGE', 0) + fb_type_counts.get('CAROUSEL_ALBUM', 0),
+                'Video / Reels': fb_type_counts.get('VIDEO', 0),
+                'Link Shares': fb_type_counts.get('LINK', 0) + fb_type_counts.get('LINK_SHARE', 0)
+            }
+            # Remove zero entries
+            facebook_data['type_counts'] = {k: v for k, v in mapped_type_counts.items() if v > 0}
+            if not facebook_data['type_counts']:
+                facebook_data['type_counts'] = {'Photos': 0, 'Video / Reels': 0, 'Link Shares': 0}
+        
+        # 5. Resolve Previous Report for MoM comparisons in Brand Health
+        def get_previous_month_year(month_name: str, year_str: str):
+            months = [
+                "January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"
+            ]
+            try:
+                idx = months.index(month_name)
+                if idx == 0:
+                    return months[11], str(int(year_str) - 1)
+                else:
+                    return months[idx - 1], year_str
+            except ValueError:
+                return None, None
 
     prev_month, prev_year = get_previous_month_year(report.month, report.year)
     prev_report = None
@@ -605,10 +718,20 @@ def download_report_pdf(
 
     # Fetch Blogs from ClientBlog table
     from database import ClientBlog
+    from sqlalchemy import and_, extract
+    months = {
+        "January": 1, "February": 2, "March": 3, "April": 4, "May": 5, "June": 6,
+        "July": 7, "August": 8, "September": 9, "October": 10, "November": 11, "December": 12
+    }
+    month_idx = list(months.keys()).index(report.month) + 1 if report.month in months else 0
+    year_int = int(report.year)
     blogs = db.query(ClientBlog).filter(
-        ClientBlog.client_id == report.client_id,
-        ClientBlog.month == report.month,
-        ClientBlog.year == report.year
+        and_(
+            ClientBlog.client_id == report.client_id,
+            ClientBlog.published_at.isnot(None),
+            extract('month', ClientBlog.published_at) == month_idx,
+            extract('year', ClientBlog.published_at) == year_int,
+        )
     ).all()
     
     blog_posts_list = [{
@@ -681,35 +804,52 @@ def download_report_pdf(
     # 8. Render to PDF
     from pdf_generator import generate_pdf_html, generate_pdf_from_html
     
-    html_content = generate_pdf_html(
-        report_data=report_data_mapped,
-        instagram_data=instagram_data,
-        synopsis=synopsis,
-        seo_data=seo_data_mapped,
-        facebook_data=facebook_data,
-        brand_color=client.brand_color or "#c8922a"
-    )
-    
-    temp_dir = "backend/uploads/temp_pdf"
-    os.makedirs(temp_dir, exist_ok=True)
-    temp_pdf_path = os.path.join(temp_dir, f"{report_id}.pdf")
-    
-    generate_pdf_from_html(html_content, temp_pdf_path)
-    
-    # Background cleanup task
-    def remove_file(path: str):
-        try:
-            if os.path.exists(path):
-                os.remove(path)
-        except Exception:
-            pass
-            
-    background_tasks.add_task(remove_file, temp_pdf_path)
-    
-    pdf_filename = f"{client.name.replace(' ', '_')}_Report_{report.month}_{report.year}.pdf"
-    
-    return FileResponse(
-        path=temp_pdf_path,
-        filename=pdf_filename,
-        media_type="application/pdf"
-    )
+    try:
+        # Get brand color
+        brand_color = client.brand_color or "#c8922a"
+        
+        # Debug: Print what data we have
+        print(f"[PDF DEBUG] report_data_mapped keys: {list(report_data_mapped.keys()) if report_data_mapped else 'None'}")
+        print(f"[PDF DEBUG] instagram_data: {instagram_data}")
+        print(f"[PDF DEBUG] facebook_data: {facebook_data}")
+        print(f"[PDF DEBUG] seo_data_mapped: {seo_data_mapped}")
+        print(f"[PDF DEBUG] synopsis length: {len(synopsis) if synopsis else 0}")
+        print(f"[PDF DEBUG] brand_color: {brand_color}")
+        
+        html_content = generate_pdf_html(
+            report_data=report_data_mapped,
+            instagram_data=instagram_data,
+            synopsis=synopsis,
+            seo_data=seo_data_mapped,
+            facebook_data=facebook_data,
+            brand_color=brand_color
+        )
+        
+        temp_dir = "backend/uploads/temp_pdf"
+        os.makedirs(temp_dir, exist_ok=True)
+        temp_pdf_path = os.path.join(temp_dir, f"{report_id}.pdf")
+        
+        generate_pdf_from_html(html_content, temp_pdf_path)
+        
+        # Background cleanup task
+        def remove_file(path: str):
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except Exception:
+                pass
+                
+        background_tasks.add_task(remove_file, temp_pdf_path)
+        
+        pdf_filename = f"{client.name.replace(' ', '_')}_Report_{report.month}_{report.year}.pdf"
+        
+        return FileResponse(
+            path=temp_pdf_path,
+            filename=pdf_filename,
+            media_type="application/pdf"
+        )
+    except Exception as e:
+        import traceback
+        print(f"[PDF ERROR] {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
