@@ -526,11 +526,11 @@ def fetch_all_report_data(
 
 
 # ---------------------------------------------------------------------------
-# Design tokens — Report / Canit Pulse spec
+# Design tokens ΓÇö Report / Canit Pulse spec
 # ---------------------------------------------------------------------------
 BRAND_PRIMARY        = '#1E2B8F'   # deep navy/indigo
-BRAND_ACCENT         = '#E83E6C'   # hot pink/magenta — KPI values, bars, pills
-BRAND_ACCENT_SEC     = '#7B5EA7'   # muted purple — secondary icons
+BRAND_ACCENT         = '#E83E6C'   # hot pink/magenta ΓÇö KPI values, bars, pills
+BRAND_ACCENT_SEC     = '#7B5EA7'   # muted purple ΓÇö secondary icons
 TEXT_PRIMARY         = '#1A1A2E'   # body text, card headers
 TEXT_SECONDARY       = '#5A6078'   # subtitles, secondary body
 TEXT_LABEL           = '#8F96AB'   # micro-labels, metadata, table col headers
@@ -545,7 +545,7 @@ FORECAST_BG          = '#EFF2FF'
 FORECAST_BORDER      = '#C8D0F0'
 
 # ---------------------------------------------------------------------------
-# SVG helpers — all pure SVG data URIs, no external deps
+# SVG helpers ΓÇö all pure SVG data URIs, no external deps
 # ---------------------------------------------------------------------------
 
 def _b64svg(svg: str) -> str:
@@ -553,7 +553,7 @@ def _b64svg(svg: str) -> str:
 
 
 def svg_bar_chart(weeks, width=560, height=150):
-    """Weekly bar chart styled to Canit Pulse report tokens — navy/pink bars on white card."""
+    """Weekly bar chart styled to Canit Pulse report tokens ΓÇö navy/pink bars on white card."""
     # Defensive: if weeks is empty or not iterable, return a small "no data" SVG
     try:
         n = max(1, len(weeks))
@@ -750,7 +750,7 @@ def _page_header(client_logo: str, canit_logo: str, month: str, year: str) -> st
 def _page_footer(page_num: int, total: int = 7) -> str:
     return f'''
     <div class="page-footer">
-      <span>CANIT PULSE © 2026 | PERFORMANCE &amp; AI BRAND REPORT</span>
+      <span>CANIT PULSE ┬⌐ 2026 | PERFORMANCE &amp; AI BRAND REPORT</span>
       <span>PAGE {page_num} OF {total}</span>
     </div>'''
 
@@ -862,7 +862,7 @@ def generate_pdf_html(
         if isinstance(v, (int, float)):
             return int(v)
         s = str(v).strip()
-        if s == '' or s.upper() == 'N/A' or s == '—':
+        if s == '' or s.upper() == 'N/A' or s == 'ΓÇö':
             return 0
         # remove commas
         s2 = s.replace(',', '')
@@ -1025,7 +1025,7 @@ def generate_pdf_html(
     # normalize the incoming instagram data so template code is simpler
     instagram_data = _normalize_instagram(instagram_data)
 
-    # ── Data extraction (unchanged routes) ──────────────────────────────────
+    # ΓöÇΓöÇ Data extraction (unchanged routes) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     client_name  = report_data.get('client_name', 'Client')
     month        = report_data.get('month', '')
     year         = report_data.get('year', '')
@@ -1099,7 +1099,7 @@ def generate_pdf_html(
     fb_followers   = facebook_data.get('followers', 0)
     fb_type_counts = facebook_data.get('type_counts', {'Photos': 0, 'Video / Reels': 0, 'Link Shares': 0})
 
-    # AI Brand Intelligence fields (optional) — default to None so UI shows N/A
+    # AI Brand Intelligence fields (optional) ΓÇö default to None so UI shows N/A
     brand_health_index   = report_data.get('brand_health_index')
     audience_growth      = report_data.get('audience_growth')
     reach_acceleration   = report_data.get('reach_acceleration')
@@ -1128,7 +1128,7 @@ def generate_pdf_html(
     next_eng_proj        = report_data.get('next_engagement_proj', '+8.5% Projected')
     next_conv_proj       = report_data.get('next_conversion_proj', '+15.0% Projected')
 
-    # ── Logos ───────────────────────────────────────────────────────────────
+    # ΓöÇΓöÇ Logos ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     bg_hex      = brand_color.lstrip('#') if isinstance(brand_color, str) else 'c8922a'
     CANIT_LOGO  = _load_canit_logo()
     initials = ''.join(w[0].upper() for w in client_name.split() if w)[:2] or 'CL'
@@ -1137,10 +1137,10 @@ def generate_pdf_html(
     else:
         CLIENT_LOGO = _svg_logo_data_uri(initials, bg_hex)
 
-    # ── SVG assets ──────────────────────────────────────────────────────────
+    # ΓöÇΓöÇ SVG assets ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     weekly_svg      = svg_bar_chart(weekly_posts) if weekly_posts else None
     ai_cloud_svg    = svg_word_cloud(synopsis)
-    # SVG assets — create only when numeric values exist; otherwise use empty-state svgs
+    # SVG assets ΓÇö create only when numeric values exist; otherwise use empty-state svgs
     try:
         donut_svg = svg_donut_gauge(float(brand_health_index)) if (brand_health_index is not None and str(brand_health_index) != '') else None
     except Exception:
@@ -1158,7 +1158,7 @@ def generate_pdf_html(
     pb_re = svg_progress_bar(_safe_pct(reach_efficiency), color=BRAND_PRIMARY)
     pb_vf = svg_progress_bar(_safe_pct(virality_factor), color=BRAND_PRIMARY)
 
-    # ── Content format breakdown rows (Instagram) ────────────────────────────
+    # ΓöÇΓöÇ Content format breakdown rows (Instagram) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     type_label_map = {'IMAGE': 'Photos', 'VIDEO': 'Reels / Video', 'CAROUSEL_ALBUM': 'Carousels'}
     total_tc = sum(type_counts.values()) or 1
     format_rows_html = ''
@@ -1173,7 +1173,7 @@ def generate_pdf_html(
           <div class="fmt-pct">{cnt} posts ({pct:.0f}%)</div>
         </div>'''
 
-    # ── Facebook format breakdown rows ───────────────────────────────────────
+    # ΓöÇΓöÇ Facebook format breakdown rows ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     fb_total_tc = sum(fb_type_counts.values()) or 1
     fb_format_rows_html = ''
     for lbl, cnt in fb_type_counts.items():
@@ -1189,7 +1189,7 @@ def generate_pdf_html(
     import base64
     import requests
     
-    # ── Top performing post ──────────────────────────────────────────────────
+    # ΓöÇΓöÇ Top performing post ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     tp_img     = top_post.get('media_url', '')
     tp_media_type = top_post.get('media_type', 'IMAGE')
     tp_permalink = top_post.get('permalink', '#')
@@ -1211,33 +1211,33 @@ def generate_pdf_html(
     # No posts grid - only show top performing post
     posts_grid = ''
 
-    # ── Calendar cells ───────────────────────────────────────────────────────
+    # ΓöÇΓöÇ Calendar cells ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     cal_cells = ''.join(
         f'<div class="cal-day cal-{"active" if d in active_days else "inactive"}">{d}</div>'
         for d in range(1, 32)
     )
 
-    # ── Blog article rows ─────────────────────────────────────────────────────
+    # ΓöÇΓöÇ Blog article rows ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     blog_rows_html = ''
     for art in blog_posts_list[:5]:
         blog_rows_html += f'''
         <div class="blog-row">
           <div class="blog-left">
             <div class="blog-title">{art.get("title","")}</div>
-            <div class="blog-excerpt">{art.get("excerpt","")[:120]}…</div>
+            <div class="blog-excerpt">{art.get("excerpt","")[:120]}ΓÇª</div>
           </div>
           <div class="blog-date">{art.get("date","")}</div>
         </div>'''
 
-    # ── Recommendations ───────────────────────────────────────────────────────
+    # ΓöÇΓöÇ Recommendations ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     reco_items_html = ''.join(
         f'<div class="reco-item">{i+1}. {r}</div>' for i, r in enumerate(recommendations)
     )
     action_items_html = ''.join(
-        f'<div class="action-item"><span class="action-check">✓</span>{a}</div>' for a in action_steps
+        f'<div class="action-item"><span class="action-check">Γ£ô</span>{a}</div>' for a in action_steps
     )
 
-    # ── Try/log ──────────────────────────────────────────────────────────────
+    # ΓöÇΓöÇ Try/log ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     try:
         logger.info(
             'generate_pdf_html: client=%s month=%s year=%s total_posts=%s posts_len=%s followers=%s',
@@ -1246,9 +1246,9 @@ def generate_pdf_html(
     except Exception:
         logger.info('generate_pdf_html: called (failed to summarise data)')
 
-    # ════════════════════════════════════════════════════════════════════════
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
     # CSS
-    # ════════════════════════════════════════════════════════════════════════
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
     css = f"""
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
     @page {{ size: A4; margin: 0; }}
@@ -1281,7 +1281,7 @@ def generate_pdf_html(
       align-items: center;
     }}
 
-    /* ── Page wrapper ── */
+    /* ΓöÇΓöÇ Page wrapper ΓöÇΓöÇ */
     .pdf-page {{
       width: 210mm;
       min-height: 297mm;
@@ -1312,7 +1312,7 @@ def generate_pdf_html(
       margin-right: auto;
     }}
 
-    /* ── Top bar ── */
+    /* ΓöÇΓöÇ Top bar ΓöÇΓöÇ */
     .page-topbar {{
       display: flex;
       justify-content: space-between;
@@ -1347,7 +1347,7 @@ def generate_pdf_html(
       text-transform: uppercase;
     }}
 
-    /* ── Page footer ── */
+    /* ΓöÇΓöÇ Page footer ΓöÇΓöÇ */
     .page-footer {{
       display: flex;
       justify-content: space-between;
@@ -1360,7 +1360,7 @@ def generate_pdf_html(
       letter-spacing: 0.12em;
     }}
 
-    /* ── Section label ── */
+    /* ΓöÇΓöÇ Section label ΓöÇΓöÇ */
     .section-label {{
       display: flex;
       align-items: center;
@@ -1374,7 +1374,7 @@ def generate_pdf_html(
     }}
     .sl-icon {{ font-size: 12px; }}
 
-    /* ── Page title ── */
+    /* ΓöÇΓöÇ Page title ΓöÇΓöÇ */
     .page-title {{
       font-family: 'Poppins', sans-serif;
       font-weight: 900;
@@ -1391,7 +1391,7 @@ def generate_pdf_html(
       margin-bottom: 14px;
     }}
 
-    /* ── KPI card (Instagram / Facebook) ── */
+    /* ΓöÇΓöÇ KPI card (Instagram / Facebook) ΓöÇΓöÇ */
     .kpi-card {{
       background: var(--card);
       border: 1px solid var(--border);
@@ -1458,7 +1458,7 @@ def generate_pdf_html(
     .kc-footer-label {{ font-weight: 600; color: var(--text); }}
     .kc-footer-value {{ font-weight: 700; }}
 
-    /* ── Cross-channel benchmark table ── */
+    /* ΓöÇΓöÇ Cross-channel benchmark table ΓöÇΓöÇ */
     .bench-table {{
       width: 100%;
       border-collapse: collapse;
@@ -1482,7 +1482,7 @@ def generate_pdf_html(
     .bench-table td:first-child {{ font-weight: 600; color: var(--text); }}
     .bench-table td.primary-driver {{ color: var(--brand); font-weight: 700; }}
 
-    /* ── Stat banner (multi-column strip) ── */
+    /* ΓöÇΓöÇ Stat banner (multi-column strip) ΓöÇΓöÇ */
     .stat-banner {{
       display: flex;
       background: var(--card);
@@ -1511,7 +1511,7 @@ def generate_pdf_html(
       font-size: 18px;
     }}
 
-    /* ── Two-col layout ── */
+    /* ΓöÇΓöÇ Two-col layout ΓöÇΓöÇ */
     .two-col {{
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -1525,7 +1525,7 @@ def generate_pdf_html(
       margin-bottom: 14px;
     }}
 
-    /* ── Generic card ── */
+    /* ΓöÇΓöÇ Generic card ΓöÇΓöÇ */
     .card {{
       background: var(--card);
       border: 1px solid var(--border);
@@ -1541,7 +1541,7 @@ def generate_pdf_html(
       margin-bottom: 10px;
     }}
 
-    /* ── Format breakdown rows ── */
+    /* ΓöÇΓöÇ Format breakdown rows ΓöÇΓöÇ */
     .fmt-row {{
       display: flex;
       align-items: center;
@@ -1552,7 +1552,7 @@ def generate_pdf_html(
     .fmt-bar {{ flex: 1; height: 7px; display: block; }}
     .fmt-pct {{ font-size: 8px; color: var(--muted); width: 80px; text-align: right; flex-shrink: 0; }}
 
-    /* ── Interaction split ── */
+    /* ΓöÇΓöÇ Interaction split ΓöÇΓöÇ */
     .int-row {{
       display: flex;
       align-items: center;
@@ -1575,7 +1575,7 @@ def generate_pdf_html(
     }}
     .int-total-val {{ color: var(--navy); font-family:'Poppins',sans-serif; font-weight:800; }}
 
-    /* ── Top post card ── */
+    /* ΓöÇΓöÇ Top post card ΓöÇΓöÇ */
     .top-post-card {{
       background: var(--card);
       border: 1px solid var(--border);
@@ -1614,14 +1614,14 @@ def generate_pdf_html(
     .tp-stats {{ display: flex; gap: 14px; font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }}
     .tp-stat-icon {{ color: var(--brand); margin-right: 3px; }}
 
-    /* ── Brand health vectors ── */
+    /* ΓöÇΓöÇ Brand health vectors ΓöÇΓöÇ */
     .bv-row {{ margin-bottom: 10px; }}
     .bv-header {{ display: flex; justify-content: space-between; font-size: 9px; margin-bottom: 4px; }}
     .bv-name {{ font-weight: 600; color: var(--text); }}
     .bv-pct {{ font-weight: 700; color: var(--navy); }}
     .bv-bar {{ width: 100%; }}
 
-    /* ── AI diagnostic ── */
+    /* ΓöÇΓöÇ AI diagnostic ΓöÇΓöÇ */
     .diag-row {{ padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 9px; line-height: 1.5; }}
     .diag-row:last-child {{ border-bottom: none; }}
     .diag-tag {{
@@ -1630,7 +1630,7 @@ def generate_pdf_html(
       display: block; margin-bottom: 3px;
     }}
 
-    /* ── Forecast banner ── */
+    /* ΓöÇΓöÇ Forecast banner ΓöÇΓöÇ */
     .forecast-banner {{
       background: {FORECAST_BG};
       border: 1px solid {FORECAST_BORDER};
@@ -1642,7 +1642,7 @@ def generate_pdf_html(
     }}
     .forecast-label {{ font-weight: 700; color: var(--navy); margin-right: 4px; }}
 
-    /* ── Blog articles ── */
+    /* ΓöÇΓöÇ Blog articles ΓöÇΓöÇ */
     .blog-row {{
       display: flex;
       justify-content: space-between;
@@ -1661,7 +1661,7 @@ def generate_pdf_html(
       white-space: nowrap; flex-shrink: 0;
     }}
 
-    /* ── Recommendations ── */
+    /* ΓöÇΓöÇ Recommendations ΓöÇΓöÇ */
     .reco-item {{
       font-size: 9px; font-weight: 600; color: var(--text);
       font-style: italic; line-height: 1.6; margin-bottom: 4px;
@@ -1672,7 +1672,7 @@ def generate_pdf_html(
     }}
     .action-check {{ color: var(--navy); font-size: 11px; flex-shrink: 0; }}
 
-    /* ── Projected benchmarks ── */
+    /* ΓöÇΓöÇ Projected benchmarks ΓöÇΓöÇ */
     .proj-row {{
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
@@ -1689,7 +1689,7 @@ def generate_pdf_html(
       font-size: 14px; color: var(--brand);
     }}
 
-    /* ── Posts grid ── */
+    /* ΓöÇΓöÇ Posts grid ΓöÇΓöÇ */
     .posts-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; justify-content: center; }}
     .post-thumb-link {{
       display: block; text-decoration: none; color: inherit;
@@ -1709,7 +1709,7 @@ def generate_pdf_html(
     .pt-likes {{ font-size: 10px; color: #fff; font-weight: 700; }}
     .pt-badge {{ position: absolute; top: 8px; right: 8px; font-size: 12px; }}
 
-    /* ── Calendar ── */
+    /* ΓöÇΓöÇ Calendar ΓöÇΓöÇ */
     .cal-title {{
       font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 14px;
       color: var(--navy); margin-bottom: 2px;
@@ -1724,7 +1724,7 @@ def generate_pdf_html(
     .cal-inactive {{ background: transparent; color: var(--muted); border: 1px dashed rgba(0,0,0,0.07); }}
     .cal-active {{ background: var(--brand); color: #fff; border-color: transparent; }}
 
-    /* ── Signals grid ── */
+    /* ΓöÇΓöÇ Signals grid ΓöÇΓöÇ */
     .signals-grid {{
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -1734,7 +1734,7 @@ def generate_pdf_html(
     .signal-name {{ font-size: 8px; color: var(--muted); margin-bottom: 2px; }}
     .signal-value {{ font-size: 13px; font-weight: 800; color: var(--navy); }}
 
-    /* ── Cover specific ── */
+    /* ΓöÇΓöÇ Cover specific ΓöÇΓöÇ */
     .cover-badge {{
       display: inline-block;
       padding: 5px 12px;
@@ -1784,23 +1784,23 @@ def generate_pdf_html(
     .cover-date {{ font-size: 9px; color: var(--muted); }}
     """
 
-    # ════════════════════════════════════════════════════════════════════════
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
     # HTML head
-    # ════════════════════════════════════════════════════════════════════════
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
     head_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>{client_name} · {month} {year}</title>
+  <title>{client_name} ┬╖ {month} {year}</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>{css}</style>
 </head>
 <body>
 """
 
-    # ════════════════════════════════════════════════════════════════════════
-    # PAGE 1 — COVER
-    # ════════════════════════════════════════════════════════════════════════
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+    # PAGE 1 ΓÇö COVER
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
     cover_page = f'''
     <div class="pdf-page">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0;padding-bottom:8px;border-bottom:1px solid {BG_CARD_BORDER};">
@@ -1825,7 +1825,7 @@ def generate_pdf_html(
       <div class="cover-prepared-card">
         <div class="cover-prep-label">PREPARED FOR</div>
         <div class="cover-client">{client_name}</div>
-        <div class="cover-date">📅 {month} {year}</div>
+        <div class="cover-date">≡ƒôà {month} {year}</div>
       </div>
 
       <div style="margin-top:auto;display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid {BG_CARD_BORDER};">
@@ -1834,9 +1834,9 @@ def generate_pdf_html(
       </div>
     </div>'''
 
-    # ════════════════════════════════════════════════════════════════════════
-    # PAGE 2 — KPI SUMMARY OVERVIEW
-    # ════════════════════════════════════════════════════════════════════════
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+    # PAGE 2 ΓÇö KPI SUMMARY OVERVIEW
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
     ig_reach_str  = _fmt(total_reach)
     ig_imp_str    = _fmt(ig_impressions)
     ig_r_zero     = str(total_reach) in ('0', 'N/A', '0')
@@ -1847,13 +1847,13 @@ def generate_pdf_html(
     fb_p_zero     = str(fb_posts) == '0'
 
     ig_card_html  = _kpi_card_2x2(
-        'Instagram', '♡', True,
+        'Instagram', 'ΓÖí', True,
         ig_reach_str, ig_imp_str,
         str(eng_rate), str(_fmt(followers)),
         total_posts
     )
     fb_card_html  = _kpi_card_2x2(
-        'Facebook', '👥', True,
+        'Facebook', '≡ƒæÑ', True,
         str(fb_page_reach), str(fb_impressions),
         str(fb_engagement), str(fb_followers),
         fb_posts, followers_label='FOLLOWERS/FANS'
@@ -1893,7 +1893,7 @@ def generate_pdf_html(
     kpi_page = f'''
     <div class="pdf-page">
       {_page_header(CLIENT_LOGO, CANIT_LOGO, month, year)}
-      {_section_label('✦', 'HIGH-LEVEL METRICS')}
+      {_section_label('Γ£ª', 'HIGH-LEVEL METRICS')}
       {_page_title('KPI SUMMARY OVERVIEW',
                    'Comparative top-line channel analytics tracking audience reach, impressions, engagement, and follower accumulation.')}
 
@@ -1939,9 +1939,9 @@ def generate_pdf_html(
       {_page_footer(2)}
     </div>'''
 
-    # ════════════════════════════════════════════════════════════════════════
-    # PAGE 3 — AI BRAND INTELLIGENCE
-    # ════════════════════════════════════════════════════════════════════════
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+    # PAGE 3 ΓÇö AI BRAND INTELLIGENCE
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
     top_format = max(type_counts.items(), key=lambda x: x[1])[0] if type_counts else 'N/A'
     ai_perf_text    = ai_perf_obs or generate_ai_engagement_insight(eng_rate, ig_total_eng, followers)
     ai_format_text  = ai_format_obs or generate_ai_format_insight(type_counts, top_format)
@@ -1951,7 +1951,7 @@ def generate_pdf_html(
     ai_page = f'''
     <div class="pdf-page">
       {_page_header(CLIENT_LOGO, CANIT_LOGO, month, year)}
-      {_section_label('🖥', 'AI ENGINE ANALYSIS')}
+      {_section_label('≡ƒûÑ', 'AI ENGINE ANALYSIS')}
       {_page_title('AI BRAND INTELLIGENCE',
                    'Algorithmic evaluation of your digital footprint, industry competitiveness, sentiment signals, and projected growth trajectory.')}
 
@@ -1967,19 +1967,19 @@ def generate_pdf_html(
             <div style="font-size:7px;font-weight:600;color:{TEXT_LABEL};text-transform:uppercase;letter-spacing:0.10em;margin-bottom:10px;">ALGORITHMIC GROWTH SIGNALS</div>
             <div class="signals-grid">
               <div class="signal-item">
-                <div class="signal-name">↗ Audience Growth</div>
+                <div class="signal-name">Γåù Audience Growth</div>
                 <div class="signal-value">{audience_growth}</div>
               </div>
               <div class="signal-item">
-                <div class="signal-name">⊙ Reach Acceleration</div>
+                <div class="signal-name">ΓèÖ Reach Acceleration</div>
                 <div class="signal-value">{reach_acceleration}</div>
               </div>
               <div class="signal-item">
-                <div class="signal-name">⚡ Engagement Energy</div>
+                <div class="signal-name">ΓÜí Engagement Energy</div>
                 <div class="signal-value">{engagement_energy_lbl}</div>
               </div>
               <div class="signal-item">
-                <div class="signal-name">⊙ Market Percentile</div>
+                <div class="signal-name">ΓèÖ Market Percentile</div>
                 <div class="signal-value">{market_percentile}</div>
               </div>
             </div>
@@ -1991,7 +1991,7 @@ def generate_pdf_html(
         <!-- Brand Health Vectors -->
         <div class="card">
           <div class="card-title" style="display:flex;align-items:center;gap:5px;">
-            <span style="font-size:11px;">✦</span> BRAND HEALTH VECTORS
+            <span style="font-size:11px;">Γ£ª</span> BRAND HEALTH VECTORS
           </div>
           <div class="bv-row">
             <div class="bv-header"><span class="bv-name">Interaction Energy</span><span class="bv-pct">{interaction_energy}%</span></div>
@@ -2014,7 +2014,7 @@ def generate_pdf_html(
         <!-- AI Diagnostic Observations -->
         <div class="card">
           <div class="card-title" style="display:flex;align-items:center;gap:5px;">
-            <span style="font-size:11px;">⊙</span> AI DIAGNOSTIC OBSERVATIONS
+            <span style="font-size:11px;">ΓèÖ</span> AI DIAGNOSTIC OBSERVATIONS
           </div>
           <div class="diag-row">
             <span class="diag-tag">PERFORMANCE</span>
@@ -2032,16 +2032,16 @@ def generate_pdf_html(
       </div>
 
       <div class="forecast-banner">
-        <span class="forecast-label">✦ Strategic Forecast:</span>
+        <span class="forecast-label">Γ£ª Strategic Forecast:</span>
         {fc_text}
       </div>
 
       {_page_footer(3)}
     </div>'''
 
-    # ════════════════════════════════════════════════════════════════════════
-    # PAGE 4 — INSTAGRAM ANALYTICS
-    # ════════════════════════════════════════════════════════════════════════
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+    # PAGE 4 ΓÇö INSTAGRAM ANALYTICS
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
     ig_likes_fmt    = _fmt(ig_likes) if ig_likes else _fmt(top_post.get('likes', 0))
     # Reuse precomputed weekly_svg to avoid double work
     weekly_img_html = (
@@ -2056,7 +2056,7 @@ def generate_pdf_html(
     ig_page = f'''
     <div class="pdf-page">
       {_page_header(CLIENT_LOGO, CANIT_LOGO, month, year)}
-      {_section_label('♡', 'CHANNEL DEEP DIVE')}
+      {_section_label('ΓÖí', 'CHANNEL DEEP DIVE')}
       {_page_title('INSTAGRAM ANALYTICS',
                    'Platform-specific analysis tracking engagement mechanics, publication trends, content format distribution, and high-performance posts.')}
 
@@ -2073,17 +2073,17 @@ def generate_pdf_html(
         <div class="card">
           <div class="card-title">INTERACTION SPLIT</div>
           <div class="int-row">
-            <span class="int-icon" style="color:{BRAND_ACCENT};">♡</span>
+            <span class="int-icon" style="color:{BRAND_ACCENT};">ΓÖí</span>
             <span class="int-label">Likes</span>
             <span class="int-value" style="color:{BRAND_ACCENT};">{_fmt(ig_likes)}</span>
           </div>
           <div class="int-row">
-            <span class="int-icon" style="color:{BRAND_PRIMARY};">💬</span>
+            <span class="int-icon" style="color:{BRAND_PRIMARY};">≡ƒÆ¼</span>
             <span class="int-label">Comments</span>
             <span class="int-value" style="color:{TEXT_SECONDARY};">{ig_comments}</span>
           </div>
           <div class="int-row">
-            <span class="int-icon" style="color:{BRAND_PRIMARY};">□</span>
+            <span class="int-icon" style="color:{BRAND_PRIMARY};">Γûí</span>
             <span class="int-label">Saves</span>
             <span class="int-value" style="color:{TEXT_SECONDARY};">{ig_saves}</span>
           </div>
@@ -2102,20 +2102,20 @@ def generate_pdf_html(
 
       <!-- Top performing post -->
       <div class="top-post-card">
-        <div class="tp-label">★ TOP PERFORMING POST</div>
+        <div class="tp-label">Γÿà TOP PERFORMING POST</div>
         <div class="tp-inner">
           <a href="{tp_permalink}" target="_blank" class="post-thumb-link">
             <div class="tp-thumb">
-              {'<img src="{}" alt="Top post" onerror="this.style.background=\'#E2E5F0\'">'.format(tp_img_b64) if tp_img_b64 else '<div style="width:100%;height:100%;background:var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:24px;">▶</div>'}
+              {'<img src="{}" alt="Top post" onerror="this.style.background=\'#E2E5F0\'">'.format(tp_img_b64) if tp_img_b64 else '<div style="width:100%;height:100%;background:var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:24px;">Γû╢</div>'}
             </div>
             {f'<span class="tp-badge">{tp_media_type}</span>' if tp_media_type != 'IMAGE' else ''}
           </a>
           <div>
             <div class="tp-caption">"{tp_caption}"</div>
             <div class="tp-stats">
-              <span><span class="tp-stat-icon">♡</span>{tp_likes} LIKES</span>
-              <span><span class="tp-stat-icon">💬</span>{tp_comments} COMMENTS</span>
-              <span><span class="tp-stat-icon">□</span>{tp_saves} SAVES</span>
+              <span><span class="tp-stat-icon">ΓÖí</span>{tp_likes} LIKES</span>
+              <span><span class="tp-stat-icon">≡ƒÆ¼</span>{tp_comments} COMMENTS</span>
+              <span><span class="tp-stat-icon">Γûí</span>{tp_saves} SAVES</span>
             </div>
           </div>
         </div>
@@ -2130,9 +2130,9 @@ def generate_pdf_html(
       {_page_footer(4)}
     </div>'''
 
-    # ════════════════════════════════════════════════════════════════════════
-    # PAGE 5 — FACEBOOK ANALYTICS
-    # ════════════════════════════════════════════════════════════════════════
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+    # PAGE 5 ΓÇö FACEBOOK ANALYTICS
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
     fb_empty_state = '' if (fb_reactions or fb_comments or fb_shares) else '''
       <div class="card" style="text-align:center;padding:20px;">
         <span style="font-size:9px;color:var(--label);">No Facebook post metrics registered for this cycle.</span>
@@ -2141,7 +2141,7 @@ def generate_pdf_html(
     fb_page = f'''
     <div class="pdf-page">
       {_page_header(CLIENT_LOGO, CANIT_LOGO, month, year)}
-      {_section_label('👥', 'CHANNEL DEEP DIVE')}
+      {_section_label('≡ƒæÑ', 'CHANNEL DEEP DIVE')}
       {_page_title('FACEBOOK ANALYTICS',
                    'Platform-specific analysis tracking engagement mechanics, publication trends, content format distribution, and high-performance posts.')}
 
@@ -2158,17 +2158,17 @@ def generate_pdf_html(
         <div class="card">
           <div class="card-title">REACTION BREAKDOWN</div>
           <div class="int-row">
-            <span class="int-icon" style="color:{BRAND_ACCENT};">♡</span>
+            <span class="int-icon" style="color:{BRAND_ACCENT};">ΓÖí</span>
             <span class="int-label">Reactions</span>
             <span class="int-value" style="color:{'#E83E6C' if fb_reactions else '#1E2B8F'};">{fb_reactions}</span>
           </div>
           <div class="int-row">
-            <span class="int-icon" style="color:{BRAND_PRIMARY};">💬</span>
+            <span class="int-icon" style="color:{BRAND_PRIMARY};">≡ƒÆ¼</span>
             <span class="int-label">Comments</span>
             <span class="int-value" style="color:{'#E83E6C' if fb_comments else '#1E2B8F'};">{fb_comments}</span>
           </div>
           <div class="int-row">
-            <span class="int-icon" style="color:{BRAND_PRIMARY};">✦</span>
+            <span class="int-icon" style="color:{BRAND_PRIMARY};">Γ£ª</span>
             <span class="int-label">Shares</span>
             <span class="int-value" style="color:{'#E83E6C' if fb_shares else '#1E2B8F'};">{fb_shares}</span>
           </div>
@@ -2190,28 +2190,28 @@ def generate_pdf_html(
       {_page_footer(5)}
     </div>'''
 
-    # ════════════════════════════════════════════════════════════════════════
-    # PAGE 6 — BLOG ARTICLES
-    # ════════════════════════════════════════════════════════════════════════
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+    # PAGE 6 ΓÇö BLOG ARTICLES
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
     seo_page = f'''
     <div class="pdf-page">
       {_page_header(CLIENT_LOGO, CANIT_LOGO, month, year)}
-      {_section_label('📄', 'CONTENT')}
+      {_section_label('≡ƒôä', 'CONTENT')}
       {_page_title('BLOG ARTICLES',
                    'Published blog articles for the current cycle.')}
 
       <!-- Published blog articles -->
       <div class="card">
-        <div class="card-title">📅 PUBLISHED BLOG ARTICLES ({len(blog_posts_list)})</div>
+        <div class="card-title">≡ƒôà PUBLISHED BLOG ARTICLES ({len(blog_posts_list)})</div>
         {blog_rows_html if blog_rows_html else '<div style="color:var(--label);font-size:9px;padding:6px 0;">No blog articles published this cycle.</div>'}
       </div>
 
       {_page_footer(6)}
     </div>'''
 
-    # ════════════════════════════════════════════════════════════════════════
-    # PAGE 7 — STRATEGIC RECOMMENDATIONS
-    # ════════════════════════════════════════════════════════════════════════
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+    # PAGE 7 ΓÇö STRATEGIC RECOMMENDATIONS
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
     rec_items = recommendations or [
         f'Post frequency increase: +300% to reach 36 posts/month, boosting engagement by 5%.',
         f'Content diversification: 80% visual, 20% interactive to lift engagement rate by 8%.',
@@ -2225,34 +2225,34 @@ def generate_pdf_html(
         'Prioritize publishing detailed, high-authority blog articles focusing on standard search queries containing "omnevum products" to capture growing organic traffic.',
     ]
     action_html_final = ''.join(
-        f'<div class="action-item"><span class="action-check">✓</span>{a}</div>' for a in act_items
+        f'<div class="action-item"><span class="action-check">Γ£ô</span>{a}</div>' for a in act_items
     )
 
     rec_page = f'''
     <div class="pdf-page">
       {_page_header(CLIENT_LOGO, CANIT_LOGO, month, year)}
-      {_section_label('🖥', 'NEXT STEPS & ACTION PLAN')}
+      {_section_label('≡ƒûÑ', 'NEXT STEPS & ACTION PLAN')}
       {_page_title('STRATEGIC RECOMMENDATIONS',
                    'Data-driven marketing optimisations and actionable suggestions formulated by our analytics engine to maximise performance next cycle.')}
 
       <!-- Core performance insight -->
       <div class="card" style="margin-bottom:14px;">
-        <div class="card-title" style="display:flex;align-items:center;gap:5px;"><span style="color:{BRAND_ACCENT};">✦</span> CORE PERFORMANCE INSIGHT</div>
+        <div class="card-title" style="display:flex;align-items:center;gap:5px;"><span style="color:{BRAND_ACCENT};">Γ£ª</span> CORE PERFORMANCE INSIGHT</div>
         {reco_html_final}
       </div>
 
       <!-- Specific action steps -->
       <div class="card" style="margin-bottom:14px;">
-        <div class="card-title" style="display:flex;align-items:center;gap:5px;"><span style="color:{BRAND_PRIMARY};">☑</span> SPECIFIC ACTION STEPS</div>
+        <div class="card-title" style="display:flex;align-items:center;gap:5px;"><span style="color:{BRAND_PRIMARY};">Γÿæ</span> SPECIFIC ACTION STEPS</div>
         {action_html_final}
       </div>
 
       {_page_footer(7)}
     </div>'''
 
-    # ════════════════════════════════════════════════════════════════════════
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
     # Assemble
-    # ════════════════════════════════════════════════════════════════════════
+    # ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
     final_html = (
         head_html
         + cover_page

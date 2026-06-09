@@ -32,6 +32,10 @@ REDIRECT_URI = "http://localhost:8000/api/auth/instagram/callback"
 
 app = FastAPI(title="Canit Pulse v4")
 
+@app.get("/api/health")
+async def health_check():
+    return {"status": "healthy", "service": "canit-pulse-api"}
+
 # Explicitly open CORS to prevent frontend handshake blocks
 app.add_middleware(
     CORSMiddleware,
