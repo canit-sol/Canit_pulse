@@ -106,7 +106,7 @@ export default function ClientCard({
                 onClick={(e) => {
                   e.stopPropagation();
                   localStorage.setItem("linking_client_name", name);
-                  window.location.href = getApiUrl(`/api/auth/instagram/connect/${id}`);
+                  window.location.href = getApiUrl(`/auth/instagram/connect/${id}`);
                 }}
                 className={`w-[32px] h-[32px] rounded-xl flex items-center justify-center shadow-sm transition-all duration-300 ${
                   isInstagramConnected 
@@ -142,7 +142,7 @@ export default function ClientCard({
                 onClick={(e) => {
                   e.stopPropagation();
                   localStorage.setItem("linking_client_name", name);
-                  window.location.href = getApiUrl(`/api/auth/instagram/connect/${id}`);
+                  window.location.href = getApiUrl(`/auth/instagram/connect/${id}`);
                 }}
                 className={`w-[32px] h-[32px] rounded-xl flex items-center justify-center shadow-sm transition-all duration-300 ${
                   isFacebookConnected 
