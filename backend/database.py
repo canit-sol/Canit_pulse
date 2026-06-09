@@ -114,6 +114,19 @@ def _ensure_youtube_column():
                 conn.commit()
                 print("Added missing 'youtube_channel_id' column to clients table.")
 
+        # Migrate data from old yt_channel_id → youtube_channel_id, then drop the old column
+        cols = [c['name'] for c in insp.get_columns('clients')]
+        if 'yt_channel_id' in cols:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "UPDATE clients SET youtube_channel_id = yt_channel_id "
+                    "WHERE yt_channel_id IS NOT NULL AND yt_channel_id != '' "
+                    "AND (youtube_channel_id IS NULL OR youtube_channel_id = '')"
+                ))
+                conn.execute(text("ALTER TABLE clients DROP COLUMN yt_channel_id;"))
+                conn.commit()
+                print("Migrated data from 'yt_channel_id' → 'youtube_channel_id' and dropped old column.")
+
 _ensure_youtube_column()
 
 
@@ -367,9 +380,96 @@ def create_tables():
     try:
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE content_calendar ADD COLUMN IF NOT EXISTS post_type VARCHAR(20) DEFAULT 'post';"))
+            
+            # Initialize public SELECT/INSERT/UPDATE policies for storage buckets if they do not exist
+            policy_sql = """
+            DO $$
+            BEGIN
+              -- post-thumbnails
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_policies 
+                WHERE schemaname = 'storage' 
+                  AND tablename = 'objects' 
+                  AND policyname = 'Public Access for post-thumbnails'
+              ) THEN
+                CREATE POLICY "Public Access for post-thumbnails" ON storage.objects FOR SELECT USING (bucket_id = 'post-thumbnails');
+              END IF;
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_policies 
+                WHERE schemaname = 'storage' 
+                  AND tablename = 'objects' 
+                  AND policyname = 'Public Insert for post-thumbnails'
+              ) THEN
+                CREATE POLICY "Public Insert for post-thumbnails" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'post-thumbnails');
+              END IF;
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_policies 
+                WHERE schemaname = 'storage' 
+                  AND tablename = 'objects' 
+                  AND policyname = 'Public Update for post-thumbnails'
+              ) THEN
+                CREATE POLICY "Public Update for post-thumbnails" ON storage.objects FOR UPDATE USING (bucket_id = 'post-thumbnails');
+              END IF;
+              
+              -- client-logos
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_policies 
+                WHERE schemaname = 'storage' 
+                  AND tablename = 'objects' 
+                  AND policyname = 'Public Access for client-logos'
+              ) THEN
+                CREATE POLICY "Public Access for client-logos" ON storage.objects FOR SELECT USING (bucket_id = 'client-logos');
+              END IF;
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_policies 
+                WHERE schemaname = 'storage' 
+                  AND tablename = 'objects' 
+                  AND policyname = 'Public Insert for client-logos'
+              ) THEN
+                CREATE POLICY "Public Insert for client-logos" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'client-logos');
+              END IF;
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_policies 
+                WHERE schemaname = 'storage' 
+                  AND tablename = 'objects' 
+                  AND policyname = 'Public Update for client-logos'
+              ) THEN
+                CREATE POLICY "Public Update for client-logos" ON storage.objects FOR UPDATE USING (bucket_id = 'client-logos');
+              END IF;
+              
+              -- seo-reports
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_policies 
+                WHERE schemaname = 'storage' 
+                  AND tablename = 'objects' 
+                  AND policyname = 'Public Access for seo-reports'
+              ) THEN
+                CREATE POLICY "Public Access for seo-reports" ON storage.objects FOR SELECT USING (bucket_id = 'seo-reports');
+              END IF;
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_policies 
+                WHERE schemaname = 'storage' 
+                  AND tablename = 'objects' 
+                  AND policyname = 'Public Insert for seo-reports'
+              ) THEN
+                CREATE POLICY "Public Insert for seo-reports" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'seo-reports');
+              END IF;
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_policies 
+                WHERE schemaname = 'storage' 
+                  AND tablename = 'objects' 
+                  AND policyname = 'Public Update for seo-reports'
+              ) THEN
+                CREATE POLICY "Public Update for seo-reports" ON storage.objects FOR UPDATE USING (bucket_id = 'seo-reports');
+              END IF;
+            END
+            $$;
+            """
+            conn.execute(text(policy_sql))
             conn.commit()
+            print("Supabase Storage Policies initialized.")
     except Exception as e:
-        print("Schema update notice:", e)
+        print("Schema / Storage Policy update notice (non-fatal):", e)
     print("Database tables initialized in Supabase.")
 
 def seed_admin(email, password, name="Admin"):

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import {
   Sparkles, LogOut, Bot, X, Send, Loader2,
   TrendingUp, BarChart3, DollarSign,
@@ -11,6 +11,8 @@ import {
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, AreaChart, Area } from "recharts";
 import BrandIntelligence from "@/components/BrandIntelligence";
 import PrintReportView from "../components/PrintReportView";
+// @ts-ignore
+import html2pdf from "html2pdf.js";
 import DeliverablesPanel from "@/components/DeliverablesPanel";
 import { Download, AlertCircle, Play } from "lucide-react";
 import { usePermissions } from "../hooks/usePermissions";
@@ -521,6 +523,8 @@ export default function ClientPortal() {
   const permissions = usePermissions();
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const reportIdParam = searchParams.get("report_id");
   const token = localStorage.getItem("bento_token");
   const currentUser = JSON.parse(localStorage.getItem("bento_user") || "{}");
   const isInternalStaff = ["super_admin", "csm", "hr", "employee", "admin"].includes(currentUser.role);
@@ -597,23 +601,47 @@ export default function ClientPortal() {
     if (!active) return;
     setDownloadingPdf(true);
     try {
-      const response = await fetch(`/api/reports/${active.id}/download-pdf`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to generate PDF. Server returned status ${response.status}`);
+      const wrapper = document.getElementById("pdf-wrapper-container");
+      const element = document.getElementById("pdf-export-container");
+      
+      if (!wrapper || !element) {
+        console.error("PDF wrapper found:", !!wrapper, "PDF element found:", !!element);
+        throw new Error("PDF container not found in DOM");
       }
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${brandName}_Report_${active.month}_${active.year}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(link);
+      
+      // Temporarily reveal the wrapper with full dimensions so html2canvas can capture it.
+      // The wrapper normally uses w-0/h-0/overflow-hidden to stay invisible.
+      // We move it far off-screen but give it real width so the content renders at full size.
+      const origStyle = wrapper.getAttribute("style") || "";
+      const origClass = wrapper.className;
+      wrapper.className = "";
+      wrapper.style.cssText = "position:fixed; top:0; left:-10000px; width:794px; z-index:-9999; pointer-events:none;";
+
+      // Small delay to let the browser layout the newly-visible content
+      await new Promise(r => setTimeout(r, 300));
+
+      const opt = {
+        margin:       0,
+        filename:     `${brandName.replace(/\s+/g, '_')}_Report_${active.month}_${active.year}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, width: 794, windowWidth: 794 },
+        jsPDF:        { unit: 'px', format: [794, 1123], orientation: 'portrait' as const }
+      };
+
+      // @ts-ignore
+      await html2pdf().set(opt).from(element).save();
+
+      // Restore wrapper to hidden state
+      wrapper.className = origClass;
+      wrapper.style.cssText = origStyle;
     } catch (error) {
-      console.error("PDF generation failed", error);
+      console.error("PDF generation failed:", error);
+      // Restore wrapper if it exists
+      const wrapper = document.getElementById("pdf-wrapper-container");
+      if (wrapper) {
+        wrapper.className = "absolute top-0 left-0 w-0 h-0 overflow-hidden -z-50";
+        wrapper.style.cssText = "";
+      }
       alert("Could not generate report PDF. Please try again later.");
     } finally {
       setDownloadingPdf(false);
@@ -736,7 +764,15 @@ export default function ClientPortal() {
         }
 
         setReports(finalReports);
-        setActive(defaultActive);
+        
+        let activeReport = defaultActive;
+        if (reportIdParam) {
+          const matchedReport = finalReports.find(r => r.id === reportIdParam);
+          if (matchedReport) {
+            activeReport = matchedReport;
+          }
+        }
+        setActive(activeReport);
         setCompetitors(data.competitors || []);
         setIndustry(data.industry || "Wellness");
         setInstagramHandle(data.instagram_handle || "");
@@ -1418,6 +1454,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
           </div>
         </div>
         <div className="flex items-center gap-4">
+
           {reports.length > 0 && (
             <div className="relative flex items-center bg-slate-50 border border-[#E7EDF5] rounded-xl p-0.5 shadow-sm select-none">
               <button 
@@ -2999,7 +3036,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
       )}
 
       {/* Hidden PDF Container */}
-      <div className="absolute top-0 left-0 w-0 h-0 overflow-hidden -z-50">
+      <div id="pdf-wrapper-container" className="absolute top-0 left-0 w-0 h-0 overflow-hidden -z-50">
         <PrintReportView 
           brandName={brandName}
           clientLogoUrl={clientLogoUrl}

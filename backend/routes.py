@@ -1089,14 +1089,13 @@ async def upload_seo_pdf(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not read uploaded file: {str(e)}")
         
-    # Save the file to Supabase Storage with local fallback
+    # Save the file strictly to Supabase Storage
     supabase_url_path = None
     bucket_name = "seo-reports"
+    file_path = f"{client_id}/{file.filename}"
     
     try:
         # Attempt to upload to Supabase Storage
-        file_path = f"{client_id}/{file.filename}"
-        # Ensure bucket exists
         try:
             supabase.storage.create_bucket(bucket_name, options={"public": True})
         except Exception:
@@ -1110,18 +1109,8 @@ async def upload_seo_pdf(
         supabase_url_path = supabase.storage.from_(bucket_name).get_public_url(file_path)
         print(f"Successfully uploaded {file.filename} to Supabase storage.")
     except Exception as storage_err:
-        print(f"Supabase Storage failed, writing to local fallback: {storage_err}")
-        # Local fallback uploader
-        try:
-            upload_dir = Path("uploads/seo")
-            upload_dir.mkdir(parents=True, exist_ok=True)
-            local_file_path = upload_dir / f"{client_id}_{file.filename}"
-            with open(local_file_path, "wb") as f:
-                f.write(contents)
-            supabase_url_path = f"/api/clients/{client_id}/seo-pdf/{file.filename}"
-            print(f"Successfully stored {file.filename} locally at {local_file_path}. URL: {supabase_url_path}")
-        except Exception as local_err:
-            print(f"Both storage mechanisms failed: {local_err}")
+        print(f"Supabase Storage failed for SEO PDF: {storage_err}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload SEO PDF to Supabase Storage: {str(storage_err)}")
             
     # Automated Parser Integration
     try:
@@ -1180,11 +1169,28 @@ async def upload_seo_pdf(
 
 
 @router.get("/clients/{client_id}/seo-pdf/{filename}")
-def serve_local_seo_pdf(client_id: str, filename: str):
+def serve_local_seo_pdf(client_id: str, filename: str, db: Session = Depends(get_db)):
+    # 1. Check MonthlySEOReport table first
+    from database import MonthlySEOReport
+    report = db.query(MonthlySEOReport).filter(
+        MonthlySEOReport.client_id == client_id,
+        MonthlySEOReport.filename == filename
+    ).first()
+    if report and report.url:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=report.url)
+        
+    # 2. Check Client table for seo_pdf_url
+    client_rec = db.query(Client).filter(Client.id == client_id).first()
+    if client_rec and client_rec.seo_pdf_filename == filename and client_rec.seo_pdf_url:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=client_rec.seo_pdf_url)
+        
+    # Local fallback
     file_path = Path("uploads/seo") / f"{client_id}_{filename}"
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="PDF not found locally.")
-    return FileResponse(file_path, media_type="application/pdf")
+    if file_path.exists():
+        return FileResponse(file_path, media_type="application/pdf")
+    raise HTTPException(status_code=404, detail="PDF not found.")
 
 
 @router.post("/clients/{client_id}/upload-monthly-seo")
@@ -1219,9 +1225,9 @@ async def upload_monthly_seo_pdf(
     supabase_url_path = None
     bucket_name = "seo-reports"
     filename = f"{year}-{month}.pdf"
+    file_path = f"{client_id}/{filename}"
 
     try:
-        file_path = f"{client_id}/{filename}"
         try:
             supabase.storage.create_bucket(bucket_name, options={"public": True})
         except Exception:
@@ -1235,18 +1241,8 @@ async def upload_monthly_seo_pdf(
         supabase_url_path = supabase.storage.from_(bucket_name).get_public_url(file_path)
         print(f"Successfully uploaded monthly SEO report {filename} to Supabase storage.")
     except Exception as storage_err:
-        print(f"Supabase Storage failed for monthly report, writing to local fallback: {storage_err}")
-        try:
-            upload_dir = Path("uploads/seo")
-            upload_dir.mkdir(parents=True, exist_ok=True)
-            local_file_path = upload_dir / f"{client_id}_{filename}"
-            with open(local_file_path, "wb") as f:
-                f.write(contents)
-            supabase_url_path = f"/api/clients/{client_id}/seo-pdf/{filename}"
-            print(f"Successfully stored monthly SEO report {filename} locally at {local_file_path}. URL: {supabase_url_path}")
-        except Exception as local_err:
-            print(f"Both storage mechanisms failed: {local_err}")
-            raise HTTPException(status_code=500, detail="Failed to store file on storage and local fallback.")
+        print(f"Supabase Storage failed for monthly report: {storage_err}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload monthly SEO report to Supabase Storage: {str(storage_err)}")
 
     # Automated Parser Integration
     from parser import extract_text_from_file
@@ -1337,14 +1333,13 @@ async def upload_client_logo(client_id: str, file: UploadFile = File(...), curre
     }
     content_type = content_types.get(ext, "image/png")
     
-    # Save the file to Supabase Storage with local fallback
+    # Save the file strictly to Supabase Storage
     supabase_url_path = None
     bucket_name = "client-logos"
+    file_path = f"{client_id}/{file.filename}"
     
     try:
         # Attempt to upload to Supabase Storage
-        file_path = f"{client_id}/{file.filename}"
-        # Ensure bucket exists
         try:
             supabase.storage.create_bucket(bucket_name, options={"public": True})
         except Exception:
@@ -1356,21 +1351,10 @@ async def upload_client_logo(client_id: str, file: UploadFile = File(...), curre
             file_options={"content-type": content_type, "x-upsert": "true"}
         )
         supabase_url_path = supabase.storage.from_(bucket_name).get_public_url(file_path)
-        print(f"Successfully uploaded logo {file.filename} to Supabase storage.")
+        print(f"Successfully uploaded logo {file_path} to Supabase storage.")
     except Exception as storage_err:
-        print(f"Supabase Storage failed for logo, writing to local fallback: {storage_err}")
-        # Local fallback uploader
-        try:
-            upload_dir = Path("uploads/logos")
-            upload_dir.mkdir(parents=True, exist_ok=True)
-            local_file_path = upload_dir / f"{client_id}_{file.filename}"
-            with open(local_file_path, "wb") as f:
-                f.write(contents)
-            supabase_url_path = f"/api/clients/{client_id}/logo/{file.filename}"
-            print(f"Successfully stored logo {file.filename} locally at {local_file_path}. URL: {supabase_url_path}")
-        except Exception as local_err:
-            print(f"Both logo storage mechanisms failed: {local_err}")
-            raise HTTPException(status_code=500, detail=f"Failed to save logo file: {str(local_err)}")
+        print(f"Supabase Storage failed for logo: {storage_err}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload logo to Supabase Storage: {str(storage_err)}")
             
     # Store logo URL client-wise
     try:
@@ -1389,22 +1373,29 @@ async def upload_client_logo(client_id: str, file: UploadFile = File(...), curre
 
 
 @router.get("/clients/{client_id}/logo/{filename}")
-def serve_local_client_logo(client_id: str, filename: str):
+def serve_local_client_logo(client_id: str, filename: str, db: Session = Depends(get_db)):
+    # 1. Check Client table for client_logo_url
+    client_rec = db.query(Client).filter(Client.id == client_id).first()
+    if client_rec and client_rec.client_logo_url:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=client_rec.client_logo_url)
+        
+    # Local fallback
     from pathlib import Path
-    ext = Path(filename).suffix.lower()
-    content_types = {
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".svg": "image/svg+xml",
-        ".webp": "image/webp",
-        ".gif": "image/gif"
-    }
-    content_type = content_types.get(ext, "image/png")
     file_path = Path("uploads/logos") / f"{client_id}_{filename}"
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Logo not found locally.")
-    return FileResponse(file_path, media_type=content_type)
+    if file_path.exists():
+        ext = Path(filename).suffix.lower()
+        content_types = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".svg": "image/svg+xml",
+            ".webp": "image/webp",
+            ".gif": "image/gif"
+        }
+        content_type = content_types.get(ext, "image/png")
+        return FileResponse(file_path, media_type=content_type)
+    raise HTTPException(status_code=404, detail="Logo not found.")
 
 
 # ── COMPETITOR MANAGEMENT ──────────────────────────────
@@ -1693,7 +1684,13 @@ def get_brand_intelligence(
 
     # ── 2. GROWTH MOMENTUM ──
     growth = {"reach": 0, "followers": 0, "engagement": 0, "has_previous": False}
-    if prev_report:
+
+    # Only compute MoM growth if CURRENT month has real data.
+    # When current month is empty (no reach, no posts, 0/1 followers), comparing
+    # against previous month would produce misleading -100% drops.
+    current_has_data = (total_reach > 0 or post_count > 0 or followers > 1 or engagement_rate > 0)
+
+    if prev_report and current_has_data:
         prev_raw = prev_report.ig_data
         if isinstance(prev_raw, str):
             prev_raw = json_mod.loads(prev_raw)

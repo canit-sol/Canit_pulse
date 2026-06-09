@@ -137,6 +137,15 @@ def generate_report(
                 )
             except Exception as e:
                 print("Failed to fetch combined metrics during report generation:", e)
+        # Cache post thumbnails to avoid CORS/expiration issues
+        try:
+            from services.thumbnail_cache import cache_platform_thumbnails
+            if instagram_data:
+                cache_platform_thumbnails(client.id, instagram_data)
+            if facebook_data:
+                cache_platform_thumbnails(client.id, facebook_data)
+        except Exception as cache_err:
+            print("Failed to cache post thumbnails:", cache_err)
 
         # Build report_data dict for synopsis + storage
         report_data = {
@@ -392,22 +401,7 @@ def get_all_reports(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch archive: {str(e)}")
     
-# ── GET SINGLE REPORT (VIEWER) ──────────────────────────
-
-@router_v3.get("/reports/{report_id}")
-def get_single_report(report_id: str, db: Session = Depends(get_db)):
-    """Fetches the exact HTML of a specific report."""
-    report = db.query(Report).filter(Report.id == report_id).first()
-    
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found in vault")
-        
-    return {
-        "success": True,
-        "html_content": report.html_content,
-        "month": report.month,
-        "year": report.year
-    }
+# Deprecated duplicate get_single_report endpoint removed. Handled by backend/main.py.
 
 @router_v3.get("/clients/{client_id}/analytics")
 def get_client_analytics(client_id: str, month: str = None, year: str = None, db: Session = Depends(get_db)):
