@@ -101,7 +101,8 @@ function ProtectedRoute({ children, role, requirePermission }: { children: React
   }
   
   // Enforce zero-trust client boundary isolation at the routing layer
-  if (user.role === "client" && params.id && params.id !== user.client_id) {
+  const isReportPath = window.location.pathname.startsWith("/report/");
+  if (user.role === "client" && params.id && params.id !== user.client_id && !isReportPath) {
     console.error(`🚨 Tenant breach attempt blocked: Client user tried accessing tenant portal ${params.id}`);
     return <Navigate to="/login" replace />;
   }

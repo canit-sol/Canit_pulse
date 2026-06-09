@@ -28,13 +28,9 @@ load_dotenv(find_dotenv(), override=True)
 # Moved these to the top so Python knows about them before the routes run!
 INSTAGRAM_APP_ID = os.getenv("INSTAGRAM_APP_ID")
 INSTAGRAM_APP_SECRET = os.getenv("INSTAGRAM_APP_SECRET")
-REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/api/auth/instagram/callback")
+REDIRECT_URI = "http://localhost:8000/api/auth/instagram/callback"
 
 app = FastAPI(title="Canit Pulse v4")
-
-@app.get("/api/health")
-async def health_check():
-    return {"status": "healthy", "service": "canit-pulse-api"}
 
 # Explicitly open CORS to prevent frontend handshake blocks
 app.add_middleware(
@@ -43,8 +39,7 @@ app.add_middleware(
         "http://localhost:8081", 
         "http://localhost:5173",
         "http://127.0.0.1:8081",
-        "http://127.0.0.1:5173",
-        os.getenv("FRONTEND_URL", "http://localhost:8081"),
+        "http://127.0.0.1:5173"
     ], 
     allow_credentials=True,
     allow_methods=["*"],
@@ -172,19 +167,6 @@ def generate_full_report(client_id: str, current_user: AuthIdentity = Depends(re
     if not client_rec:
         raise HTTPException(status_code=404, detail="Client not found")
 
-    # Print the raw YouTube API response for all three channels to the terminal
-    try:
-        import requests
-        debug_key = get_config("youtube_api_key", "")
-        if not debug_key:
-            debug_key = os.getenv("YOUTUBE_API_KEY", "")
-        if debug_key:
-            debug_key = debug_key.strip()
-        print("--- DEBUG YOUTUBE API RESPONSES START ---")
-        debug_ids = {}
-        print("--- DEBUG YOUTUBE API RESPONSES END ---")
-    except Exception as debug_err:
-        print("Failed to print debug YouTube API responses:", debug_err)
 
     client_keys = {
         "ig_access_token": client_rec.ig_access_token,
@@ -224,6 +206,16 @@ def generate_full_report(client_id: str, current_user: AuthIdentity = Depends(re
     elif client_rec.ig_user_id:
         from instagram import get_client_instagram_stats
         instagram_data = get_client_instagram_stats(client_keys)
+
+    # Cache post thumbnails to avoid CORS/expiration issues
+    try:
+        from services.thumbnail_cache import cache_platform_thumbnails
+        if instagram_data:
+            cache_platform_thumbnails(client_id, instagram_data)
+        if facebook_data:
+            cache_platform_thumbnails(client_id, facebook_data)
+    except Exception as cache_err:
+        print("Failed to cache post thumbnails:", cache_err)
 
     full_stats = {
         "platforms": {
@@ -312,19 +304,6 @@ def refresh_report_for_month(client_id: str, current_user: AuthIdentity = Depend
     if not client_rec:
         raise HTTPException(status_code=404, detail="Client not found")
 
-    # Print the raw YouTube API response for all three channels to the terminal
-    try:
-        import requests
-        debug_key = get_config("youtube_api_key", "")
-        if not debug_key:
-            debug_key = os.getenv("YOUTUBE_API_KEY", "")
-        if debug_key:
-            debug_key = debug_key.strip()
-        print("--- DEBUG YOUTUBE API RESPONSES START ---")
-        debug_ids = {}
-        print("--- DEBUG YOUTUBE API RESPONSES END ---")
-    except Exception as debug_err:
-        print("Failed to print debug YouTube API responses:", debug_err)
 
     if not month or not year:
         raise HTTPException(status_code=400, detail="month and year query parameters are required (e.g. ?month=May&year=2026)")
@@ -379,6 +358,16 @@ def refresh_report_for_month(client_id: str, current_user: AuthIdentity = Depend
     elif client_rec.ig_user_id:
         from instagram import get_client_instagram_stats
         instagram_data = get_client_instagram_stats(client_keys, month=month_num, year=int(year))
+
+    # Cache post thumbnails to avoid CORS/expiration issues
+    try:
+        from services.thumbnail_cache import cache_platform_thumbnails
+        if instagram_data:
+            cache_platform_thumbnails(client_id, instagram_data)
+        if facebook_data:
+            cache_platform_thumbnails(client_id, facebook_data)
+    except Exception as cache_err:
+        print("Failed to cache post thumbnails:", cache_err)
 
     full_stats = {
         "platforms": {
@@ -549,6 +538,7 @@ def get_single_report(report_id: str, current_user: AuthIdentity = Depends(get_c
     client_rec = db.query(Client).filter(Client.id == report.client_id).first()
     return {
         "id": report.id,
+        "client_id": report.client_id,
         "brand_name": client_rec.name if client_rec else "Unknown",
         "month": report.month,
         "year": report.year,
@@ -698,7 +688,12 @@ def update_youtube_api_key(req: YoutubeApiKeyRequest, current_user: AuthIdentity
     from services.permissions import can_access_settings
     if not can_access_settings(current_user.role):
         raise HTTPException(status_code=403, detail="Not authorized to access settings.")
-    set_config("youtube_api_key", req.youtube_api_key.strip())
+    
+    new_key = req.youtube_api_key.strip()
+    if new_key == "********":
+        return {"success": True, "message": "YouTube API Key unchanged."}
+        
+    set_config("youtube_api_key", new_key)
     return {"success": True, "message": "YouTube API Key updated."}
 
 @app.get("/api/settings/youtube-api-key")
@@ -707,7 +702,9 @@ def get_youtube_api_key(current_user: AuthIdentity = Depends(require_admin)):
     if not can_access_settings(current_user.role):
         raise HTTPException(status_code=403, detail="Not authorized to access settings.")
     key = get_config("youtube_api_key", "")
-    return {"youtube_api_key": key}
+    # Mask the key for frontend security
+    masked_key = "********" if key else ""
+    return {"youtube_api_key": masked_key}
 
 
 @app.post("/api/settings/change-password")
@@ -741,7 +738,7 @@ def get_industry_news_direct(industry: str, client_id: Optional[str] = None, db:
 @app.on_event("startup")
 def startup_event():
     create_tables()
-    seed_admin(os.getenv("ADMIN_EMAIL", "admin@canit.in"), os.getenv("ADMIN_PASSWORD", "changeme123"), "Admin")
+    seed_admin("report@canit.in", "canit#123", "Canit Team")
     
     # Auto-seed Client Access credentials for the 'canit' brand portal
     db = models.SessionLocal()
@@ -764,8 +761,25 @@ def startup_event():
                 db.refresh(canit_client)
                 print("Created default Canit Sol client record during startup.")
             
-            # Seed admin login skipped - create credentials manually
-            print("Skipping auto-seed of 'canit' admin credentials - create manually if needed")
+            # Verify/create the ClientAccess login record for 'canit' username
+            existing_access = db.query(models.ClientAccess).filter(models.ClientAccess.username == "canit").first()
+            if not existing_access:
+                new_access = models.ClientAccess(
+                    id=str(uuid.uuid4()),
+                    client_id=canit_client.id,
+                    username="canit",
+                    password_hash=hash_password("canit#123"),
+                    is_active=True,
+                    report_access_scope="client"
+                )
+                db.add(new_access)
+                print(f"Seeded client access credentials: username 'canit', password 'canit#123'")
+            else:
+                # Sync the hashed password to match 'canit#123'
+                existing_access.password_hash = hash_password("canit#123")
+                existing_access.client_id = canit_client.id
+                print(f"Synchronized client access credentials for 'canit'")
+            db.commit()
             set_config("canit_sol_seeded", "true")
             print("Successfully recorded 'canit_sol_seeded' as true.")
         else:
