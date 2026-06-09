@@ -5,7 +5,6 @@ import {
   Users, ShieldCheck, Briefcase, HeartHandshake, AlertCircle
 } from "lucide-react";
 
-const API = "http://localhost:8000/api";
 
 interface TeamUser {
   id: string;
