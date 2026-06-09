@@ -5,6 +5,10 @@
       "destination": "https://canit-pulse.onrender.com/api/:path*"
     },
     {
+      "source": "/:file((?:.*\\.(?:png|ico|svg|jpg|jpeg|gif|webp|css|js|woff|woff2)))$",
+      "destination": "/:file"
+    },
+    {
       "source": "/(.*)",
       "destination": "/"
     }
