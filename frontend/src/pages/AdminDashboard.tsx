@@ -869,6 +869,8 @@ export default function AdminDashboard() {
                   seoPdfUploadedAt={client.seo_pdf_uploaded_at}
                   onUploadSeoPdf={() => openMonthlySeoUploadModal(client.id, client.name)}
                   onConnectYoutube={() => openConnectYoutubeModal(client.id, client.name)}
+                  onConnectInstagram={() => openPagePicker(client.id, client.name)}
+                  onConnectFacebook={() => openPagePicker(client.id, client.name)}
                   isUploadingSeo={uploadingClientId === client.id}
                   isHr={currentUser.role === 'hr'}
                   seoReports={(client as any).seo_reports || []}

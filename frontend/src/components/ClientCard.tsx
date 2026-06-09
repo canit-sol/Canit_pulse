@@ -18,6 +18,8 @@ interface ClientCardProps {
   seoPdfUploadedAt?: string;
   onUploadSeoPdf?: (clientId: string) => void;
   onConnectYoutube?: (clientId: string) => void;
+  onConnectInstagram?: (clientId: string) => void;
+  onConnectFacebook?: (clientId: string) => void;
   isUploadingSeo?: boolean;
   isHr?: boolean;
   seoReports?: any[];
@@ -58,6 +60,8 @@ export default function ClientCard({
   seoPdfUploadedAt,
   onUploadSeoPdf,
   onConnectYoutube,
+  onConnectInstagram,
+  onConnectFacebook,
   isUploadingSeo,
   isHr = false,
   seoReports,
@@ -105,8 +109,12 @@ export default function ClientCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  localStorage.setItem("linking_client_name", name);
-                  window.location.href = getApiUrl(`/auth/instagram/connect/${id}`);
+                  if (onConnectInstagram) {
+                    onConnectInstagram(id);
+                  } else {
+                    localStorage.setItem("linking_client_name", name);
+                    window.location.href = getApiUrl(`/auth/instagram/connect/${id}`);
+                  }
                 }}
                 className={`w-[32px] h-[32px] rounded-xl flex items-center justify-center shadow-sm transition-all duration-300 ${
                   isInstagramConnected 
@@ -141,8 +149,12 @@ export default function ClientCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  localStorage.setItem("linking_client_name", name);
-                  window.location.href = getApiUrl(`/auth/instagram/connect/${id}`);
+                  if (onConnectFacebook) {
+                    onConnectFacebook(id);
+                  } else {
+                    localStorage.setItem("linking_client_name", name);
+                    window.location.href = getApiUrl(`/auth/instagram/connect/${id}`);
+                  }
                 }}
                 className={`w-[32px] h-[32px] rounded-xl flex items-center justify-center shadow-sm transition-all duration-300 ${
                   isFacebookConnected 
