@@ -4,8 +4,7 @@ import { useSidebar } from "../context/SidebarContext";
 import {
   UsersRound, Plus, Trash2, Edit, Loader2
 } from "lucide-react";
-
-const API = "http://localhost:8000/api";
+import { getApiUrl } from "@/config/api";
 
 function authHeaders() {
   const token = localStorage.getItem("bento_token");
@@ -43,7 +42,7 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     setUsersLoading(true);
     try {
-      const res = await fetch(`${API}/users`, { headers: authHeaders() });
+      const res = await fetch(getApiUrl(`/users`), { headers: authHeaders() });
       if (res.ok) {
         setUsers(await res.json());
       }
@@ -92,7 +91,7 @@ export default function UsersPage() {
     setUserSuccess("");
     if (!selectedUser) return;
     try {
-      const res = await fetch(`${API}/users/${selectedUser.id}`, {
+      const res = await fetch(getApiUrl(`/users/${selectedUser.id}`), {
         method: "PUT",
         headers: authHeaders(),
         body: JSON.stringify({
@@ -123,7 +122,7 @@ export default function UsersPage() {
     setUserSuccess("");
     if (!selectedUser) return;
     try {
-      const res = await fetch(`${API}/users/${selectedUser.id}/password`, {
+      const res = await fetch(getApiUrl(`/users/${selectedUser.id}/password`), {
         method: "PUT",
         headers: authHeaders(),
         body: JSON.stringify({
@@ -149,7 +148,7 @@ export default function UsersPage() {
     setUserSuccess("");
     if (!selectedUser) return;
     try {
-      const res = await fetch(`${API}/users/${selectedUser.id}`, {
+      const res = await fetch(getApiUrl(`/users/${selectedUser.id}`), {
         method: "DELETE",
         headers: authHeaders(),
       });

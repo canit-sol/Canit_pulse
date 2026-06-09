@@ -84,13 +84,13 @@ router = APIRouter()
 # ── OAUTH SECRETS (.env) ───────────────────────────────
 META_APP_ID = os.getenv("META_APP_ID")
 META_APP_SECRET = os.getenv("META_APP_SECRET")
-REDIRECT_URI = "http://localhost:8000/api/auth/instagram/callback"
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/api/auth/instagram/callback")
 
 LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID")
 LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET")
-LINKEDIN_REDIRECT_URI = "http://localhost:8000/api/auth/linkedin/callback"
+LINKEDIN_REDIRECT_URI = os.getenv("LINKEDIN_REDIRECT_URI", "http://localhost:8000/api/auth/linkedin/callback")
 
-FRONTEND_URL = "http://localhost:8081"
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:8081")
 
 
 

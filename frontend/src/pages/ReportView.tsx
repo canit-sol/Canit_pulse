@@ -246,8 +246,8 @@ export default function ReportView() {
               </div>
             </div>
             <div className="flex flex-col md:flex-row gap-6">
-              {ig.top_post.media_url && (
-                <img src={ig.top_post.media_url} alt="Top post" className="w-32 h-32 rounded-xl object-cover shrink-0 shadow-soft border border-white/50" />
+              {(ig.top_post.media_base64 || ig.top_post.media_url) && (
+                <img src={ig.top_post.media_base64 || ig.top_post.media_url} alt="Top post" className="w-32 h-32 rounded-xl object-cover shrink-0 shadow-soft border border-white/50" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
               )}
               <div className="flex-1">
                 <p className="text-sm text-gray-600 leading-relaxed mb-4 font-medium">{ig.top_post.caption}</p>

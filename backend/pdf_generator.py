@@ -5,7 +5,7 @@ import json
 from uuid import uuid4
 import math
 import base64
-from playwright.sync_api import sync_playwright
+import pdfkit
 import re
 from typing import Optional, Tuple
 import os
@@ -41,6 +41,16 @@ def _parse_engagement_rate(eng_rate_str):
         return float(str(eng_rate_str).replace('%', '').strip())
     except Exception:
         return None
+
+
+def _load_canit_logo() -> str:
+    logo_path = os.path.join(os.path.dirname(__file__), 'cai.png')
+    try:
+        with open(logo_path, 'rb') as f:
+            b64 = base64.b64encode(f.read()).decode('ascii')
+        return f'data:image/png;base64,{b64}'
+    except Exception:
+        return 'data:image/svg+xml;base64,' + base64.b64encode(b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#1E2B8F"/><text x="20" y="26" text-anchor="middle" fill="white" font-size="18" font-weight="bold" font-family="sans-serif">CP</text></svg>').decode('ascii')
 
 
 def _safe_val(val, default='N/A'):
@@ -722,16 +732,16 @@ def svg_word_cloud(text, width=520, height=140, max_words=12):
 # Reusable HTML snippet builders
 # ---------------------------------------------------------------------------
 
-def _page_header(canit_logo: str, client_logo: str, month: str, year: str) -> str:
+def _page_header(client_logo: str, canit_logo: str, month: str, year: str) -> str:
     """Top bar shared by all content pages."""
     return f'''
     <div class="page-topbar">
       <div class="topbar-left">
-        <img src="{canit_logo}" class="topbar-logo" alt="Canit Pulse">
+        <img src="{client_logo}" class="topbar-logo" alt="Client">
         <span class="topbar-report-label">{month.upper()} {year} REPORT</span>
       </div>
       <div class="topbar-right">
-        <img src="{client_logo}" class="topbar-logo" alt="Client">
+        <img src="{canit_logo}" class="topbar-logo" alt="Canit Pulse">
         <span class="topbar-brand">CANIT PULSE</span>
       </div>
     </div>'''
@@ -817,13 +827,29 @@ def _fmt(n):
 # Main generator
 # ---------------------------------------------------------------------------
 
+def _svg_logo_data_uri(initials: str, bg_hex: str, size: int = 32) -> str:
+    r = int(bg_hex[:2], 16)
+    g = int(bg_hex[2:4], 16)
+    b = int(bg_hex[4:6], 16)
+    font_size = size * 0.44
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}">'
+        f'<rect width="{size}" height="{size}" rx="{size*0.19}" fill="rgb({r},{g},{b})"/>'
+        f'<text x="{size/2}" y="{size*0.68}" text-anchor="middle" fill="white" '
+        f'font-size="{font_size}" font-weight="700" font-family="Arial,sans-serif">{initials}</text>'
+        f'</svg>'
+    )
+    import urllib.parse
+    return 'data:image/svg+xml,' + urllib.parse.quote(svg)
+
 def generate_pdf_html(
     report_data:    dict,
     instagram_data: dict,
     synopsis:       str,
     seo_data:       dict = {},
     facebook_data:  dict = {},
-    brand_color:    str  = '#c8922a'
+    brand_color:    str  = '#c8922a',
+    client_logo_url: str = ''
 ) -> str:
 
     # Normalize instagram blobs: archived snapshots may store totals under
@@ -1059,18 +1085,7 @@ def generate_pdf_html(
         ig_comments = 'N/A'
         ig_saves = 'N/A'
 
-    total_website_visits = seo_data.get('website_visits', 'N/A')
-    seo_score            = seo_data.get('seo_score', 'N/A')
     blog_posts_list      = seo_data.get('blog_posts_list', [])  # list of {title, excerpt, date}
-    blog_posts           = seo_data.get('blog_posts', 'N/A')
-    seo_impressions      = seo_data.get('impressions', 'N/A')
-    seo_clicks           = seo_data.get('clicks', 'N/A')
-    seo_avg_position     = seo_data.get('avg_position', 'N/A')
-    seo_bounce_rate      = seo_data.get('bounce_rate', 'N/A')
-    target_keywords      = seo_data.get('target_keywords', [])  # list of {keyword, rank, trend}
-    unique_users         = seo_data.get('unique_users', 0)
-    key_conversions      = seo_data.get('key_conversions', 0)
-    visits_trend         = seo_data.get('visits_trend', [])
 
     fb_page_likes  = facebook_data.get('page_likes', 'N/A')
     fb_page_reach  = facebook_data.get('page_reach', 0)
@@ -1080,6 +1095,7 @@ def generate_pdf_html(
     fb_reactions   = facebook_data.get('reactions', 0)
     fb_comments    = facebook_data.get('comments', 0)
     fb_shares      = facebook_data.get('shares', 0)
+    fb_total_interactions = (fb_reactions or 0) + (fb_comments or 0) + (fb_shares or 0)
     fb_followers   = facebook_data.get('followers', 0)
     fb_type_counts = facebook_data.get('type_counts', {'Photos': 0, 'Video / Reels': 0, 'Link Shares': 0})
 
@@ -1097,20 +1113,32 @@ def generate_pdf_html(
     ai_format_obs        = report_data.get('ai_format_observation', '')
     ai_cadence_obs       = report_data.get('ai_cadence_observation', '')
     strategic_forecast   = report_data.get('strategic_forecast', '')
-    recommendations      = report_data.get('recommendations', [])  # list of strings
-    action_steps         = report_data.get('action_steps', [])     # list of strings
+    # Extract text from recommendations/action_steps (handle dict format)
+    raw_recommendations = report_data.get('recommendations', [])
+    raw_action_steps = report_data.get('action_steps', [])
+    
+    def _extract_text(item):
+        if isinstance(item, dict):
+            return item.get('text', '')
+        return str(item)
+    
+    recommendations = [_extract_text(r) for r in raw_recommendations if _extract_text(r)]
+    action_steps = [_extract_text(a) for a in raw_action_steps if _extract_text(a)]
     next_reach_proj      = report_data.get('next_reach_proj', '+12.4% Projected')
     next_eng_proj        = report_data.get('next_engagement_proj', '+8.5% Projected')
     next_conv_proj       = report_data.get('next_conversion_proj', '+15.0% Projected')
 
     # ── Logos ───────────────────────────────────────────────────────────────
     bg_hex      = brand_color.lstrip('#') if isinstance(brand_color, str) else 'c8922a'
-    CANIT_LOGO  = 'https://ui-avatars.com/api/?name=CP&background=1E2B8F&color=fff&size=128'
-    CLIENT_LOGO = f'https://ui-avatars.com/api/?name={client_name.replace(" ", "+")}&background={bg_hex}&color=fff&size=128'
+    CANIT_LOGO  = _load_canit_logo()
+    initials = ''.join(w[0].upper() for w in client_name.split() if w)[:2] or 'CL'
+    if client_logo_url:
+        CLIENT_LOGO = client_logo_url
+    else:
+        CLIENT_LOGO = _svg_logo_data_uri(initials, bg_hex)
 
     # ── SVG assets ──────────────────────────────────────────────────────────
     weekly_svg      = svg_bar_chart(weekly_posts) if weekly_posts else None
-    seo_trend_svg   = svg_line_trend(visits_trend)
     ai_cloud_svg    = svg_word_cloud(synopsis)
     # SVG assets — create only when numeric values exist; otherwise use empty-state svgs
     try:
@@ -1158,54 +1186,36 @@ def generate_pdf_html(
           <div class="fmt-pct">{cnt} posts ({pct:.0f}%)</div>
         </div>'''
 
+    import base64
+    import requests
+    
     # ── Top performing post ──────────────────────────────────────────────────
     tp_img     = top_post.get('media_url', '')
+    tp_media_type = top_post.get('media_type', 'IMAGE')
+    tp_permalink = top_post.get('permalink', '#')
     tp_caption = top_post.get('caption', 'Best performing post this month')[:120]
     tp_likes   = top_post.get('likes', 0)
     tp_comments= top_post.get('comments', 0)
     tp_saves   = top_post.get('saves', 0)
-
-    # ── Posts grid (Instagram page) ─────────────────────────────────────────
+    
+    # Use pre-stored base64 from generation time; fall back to live fetch for legacy reports
+    tp_img_b64 = top_post.get('media_base64', '') or ''
+    if not tp_img_b64 and tp_img and tp_media_type == 'IMAGE':
+        try:
+            resp = requests.get(tp_img, timeout=10)
+            if resp.ok:
+                tp_img_b64 = f"data:image/jpeg;base64,{base64.b64encode(resp.content).decode()}"
+        except Exception:
+            pass
+    
+    # No posts grid - only show top performing post
     posts_grid = ''
-    for p in posts[:9]:
-        img     = p.get('media_url', '')
-        day     = p.get('day', '')
-        likes   = p.get('likes', 0)
-        mt      = p.get('media_type', 'IMAGE')
-        badge   = '▶' if mt == 'VIDEO' else ('⧉' if mt == 'CAROUSEL_ALBUM' else '')
-        caption = p.get('caption', '')[:60].replace('"', '&quot;')
-        posts_grid += f'''
-        <div class="post-thumb" title="{caption}">
-          <img src="{img}" alt="Post day {day}" onerror="this.parentElement.classList.add('img-error')"/>
-          <div class="pt-overlay">
-            <div class="pt-day">Day {day}</div>
-            <div class="pt-likes">♥ {likes}</div>
-            {f'<div class="pt-badge">{badge}</div>' if badge else ''}
-          </div>
-        </div>'''
 
     # ── Calendar cells ───────────────────────────────────────────────────────
     cal_cells = ''.join(
         f'<div class="cal-day cal-{"active" if d in active_days else "inactive"}">{d}</div>'
         for d in range(1, 32)
     )
-
-    # ── SEO keyword rows ─────────────────────────────────────────────────────
-    kw_rows_html = ''
-    for kw in target_keywords:
-        trend_val = kw.get('trend', '')
-        if isinstance(trend_val, (int, float)) and trend_val > 0:
-            trend_html = f'<span style="color:{GREEN_POS};font-weight:700;">↑{trend_val}</span>'
-        elif isinstance(trend_val, (int, float)) and trend_val < 0:
-            trend_html = f'<span style="color:{BRAND_ACCENT};font-weight:700;">↓{abs(trend_val)}</span>'
-        else:
-            trend_html = f'<span style="color:{TEXT_LABEL};">→0</span>'
-        kw_rows_html += f'''
-        <div class="kw-row">
-          <div class="kw-keyword">{kw.get("keyword","")}</div>
-          <div class="kw-rank" style="color:{BRAND_PRIMARY};font-weight:700;">{kw.get("rank","")}</div>
-          <div class="kw-trend">{trend_html}</div>
-        </div>'''
 
     # ── Blog article rows ─────────────────────────────────────────────────────
     blog_rows_html = ''
@@ -1266,6 +1276,9 @@ def generate_pdf_html(
       font-size: 10px;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }}
 
     /* ── Page wrapper ── */
@@ -1278,6 +1291,25 @@ def generate_pdf_html(
       break-after: page;
       display: flex;
       flex-direction: column;
+    }}
+    .pdf-page > .card,
+    .pdf-page > .kpi-card,
+    .pdf-page > .two-col,
+    .pdf-page > .two-col-40-60,
+    .pdf-page > .stat-banner,
+    .pdf-page > .bench-table,
+    .pdf-page > .cover-page,
+    .pdf-page > .forecast-banner,
+    .pdf-page > .posts-grid,
+    .pdf-page > .page-topbar,
+    .pdf-page > .page-footer,
+    .pdf-page > .section-label,
+    .pdf-page > .page-title,
+    .pdf-page > .page-subtitle {{
+      max-width: 180mm;
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
     }}
 
     /* ── Top bar ── */
@@ -1565,12 +1597,18 @@ def generate_pdf_html(
       align-items: flex-start;
     }}
     .tp-thumb {{
-      width: 56px;
-      height: 56px;
+      width: 96px;
+      aspect-ratio: 3 / 4;
       border-radius: 6px;
-      object-fit: cover;
       flex-shrink: 0;
       background: var(--border);
+      overflow: hidden;
+    }}
+    .tp-thumb img {{
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }}
     .tp-caption {{ font-size: 9px; color: var(--muted); font-style: italic; line-height: 1.5; margin-bottom: 6px; }}
     .tp-stats {{ display: flex; gap: 14px; font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }}
@@ -1604,19 +1642,6 @@ def generate_pdf_html(
     }}
     .forecast-label {{ font-weight: 700; color: var(--navy); margin-right: 4px; }}
 
-    /* ── SEO keyword table ── */
-    .kw-header, .kw-row {{
-      display: grid;
-      grid-template-columns: 3fr 1fr 1fr;
-      gap: 6px;
-      padding: 6px 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 9px;
-    }}
-    .kw-header {{ font-size: 7px; color: var(--label); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }}
-    .kw-keyword {{ color: var(--muted); font-style: italic; }}
-    .kw-rank {{ color: var(--navy); font-weight: 700; }}
-
     /* ── Blog articles ── */
     .blog-row {{
       display: flex;
@@ -1635,18 +1660,6 @@ def generate_pdf_html(
       background: var(--brand); padding: 3px 7px; border-radius: 4px;
       white-space: nowrap; flex-shrink: 0;
     }}
-
-    /* ── SEO session metrics ── */
-    .session-row {{
-      display: flex;
-      justify-content: space-between;
-      padding: 6px 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 9px;
-    }}
-    .session-row:last-child {{ border-bottom: none; }}
-    .session-label {{ color: var(--muted); }}
-    .session-value {{ font-weight: 700; color: var(--navy); }}
 
     /* ── Recommendations ── */
     .reco-item {{
@@ -1677,7 +1690,11 @@ def generate_pdf_html(
     }}
 
     /* ── Posts grid ── */
-    .posts-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }}
+    .posts-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; justify-content: center; }}
+    .post-thumb-link {{
+      display: block; text-decoration: none; color: inherit;
+    }}
+    .post-thumb-link:hover .post-thumb {{ opacity: 0.9; }}
     .post-thumb {{
       position: relative; border-radius: 8px; overflow: hidden;
       aspect-ratio: 1; background: var(--border);
@@ -1788,10 +1805,13 @@ def generate_pdf_html(
     <div class="pdf-page">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0;padding-bottom:8px;border-bottom:1px solid {BG_CARD_BORDER};">
         <div style="display:flex;align-items:center;gap:8px;">
+          <img src="{CLIENT_LOGO}" style="height:22px;width:22px;border-radius:5px;" alt="Client">
+          <span style="font-size:9px;font-weight:600;color:{TEXT_PRIMARY};">{month.upper()} {year}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
           <img src="{CANIT_LOGO}" style="height:22px;width:22px;border-radius:5px;" alt="CP">
           <span style="font-size:10px;font-weight:700;color:{BRAND_PRIMARY};letter-spacing:0.12em;">CANIT PULSE</span>
         </div>
-        <div style="font-size:9px;font-weight:600;color:{TEXT_PRIMARY};">{month.upper()} {year}</div>
       </div>
 
       <div style="height:120px;"></div>
@@ -1849,7 +1869,12 @@ def generate_pdf_html(
 
     def _parse_num_raw(v):
         try:
-            return float(str(v).replace(',', '').strip())
+            s = str(v).replace(',', '').strip().upper()
+            if s.endswith('K'):
+                return float(s[:-1]) * 1_000
+            if s.endswith('M'):
+                return float(s[:-1]) * 1_000_000
+            return float(s)
         except Exception:
             return 0.0
 
@@ -1862,12 +1887,12 @@ def generate_pdf_html(
     primary_engagement = 'Instagram' if ig_eng_val >= fb_eng_val else 'Facebook'
 
     ig_interactions_val = _parse_num_raw(ig_total_eng_fmt)
-    fb_interactions_val = _parse_num_raw(fb_reactions)
+    fb_interactions_val = _parse_num_raw(fb_total_interactions)
     primary_interactions = 'Instagram' if ig_interactions_val >= fb_interactions_val else 'Facebook'
 
     kpi_page = f'''
     <div class="pdf-page">
-      {_page_header(CANIT_LOGO, CLIENT_LOGO, month, year)}
+      {_page_header(CLIENT_LOGO, CANIT_LOGO, month, year)}
       {_section_label('✦', 'HIGH-LEVEL METRICS')}
       {_page_title('KPI SUMMARY OVERVIEW',
                    'Comparative top-line channel analytics tracking audience reach, impressions, engagement, and follower accumulation.')}
@@ -1925,7 +1950,7 @@ def generate_pdf_html(
 
     ai_page = f'''
     <div class="pdf-page">
-      {_page_header(CANIT_LOGO, CLIENT_LOGO, month, year)}
+      {_page_header(CLIENT_LOGO, CANIT_LOGO, month, year)}
       {_section_label('🖥', 'AI ENGINE ANALYSIS')}
       {_page_title('AI BRAND INTELLIGENCE',
                    'Algorithmic evaluation of your digital footprint, industry competitiveness, sentiment signals, and projected growth trajectory.')}
@@ -2030,7 +2055,7 @@ def generate_pdf_html(
 
     ig_page = f'''
     <div class="pdf-page">
-      {_page_header(CANIT_LOGO, CLIENT_LOGO, month, year)}
+      {_page_header(CLIENT_LOGO, CANIT_LOGO, month, year)}
       {_section_label('♡', 'CHANNEL DEEP DIVE')}
       {_page_title('INSTAGRAM ANALYTICS',
                    'Platform-specific analysis tracking engagement mechanics, publication trends, content format distribution, and high-performance posts.')}
@@ -2079,7 +2104,12 @@ def generate_pdf_html(
       <div class="top-post-card">
         <div class="tp-label">★ TOP PERFORMING POST</div>
         <div class="tp-inner">
-          <img src="{tp_img}" class="tp-thumb" alt="Top post" onerror="this.style.background='#E2E5F0'">
+          <a href="{tp_permalink}" target="_blank" class="post-thumb-link">
+            <div class="tp-thumb">
+              {'<img src="{}" alt="Top post" onerror="this.style.background=\'#E2E5F0\'">'.format(tp_img_b64) if tp_img_b64 else '<div style="width:100%;height:100%;background:var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:24px;">▶</div>'}
+            </div>
+            {f'<span class="tp-badge">{tp_media_type}</span>' if tp_media_type != 'IMAGE' else ''}
+          </a>
           <div>
             <div class="tp-caption">"{tp_caption}"</div>
             <div class="tp-stats">
@@ -2091,16 +2121,10 @@ def generate_pdf_html(
         </div>
       </div>
 
-      <!-- Weekly chart + Posts grid -->
-      <div class="two-col">
-        <div class="card">
-          <div class="card-title">WEEKLY BREAKDOWN</div>
-          {weekly_img_html}
-        </div>
-        <div class="card">
-          <div class="card-title">TOP POSTS</div>
-          <div class="posts-grid">{posts_grid if posts_grid else '<div style="color:var(--label);font-size:9px;">No posts</div>'}</div>
-        </div>
+      <!-- Weekly chart -->
+      <div class="card">
+        <div class="card-title">WEEKLY BREAKDOWN</div>
+        {weekly_img_html}
       </div>
 
       {_page_footer(4)}
@@ -2116,7 +2140,7 @@ def generate_pdf_html(
 
     fb_page = f'''
     <div class="pdf-page">
-      {_page_header(CANIT_LOGO, CLIENT_LOGO, month, year)}
+      {_page_header(CLIENT_LOGO, CANIT_LOGO, month, year)}
       {_section_label('👥', 'CHANNEL DEEP DIVE')}
       {_page_title('FACEBOOK ANALYTICS',
                    'Platform-specific analysis tracking engagement mechanics, publication trends, content format distribution, and high-performance posts.')}
@@ -2167,61 +2191,14 @@ def generate_pdf_html(
     </div>'''
 
     # ════════════════════════════════════════════════════════════════════════
-    # PAGE 6 — SEO & BLOG ANALYTICS
+    # PAGE 6 — BLOG ARTICLES
     # ════════════════════════════════════════════════════════════════════════
-    seo_trend_img = f'<img src="{seo_trend_svg}" style="width:100%;height:auto;border-radius:6px;" alt="SEO trend">'
-
-    kw_header_html = '''
-    <div class="kw-header">
-      <div>SEARCH KEYWORD</div>
-      <div>RANK</div>
-      <div>TREND</div>
-    </div>''' if kw_rows_html else ''
-
-    sessions_zero = str(total_website_visits) in ('0', 'N/A')
-
     seo_page = f'''
     <div class="pdf-page">
-      {_page_header(CANIT_LOGO, CLIENT_LOGO, month, year)}
-      {_section_label('⊕', 'SEARCH ENGINE & CONTENT ANALYTICS')}
-      {_page_title('SEO & BLOG ANALYTICS',
-                   'Google Analytics sessions and engagement tracking, indexing metrics, target search keyword rankings, and current cycle blogs publication catalog.')}
-
-      <!-- 5-stat banner -->
-      <div class="stat-banner">
-        {_stat_pill('SEO SCORE', str(seo_score), zero=False)}
-        {_stat_pill('IMPRESSIONS', str(seo_impressions), zero=(str(seo_impressions) == '0'))}
-        {_stat_pill('CLICKS', str(seo_clicks), zero=(str(seo_clicks) == '0'))}
-        {_stat_pill('AVG POSITION', str(seo_avg_position), zero=False)}
-        {_stat_pill('BOUNCE RATE', str(seo_bounce_rate), zero=False)}
-      </div>
-
-      <div class="two-col" style="margin-bottom:14px;">
-        <!-- Target search terms -->
-        <div class="card">
-          <div class="card-title" style="display:flex;align-items:center;gap:5px;"><span style="color:{BRAND_ACCENT};">⊙</span> TARGET SEARCH TERMS</div>
-          {kw_header_html}
-          {kw_rows_html if kw_rows_html else '<div style="color:var(--label);font-size:9px;padding:6px 0;">No keyword data</div>'}
-        </div>
-
-        <!-- Website sessions (GA4) -->
-        <div class="card">
-          <div class="card-title" style="display:flex;align-items:center;gap:5px;"><span style="color:{BRAND_ACCENT};">✦</span> WEBSITE SESSIONS (GA4)</div>
-          <div class="session-row">
-            <span class="session-label">Total Traffic Sessions:</span>
-            <span class="session-value" style="color:{'#1E2B8F' if sessions_zero else '#E83E6C'};">{total_website_visits}</span>
-          </div>
-          <div class="session-row">
-            <span class="session-label">Unique Website Users:</span>
-            <span class="session-value" style="color:{'#1E2B8F' if str(unique_users) == '0' else '#E83E6C'};">{unique_users}</span>
-          </div>
-          <div class="session-row">
-            <span class="session-label">Key Conversions:</span>
-            <span class="session-value" style="color:{'#1E2B8F' if str(key_conversions) == '0' else '#E83E6C'};">{key_conversions}</span>
-          </div>
-          <div style="margin-top:10px;">{seo_trend_img}</div>
-        </div>
-      </div>
+      {_page_header(CLIENT_LOGO, CANIT_LOGO, month, year)}
+      {_section_label('📄', 'CONTENT')}
+      {_page_title('BLOG ARTICLES',
+                   'Published blog articles for the current cycle.')}
 
       <!-- Published blog articles -->
       <div class="card">
@@ -2253,7 +2230,7 @@ def generate_pdf_html(
 
     rec_page = f'''
     <div class="pdf-page">
-      {_page_header(CANIT_LOGO, CLIENT_LOGO, month, year)}
+      {_page_header(CLIENT_LOGO, CANIT_LOGO, month, year)}
       {_section_label('🖥', 'NEXT STEPS & ACTION PLAN')}
       {_page_title('STRATEGIC RECOMMENDATIONS',
                    'Data-driven marketing optimisations and actionable suggestions formulated by our analytics engine to maximise performance next cycle.')}
@@ -2268,32 +2245,6 @@ def generate_pdf_html(
       <div class="card" style="margin-bottom:14px;">
         <div class="card-title" style="display:flex;align-items:center;gap:5px;"><span style="color:{BRAND_PRIMARY};">☑</span> SPECIFIC ACTION STEPS</div>
         {action_html_final}
-      </div>
-
-      <!-- AI Synopsis (from synopsis param) -->
-      <div class="card" style="margin-bottom:14px;">
-        <div class="card-title" style="display:flex;align-items:center;gap:5px;"><span style="color:{BRAND_ACCENT_SEC};">⊙</span> AI STRATEGIC SYNOPSIS</div>
-        <p style="font-size:9px;color:var(--muted);line-height:1.6;font-style:italic;">{synopsis}</p>
-        <div style="margin-top:10px;"><img src="{ai_cloud_svg}" style="width:100%;height:auto;border-radius:6px;" alt="AI insights"></div>
-      </div>
-
-      <!-- Next cycle projections -->
-      <div class="card">
-        <div class="card-title">NEXT CYCLE PROJECTED BENCHMARKS</div>
-        <div class="proj-row">
-          <div class="proj-cell">
-            <div class="proj-col-label">REACH TARGET</div>
-            <div class="proj-value">↑ {next_reach_proj}</div>
-          </div>
-          <div class="proj-cell">
-            <div class="proj-col-label">ENGAGEMENT TARGET</div>
-            <div class="proj-value">↑ {next_eng_proj}</div>
-          </div>
-          <div class="proj-cell">
-            <div class="proj-col-label">CONVERSION TARGET</div>
-            <div class="proj-value">↑ {next_conv_proj}</div>
-          </div>
-        </div>
       </div>
 
       {_page_footer(7)}
@@ -2321,17 +2272,17 @@ def generate_pdf_html(
 # ---------------------------------------------------------------------------
 
 def generate_pdf_from_html(html_content: str, output_path: str) -> None:
-    """Render the provided HTML content to a PDF file using Playwright."""
+    """Render the provided HTML content to a PDF file using pdfkit (wkhtmltopdf)."""
     logger.info('Rendering HTML to PDF: %s', output_path)
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page    = browser.new_page()
-        page.set_content(html_content, wait_until='networkidle')
-        page.wait_for_timeout(1000)
-        page.pdf(
-            path=output_path,
-            format='A4',
-            print_background=True,
-            margin={'top': '0mm', 'bottom': '0mm', 'left': '0mm', 'right': '0mm'},
-        )
-        browser.close()
+    options = {
+        'page-size': 'A4',
+        'margin-top': '0mm',
+        'margin-right': '0mm',
+        'margin-bottom': '0mm',
+        'margin-left': '0mm',
+        'encoding': 'UTF-8',
+        'no-outline': None,
+        'enable-local-file-access': None,
+        'print-media-type': None,
+    }
+    pdfkit.from_string(html_content, output_path, options=options)

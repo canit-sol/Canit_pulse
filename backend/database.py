@@ -366,8 +366,13 @@ def create_tables():
     Base.metadata.create_all(bind=engine)
     try:
         with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE content_calendar ADD COLUMN IF NOT EXISTS post_type VARCHAR(20) DEFAULT 'post';"))
-            conn.commit()
+            result = conn.execute(text("""
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'content_calendar' AND column_name = 'post_type'
+            """))
+            if not result.fetchone():
+                conn.execute(text("ALTER TABLE content_calendar ADD COLUMN post_type VARCHAR(20) DEFAULT 'post';"))
+                conn.commit()
     except Exception as e:
         print("Schema update notice:", e)
     print("Database tables initialized in Supabase.")

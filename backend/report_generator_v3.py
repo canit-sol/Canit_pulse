@@ -67,7 +67,7 @@ def generate_report_html(report_data: dict, instagram_data: dict, synopsis: str,
     # Posts grid (first 9 posts as thumbnails)
     posts_grid = ""
     for p in posts[:9]:
-        img = p.get("media_url", "")
+        img = p.get("media_base64") or p.get("media_url", "")
         day = p.get("day", "")
         likes = p.get("likes", 0)
         mt = p.get("media_type", "IMAGE")
@@ -76,7 +76,7 @@ def generate_report_html(report_data: dict, instagram_data: dict, synopsis: str,
         link = p.get("permalink", "#")
         posts_grid += f"""
         <a class="post-thumb" href="{link}" target="_blank" title="{caption}">
-          <img src="{img}" alt="Post day {day}" loading="lazy" onerror="this.parentElement.classList.add('img-error')" />
+          <img src="{img}" alt="Post day {day}" loading="lazy" onerror="this.parentElement.classList.add('img-error'); this.src=''" />
           <div class="pt-overlay">
             <div class="pt-day">Day {day}</div>
             <div class="pt-likes">♥ {likes}</div>
@@ -85,7 +85,7 @@ def generate_report_html(report_data: dict, instagram_data: dict, synopsis: str,
         </a>"""
 
     # Top post image
-    tp_img = top_post.get("media_url", "")
+    tp_img = top_post.get("media_base64") or top_post.get("media_url", "")
     tp_caption = top_post.get("caption", "Best performing post this month")[:100]
     tp_link = top_post.get("permalink", "#")
 

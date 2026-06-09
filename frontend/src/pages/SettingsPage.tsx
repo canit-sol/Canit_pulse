@@ -8,6 +8,7 @@ import {
   Loader2, Save, Zap, TrendingUp, Sparkles, UsersRound,
   Plus, Trash2, Edit
 } from "lucide-react";
+import { getApiUrl } from "@/config/api";
 
 const YoutubeIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -15,7 +16,7 @@ const YoutubeIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   </svg>
 );
 
-const API = "http://localhost:8000/api";
+// Base API URL handled via getApiUrl
 
 function authHeaders() {
   const token = localStorage.getItem("bento_token");
@@ -103,7 +104,7 @@ export default function SettingsPage() {
   const fetchHealth = async () => {
     setHealthLoading(true);
     try {
-      const res = await fetch(`${API}/settings/health`, { headers: authHeaders() });
+      const res = await fetch(getApiUrl(`/settings/health`), { headers: authHeaders() });
       setHealth(await res.json());
     } catch { setHealth(null); }
     finally { setHealthLoading(false); }
@@ -111,14 +112,14 @@ export default function SettingsPage() {
 
   const fetchQuota = async () => {
     try {
-      const res = await fetch(`${API}/settings/quota`, { headers: authHeaders() });
+      const res = await fetch(getApiUrl(`/settings/quota`), { headers: authHeaders() });
       setQuota(await res.json());
     } catch { setQuota(null); }
   };
 
   const fetchPersonality = async () => {
     try {
-      const res = await fetch(`${API}/settings/ai-personality`, { headers: authHeaders() });
+      const res = await fetch(getApiUrl(`/settings/ai-personality`), { headers: authHeaders() });
       const data = await res.json();
       setPersonality(data.personality || "analytical");
     } catch {}
@@ -128,7 +129,7 @@ export default function SettingsPage() {
     setPersonalitySaving(true);
     setPersonalitySaved(false);
     try {
-      await fetch(`${API}/settings/ai-personality`, {
+      await fetch(getApiUrl(`/settings/ai-personality`), {
         method: "POST", headers: authHeaders(),
         body: JSON.stringify({ personality }),
       });
@@ -140,7 +141,7 @@ export default function SettingsPage() {
 
   const fetchYtKey = async () => {
     try {
-      const res = await fetch(`${API}/settings/youtube-api-key`, { headers: authHeaders() });
+      const res = await fetch(getApiUrl(`/settings/youtube-api-key`), { headers: authHeaders() });
       const data = await res.json();
       setYtKey(data.youtube_api_key || "");
     } catch {}
@@ -150,7 +151,7 @@ export default function SettingsPage() {
     setYtSaving(true);
     setYtSaved(false);
     try {
-      const res = await fetch(`${API}/settings/youtube-api-key`, {
+      const res = await fetch(getApiUrl(`/settings/youtube-api-key`), {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({ youtube_api_key: ytKey }),
@@ -178,7 +179,7 @@ export default function SettingsPage() {
     }
     setPwSaving(true);
     try {
-      const res = await fetch(`${API}/settings/change-password`, {
+      const res = await fetch(getApiUrl(`/settings/change-password`), {
         method: "POST", headers: authHeaders(),
         body: JSON.stringify({ current_password: currentPw, new_password: newPw }),
       });
@@ -196,7 +197,7 @@ export default function SettingsPage() {
   const fetchUsers = async () => {
     setUsersLoading(true);
     try {
-      const res = await fetch(`${API}/users`, { headers: authHeaders() });
+      const res = await fetch(getApiUrl(`/users`), { headers: authHeaders() });
       if (res.ok) {
         setUsers(await res.json());
       }
@@ -212,7 +213,7 @@ export default function SettingsPage() {
     setUserError("");
     setUserSuccess("");
     try {
-      const res = await fetch(`${API}/users`, {
+      const res = await fetch(getApiUrl(`/users`), {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({
@@ -245,7 +246,7 @@ export default function SettingsPage() {
     setUserSuccess("");
     if (!selectedUser) return;
     try {
-      const res = await fetch(`${API}/users/${selectedUser.id}`, {
+      const res = await fetch(getApiUrl(`/users/${selectedUser.id}`), {
         method: "PUT",
         headers: authHeaders(),
         body: JSON.stringify({
@@ -276,7 +277,7 @@ export default function SettingsPage() {
     setUserSuccess("");
     if (!selectedUser) return;
     try {
-      const res = await fetch(`${API}/users/${selectedUser.id}/password`, {
+      const res = await fetch(getApiUrl(`/users/${selectedUser.id}/password`), {
         method: "PUT",
         headers: authHeaders(),
         body: JSON.stringify({
@@ -302,7 +303,7 @@ export default function SettingsPage() {
     setUserSuccess("");
     if (!selectedUser) return;
     try {
-      const res = await fetch(`${API}/users/${selectedUser.id}`, {
+      const res = await fetch(getApiUrl(`/users/${selectedUser.id}`), {
         method: "DELETE",
         headers: authHeaders(),
       });

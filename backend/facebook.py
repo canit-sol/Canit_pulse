@@ -19,6 +19,7 @@ API Version: v19.0 (validated against live Meta integration)
 
 import os
 import json
+import base64
 import requests
 from datetime import datetime
 from calendar import monthrange
@@ -292,6 +293,16 @@ def _fetch_real_data(page_id: str, token: str, month: int, year: int, ad_account
         elif post.get("full_picture"):
             media_type = "IMAGE"
 
+        fb_media_url = post.get("full_picture", "")
+        fb_media_base64 = ''
+        if fb_media_url:
+            try:
+                img_resp = requests.get(fb_media_url, timeout=10)
+                if img_resp.ok:
+                    fb_media_base64 = f"data:image/jpeg;base64,{base64.b64encode(img_resp.content).decode()}"
+            except Exception:
+                pass
+
         # ── Paid boost lookup via caption prefix ────────────────────────────
         message   = post.get("message", "") or ""
         match_key = message[:30].strip().lower() if message else ""
@@ -314,7 +325,8 @@ def _fetch_real_data(page_id: str, token: str, month: int, year: int, ad_account
             "id":         post_id,
             "caption":    message[:200],
             "media_type": media_type,
-            "media_url":  post.get("full_picture", ""),
+            "media_url":  fb_media_url,
+            "media_base64": fb_media_base64,
             "permalink":  post.get("permalink_url", ""),
             "timestamp":  ts,
             "day":        post_date.day,
@@ -437,6 +449,7 @@ def _fetch_real_data(page_id: str, token: str, month: int, year: int, ad_account
         "top_post": {
             "caption":     (top_post.get("caption", "") or "")[:120],
             "media_url":   top_post.get("media_url", ""),
+            "media_base64": top_post.get("media_base64", ""),
             "permalink":   top_post.get("permalink", ""),
             "impressions": _fmt(top_post.get("impressions", 0)),
             "likes":       str(top_post.get("likes", 0)),
@@ -444,7 +457,7 @@ def _fetch_real_data(page_id: str, token: str, month: int, year: int, ad_account
             "shares":      str(top_post.get("shares", 0)),
             "saves":       str(top_post.get("shares", 0)),  # parity with IG shape
         } if top_post else {
-            "caption": "", "media_url": "", "permalink": "",
+            "caption": "", "media_url": "", "media_base64": "", "permalink": "",
             "impressions": "0", "likes": "0", "comments": "0", "shares": "0", "saves": "0",
         },
     }

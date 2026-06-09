@@ -43,7 +43,8 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="User not found")
     
     # 3. Check password (make sure this matches admin123 from your terminal!)
-    if req.password != user.password:
+    from auth import verify_password
+    if not verify_password(req.password, user.hashed_pw):
         raise HTTPException(status_code=401, detail="Invalid password")
         
     # 4. Success! Tell the UI who just logged in
@@ -801,8 +802,9 @@ def download_report_pdf(
         "next_conversion_proj": "+15.0% Projected"
     }
 
-    # 8. Render to PDF
-    from pdf_generator import generate_pdf_html, generate_pdf_from_html
+    # 8. Render to HTML (PDF generation skipped, returning HTML directly)
+    from pdf_generator import generate_pdf_html
+    from fastapi import Response
     
     try:
         # Get brand color
@@ -822,34 +824,19 @@ def download_report_pdf(
             synopsis=synopsis,
             seo_data=seo_data_mapped,
             facebook_data=facebook_data,
-            brand_color=brand_color
+            brand_color=brand_color,
+            client_logo_url=client.client_logo_url or ''
         )
         
-        temp_dir = "backend/uploads/temp_pdf"
-        os.makedirs(temp_dir, exist_ok=True)
-        temp_pdf_path = os.path.join(temp_dir, f"{report_id}.pdf")
+        html_filename = f"{client.name.replace(' ', '_')}_Report_{report.month}_{report.year}.html"
         
-        generate_pdf_from_html(html_content, temp_pdf_path)
-        
-        # Background cleanup task
-        def remove_file(path: str):
-            try:
-                if os.path.exists(path):
-                    os.remove(path)
-            except Exception:
-                pass
-                
-        background_tasks.add_task(remove_file, temp_pdf_path)
-        
-        pdf_filename = f"{client.name.replace(' ', '_')}_Report_{report.month}_{report.year}.pdf"
-        
-        return FileResponse(
-            path=temp_pdf_path,
-            filename=pdf_filename,
-            media_type="application/pdf"
+        return Response(
+            content=html_content,
+            media_type="text/html",
+            headers={"Content-Disposition": f"attachment; filename={html_filename}"}
         )
     except Exception as e:
         import traceback
         print(f"[PDF ERROR] {e}")
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"HTML generation failed: {str(e)}")

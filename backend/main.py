@@ -28,9 +28,13 @@ load_dotenv(find_dotenv(), override=True)
 # Moved these to the top so Python knows about them before the routes run!
 INSTAGRAM_APP_ID = os.getenv("INSTAGRAM_APP_ID")
 INSTAGRAM_APP_SECRET = os.getenv("INSTAGRAM_APP_SECRET")
-REDIRECT_URI = "http://localhost:8000/api/auth/instagram/callback"
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/api/auth/instagram/callback")
 
 app = FastAPI(title="Canit Pulse v4")
+
+@app.get("/api/health")
+async def health_check():
+    return {"status": "healthy", "service": "canit-pulse-api"}
 
 # Explicitly open CORS to prevent frontend handshake blocks
 app.add_middleware(
@@ -39,7 +43,8 @@ app.add_middleware(
         "http://localhost:8081", 
         "http://localhost:5173",
         "http://127.0.0.1:8081",
-        "http://127.0.0.1:5173"
+        "http://127.0.0.1:5173",
+        os.getenv("FRONTEND_URL", "http://localhost:8081"),
     ], 
     allow_credentials=True,
     allow_methods=["*"],
@@ -176,16 +181,7 @@ def generate_full_report(client_id: str, current_user: AuthIdentity = Depends(re
         if debug_key:
             debug_key = debug_key.strip()
         print("--- DEBUG YOUTUBE API RESPONSES START ---")
-        debug_ids = {
-            "Sharon Ply": "UC1brZaJE-uzwCt9YUwyHDKQ",
-            "Omnevum": "UCyz9CBZlCsMr33EQb5hTesw",
-            "Nitin Wire Group": "UCnpxubwMoc2sjS8EOHNys-w"
-        }
-        for name, cid in debug_ids.items():
-            debug_url = f"https://www.googleapis.com/youtube/v3/channels?part=statistics&id={cid}&key={debug_key}"
-            debug_res = requests.get(debug_url, timeout=5)
-            print(f"Channel: {name} ({cid}) | Status: {debug_res.status_code}")
-            print(f"Raw Response: {debug_res.text}")
+        debug_ids = {}
         print("--- DEBUG YOUTUBE API RESPONSES END ---")
     except Exception as debug_err:
         print("Failed to print debug YouTube API responses:", debug_err)
@@ -325,16 +321,7 @@ def refresh_report_for_month(client_id: str, current_user: AuthIdentity = Depend
         if debug_key:
             debug_key = debug_key.strip()
         print("--- DEBUG YOUTUBE API RESPONSES START ---")
-        debug_ids = {
-            "Sharon Ply": "UC1brZaJE-uzwCt9YUwyHDKQ",
-            "Omnevum": "UCyz9CBZlCsMr33EQb5hTesw",
-            "Nitin Wire Group": "UCnpxubwMoc2sjS8EOHNys-w"
-        }
-        for name, cid in debug_ids.items():
-            debug_url = f"https://www.googleapis.com/youtube/v3/channels?part=statistics&id={cid}&key={debug_key}"
-            debug_res = requests.get(debug_url, timeout=5)
-            print(f"Channel: {name} ({cid}) | Status: {debug_res.status_code}")
-            print(f"Raw Response: {debug_res.text}")
+        debug_ids = {}
         print("--- DEBUG YOUTUBE API RESPONSES END ---")
     except Exception as debug_err:
         print("Failed to print debug YouTube API responses:", debug_err)
@@ -754,7 +741,7 @@ def get_industry_news_direct(industry: str, client_id: Optional[str] = None, db:
 @app.on_event("startup")
 def startup_event():
     create_tables()
-    seed_admin("report@canit.in", "canit#123", "Canit Team")
+    seed_admin(os.getenv("ADMIN_EMAIL", "admin@canit.in"), os.getenv("ADMIN_PASSWORD", "changeme123"), "Admin")
     
     # Auto-seed Client Access credentials for the 'canit' brand portal
     db = models.SessionLocal()
@@ -777,25 +764,8 @@ def startup_event():
                 db.refresh(canit_client)
                 print("Created default Canit Sol client record during startup.")
             
-            # Verify/create the ClientAccess login record for 'canit' username
-            existing_access = db.query(models.ClientAccess).filter(models.ClientAccess.username == "canit").first()
-            if not existing_access:
-                new_access = models.ClientAccess(
-                    id=str(uuid.uuid4()),
-                    client_id=canit_client.id,
-                    username="canit",
-                    password_hash=hash_password("canit#123"),
-                    is_active=True,
-                    report_access_scope="client"
-                )
-                db.add(new_access)
-                print(f"Seeded client access credentials: username 'canit', password 'canit#123'")
-            else:
-                # Sync the hashed password to match 'canit#123'
-                existing_access.password_hash = hash_password("canit#123")
-                existing_access.client_id = canit_client.id
-                print(f"Synchronized client access credentials for 'canit'")
-            db.commit()
+            # Seed admin login skipped - create credentials manually
+            print("Skipping auto-seed of 'canit' admin credentials - create manually if needed")
             set_config("canit_sol_seeded", "true")
             print("Successfully recorded 'canit_sol_seeded' as true.")
         else:

@@ -5,6 +5,7 @@ import AppSidebar from "@/components/AppSidebar";
 import ClientCard from "@/components/ClientCard";
 import { useSidebar } from "@/context/SidebarContext";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getApiUrl } from "@/config/api";
 interface Client {
   id: string;
   name: string;
@@ -556,7 +557,7 @@ export default function AdminDashboard() {
   const handleGenerateReport = async (clientId: string) => {
     setGenerating(clientId);
     try {
-      const res = await fetch(`http://localhost:8000/api/clients/${clientId}/generate`, {
+      const res = await fetch(getApiUrl(`/api/clients/${clientId}/generate`), {
         method: "POST",
         headers: authHeaders(),
       });
