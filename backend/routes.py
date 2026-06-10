@@ -373,10 +373,14 @@ def meta_callback(code: str, state: str, db: Session = Depends(get_db)):
 @router.get("/clients/{client_id}/meta-pages")
 def get_meta_pages(client_id: str, db: Session = Depends(get_db)):
     client = db.query(Client).filter(Client.id == client_id).first()
-    if not client or not client.ig_access_token:
-        raise HTTPException(status_code=400, detail="Connect Meta first.")
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found.")
 
-    token = client.ig_access_token
+    # Use agency token from system config, fallback to client token for backwards compat
+    from database import get_config
+    token = get_config("ig_access_token", "") or client.ig_access_token
+    if not token:
+        raise HTTPException(status_code=400, detail="Agency Meta not connected. Configure in Settings.")
 
     def generate_pages():
         now = time.time()
