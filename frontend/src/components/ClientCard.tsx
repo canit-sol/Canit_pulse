@@ -1,5 +1,4 @@
 import { Loader2, BarChart2, FileCheck, UploadCloud } from "lucide-react";
-import { getApiUrl } from "@/config/api";
 
 interface ClientCardProps {
   id: string;
@@ -20,7 +19,6 @@ interface ClientCardProps {
   onConnectYoutube?: (clientId: string) => void;
   onConnectInstagram?: (clientId: string) => void;
   onConnectFacebook?: (clientId: string) => void;
-  hasAgencyToken?: boolean;        // true when agency-level ig_access_token exists (Meta OAuth done)
   isUploadingSeo?: boolean;
   isHr?: boolean;
   seoReports?: any[];
@@ -63,7 +61,6 @@ export default function ClientCard({
   onConnectYoutube,
   onConnectInstagram,
   onConnectFacebook,
-  hasAgencyToken = false,
   isUploadingSeo,
   isHr = false,
   seoReports,
@@ -111,19 +108,14 @@ export default function ClientCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (hasAgencyToken && onConnectInstagram) {
-                    onConnectInstagram(id);
-                  } else {
-                    localStorage.setItem("linking_client_name", name);
-                    window.location.href = getApiUrl(`/auth/instagram/connect/${id}`);
-                  }
+                  onConnectInstagram?.(id);
                 }}
                 className={`w-[32px] h-[32px] rounded-xl flex items-center justify-center shadow-sm transition-all duration-300 ${
                   isInstagramConnected 
                     ? "bg-gradient-to-tr from-pink-500 to-indigo-600 text-white hover:opacity-90 hover:scale-105" 
                     : "bg-gray-100/50 hover:bg-gray-100/80 text-gray-400 hover:text-gray-600"
                 }`}
-                title={isInstagramConnected ? "Instagram Business connected — click to reconnect" : hasAgencyToken ? "Link Instagram Business Page" : "Connect Instagram Business (Meta OAuth)"}
+                title={isInstagramConnected ? "Instagram Business connected — click to reconnect" : "Link Instagram Business Page"}
               >
                 <InstagramIcon className="w-3.5 h-3.5" />
               </button>
@@ -151,19 +143,14 @@ export default function ClientCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (hasAgencyToken && onConnectFacebook) {
-                    onConnectFacebook(id);
-                  } else {
-                    localStorage.setItem("linking_client_name", name);
-                    window.location.href = getApiUrl(`/auth/instagram/connect/${id}`);
-                  }
+                  onConnectFacebook?.(id);
                 }}
                 className={`w-[32px] h-[32px] rounded-xl flex items-center justify-center shadow-sm transition-all duration-300 ${
                   isFacebookConnected 
                     ? "bg-[#1877F2] text-white hover:opacity-90 hover:scale-105" 
                     : "bg-gray-100/50 hover:bg-gray-100/80 text-gray-400 hover:text-gray-600"
                 }`}
-                title={isFacebookConnected ? "Facebook Business connected" : hasAgencyToken ? "Link Facebook Page" : "Connect Facebook (Meta OAuth)"}
+                title={isFacebookConnected ? "Facebook Business connected" : "Link Facebook Page"}
               >
                 <FacebookIcon className="w-3.5 h-3.5" />
               </button>
