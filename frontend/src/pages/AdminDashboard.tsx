@@ -557,7 +557,7 @@ export default function AdminDashboard() {
   const handleGenerateReport = async (clientId: string) => {
     setGenerating(clientId);
     try {
-      const res = await apiFetch(getApiUrl(`/api/clients/${clientId}/generate`), {
+      const res = await apiFetch(getApiUrl(`/clients/${clientId}/generate`), {
         method: "POST",
       });
       if (res.ok) {
