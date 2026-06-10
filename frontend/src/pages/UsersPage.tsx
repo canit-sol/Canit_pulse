@@ -58,7 +58,7 @@ export default function UsersPage() {
     setUserError("");
     setUserSuccess("");
     try {
-      const res = await fetch(`${API}/users`, {
+      const res = await fetch(getApiUrl(`/users`), {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({
