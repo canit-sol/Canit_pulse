@@ -376,11 +376,18 @@ def get_meta_pages(client_id: str, db: Session = Depends(get_db)):
     if not client:
         raise HTTPException(status_code=404, detail="Client not found.")
 
-    # Use agency token from system config, fallback to client token for backwards compat
-    from database import get_config
-    token = get_config("ig_access_token", "") or client.ig_access_token
+    # Use the app-level token (from Meta OAuth callback) to fetch ALL pages
+    # The app token is stored on the first client that completed OAuth,
+    # or we can use a system config. For now, find any client with a token.
+    token = client.ig_access_token
     if not token:
-        raise HTTPException(status_code=400, detail="Agency Meta not connected. Configure in Settings.")
+        # Fallback: find any client with a valid token (the "agency" token)
+        any_client = db.query(Client).filter(Client.ig_access_token.isnot(None)).first()
+        if any_client:
+            token = any_client.ig_access_token
+    
+    if not token:
+        raise HTTPException(status_code=400, detail="No Meta token configured. Complete OAuth first.")
 
     def generate_pages():
         now = time.time()
