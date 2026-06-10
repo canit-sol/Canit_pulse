@@ -17,7 +17,7 @@ from database import get_db, User
 # ── CONFIG ──────────────────────────────────────────────
 SECRET_KEY  = os.getenv("SECRET_KEY", "change-this-in-production-please")
 ALGORITHM   = "HS256"
-TOKEN_EXPIRE_HOURS = 72
+TOKEN_EXPIRE_HOURS = 168
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
