@@ -92,7 +92,7 @@ export default function PrintReportView({
       </div>
       <div className="flex items-center gap-1.5">
         <Sparkles className="w-3.5 h-3.5 text-[#113a87]" />
-        <span className="text-[11px] font-black text-[#113a87] tracking-widest uppercase">CANIT Pulse</span>
+        <span className="text-[11px] font-brand font-black text-[#113a87] tracking-widest uppercase">CANIT Pulse</span>
       </div>
     </div>
   );
@@ -100,7 +100,7 @@ export default function PrintReportView({
   // Common Footer component
   const PageFooter = ({ pageNum }: { pageNum: number }) => (
     <div className="flex items-center justify-between border-t border-gray-100 pt-3 mt-auto text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-      <div>CANIT Pulse © 2026 | Performance & AI Brand Report</div>
+      <div className="font-brand">CANIT Pulse © 2026 | Performance & AI Brand Report</div>
       <div>Page {pageNum} of 7</div>
     </div>
   );
@@ -128,7 +128,7 @@ export default function PrintReportView({
         {/* Header Branding */}
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-[#113a87]" />
-          <span className="text-sm font-black text-[#113a87] tracking-widest uppercase">CANIT Pulse</span>
+          <span className="text-sm font-brand font-black text-[#113a87] tracking-widest uppercase">CANIT Pulse</span>
         </div>
 
         {/* Center Title Content */}
@@ -172,7 +172,7 @@ export default function PrintReportView({
         <div className="border-t border-gray-100 pt-6 flex items-center justify-between">
           <div>
             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Powered by</p>
-            <p className="text-xs font-black text-[#113a87] tracking-wider uppercase">CANIT Pulse Analytics Platform</p>
+            <p className="text-xs font-brand font-black text-[#113a87] tracking-wider uppercase">CANIT Pulse Analytics Platform</p>
           </div>
           <div className="text-right">
             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Confidential Report</p>

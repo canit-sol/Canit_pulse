@@ -1394,7 +1394,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
               className="h-12 w-auto object-contain p-1 drop-shadow-sm opacity-80"
             />
             <div className="flex flex-col">
-              <span className="font-heading font-black text-sm text-[#113a87] leading-none tracking-tight">CANIT Pulse</span>
+              <span className="font-brand font-black text-sm text-[#113a87] leading-none tracking-tight">CANIT Pulse</span>
               <span className="text-[8px] font-heading font-bold tracking-widest text-[#113a87]/60 uppercase mt-0.5 whitespace-nowrap">AI Brand Intelligence Suite</span>
             </div>
           </div>

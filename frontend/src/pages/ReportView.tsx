@@ -77,7 +77,7 @@ export default function ReportView() {
               className="h-16 w-auto object-contain p-1"
             />
             <div className="flex flex-col">
-              <span className="font-heading font-black text-xs text-slate-800 leading-none">CANIT Pulse</span>
+              <span className="font-brand font-black text-xs text-slate-800 leading-none">CANIT Pulse</span>
               <span className="text-[7px] font-heading font-bold tracking-wider text-[#113a87]/75 uppercase mt-0.5 whitespace-nowrap">AI Suite</span>
             </div>
           </div>

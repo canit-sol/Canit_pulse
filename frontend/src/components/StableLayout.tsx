@@ -44,7 +44,7 @@ export default function StableLayout({
           {headerContent || (
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-3">
-                <span className="font-heading font-extrabold text-[#113a87] text-lg tracking-tight select-none">
+                <span className="font-brand font-extrabold text-[#113a87] text-lg tracking-tight select-none">
                   CANIT Pulse
                 </span>
                 <span className="hidden sm:inline-block px-2.5 py-1 text-[9px] font-bold tracking-wider text-[#113a87] bg-[#113a87]/8 rounded-full uppercase">
