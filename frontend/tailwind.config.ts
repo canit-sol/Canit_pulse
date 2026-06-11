@@ -18,6 +18,7 @@ export default {
         sans: ["Poppins", "sans-serif"],
         heading: ["Poppins", "sans-serif"],
         body: ["Poppins", "sans-serif"],
+        brand: ["Linux Libertine", "Georgia", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",

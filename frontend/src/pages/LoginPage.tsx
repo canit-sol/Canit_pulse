@@ -80,13 +80,13 @@ export default function LoginPage() {
             />
           ) : (
             <div className="h-16 flex items-center justify-center mb-4">
-              <span className="font-heading font-extrabold text-2xl tracking-[0.2em] text-[#113a87] uppercase">
+              <span className="font-brand font-extrabold text-2xl tracking-[0.2em] text-[#113a87] uppercase">
                 CANIT PULSE
               </span>
             </div>
           )}
           
-          <h1 className="font-heading font-bold text-3xl text-slate-900 tracking-tight">
+          <h1 className="font-brand font-bold text-3xl text-slate-900 tracking-tight">
             CANIT Pulse
           </h1>
           <p className="text-[10px] font-heading font-bold tracking-[0.2em] text-[#113a87]/75 uppercase mt-1.5">

@@ -82,7 +82,7 @@ export default function StableLayout({
           {footerContent || (
             <>
               <div className="select-none">
-                &copy; {new Date().getFullYear()} <span className="text-slate-500 font-bold">Canit Pulse</span>. All rights reserved.
+                &copy; {new Date().getFullYear()} <span className="text-slate-500 font-brand font-bold">Canit Pulse</span>. All rights reserved.
               </div>
               <div className="flex gap-4">
                 <a
