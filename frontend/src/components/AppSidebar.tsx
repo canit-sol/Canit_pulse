@@ -83,7 +83,7 @@ export default function AppSidebar() {
           className="h-14 w-auto object-contain shrink-0 select-none"
         />
         <div className="flex flex-col items-center mt-1.5 whitespace-nowrap">
-          <span className="font-heading font-extrabold text-sm tracking-wide text-[#113a87]">CANIT Pulse</span>
+          <span className="font-brand font-extrabold text-sm tracking-wide text-[#113a87]">CANIT Pulse</span>
           <span className="font-heading font-bold text-[9px] tracking-wider text-slate-400 uppercase mt-0.5">AI Brand Intelligence Suite</span>
         </div>
       </div>
