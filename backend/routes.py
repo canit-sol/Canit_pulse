@@ -1102,7 +1102,7 @@ async def upload_seo_pdf(
         
     # Save the file strictly to Supabase Storage
     supabase_url_path = None
-    bucket_name = "seo-reports"
+    bucket_name = "monthly_seo_reports"
     file_path = f"{client_id}/{file.filename}"
     
     try:
@@ -1234,7 +1234,7 @@ async def upload_monthly_seo_pdf(
         raise HTTPException(status_code=400, detail=f"Could not read uploaded file: {str(e)}")
 
     supabase_url_path = None
-    bucket_name = "seo-reports"
+    bucket_name = "monthly_seo_reports"
     filename = f"{year}-{month}.pdf"
     file_path = f"{client_id}/{filename}"
 
