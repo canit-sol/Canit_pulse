@@ -443,30 +443,30 @@ def create_tables():
                 CREATE POLICY "Public Update for client-logos" ON storage.objects FOR UPDATE USING (bucket_id = 'client-logos');
               END IF;
               
-              -- seo-reports
+              -- monthly_seo_reports
               IF NOT EXISTS (
                 SELECT 1 FROM pg_policies 
                 WHERE schemaname = 'storage' 
                   AND tablename = 'objects' 
-                  AND policyname = 'Public Access for seo-reports'
+                  AND policyname = 'Public Access for monthly_seo_reports'
               ) THEN
-                CREATE POLICY "Public Access for seo-reports" ON storage.objects FOR SELECT USING (bucket_id = 'seo-reports');
+                CREATE POLICY "Public Access for monthly_seo_reports" ON storage.objects FOR SELECT USING (bucket_id = 'monthly_seo_reports');
               END IF;
               IF NOT EXISTS (
                 SELECT 1 FROM pg_policies 
                 WHERE schemaname = 'storage' 
                   AND tablename = 'objects' 
-                  AND policyname = 'Public Insert for seo-reports'
+                  AND policyname = 'Public Insert for monthly_seo_reports'
               ) THEN
-                CREATE POLICY "Public Insert for seo-reports" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'seo-reports');
+                CREATE POLICY "Public Insert for monthly_seo_reports" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'monthly_seo_reports');
               END IF;
               IF NOT EXISTS (
                 SELECT 1 FROM pg_policies 
                 WHERE schemaname = 'storage' 
                   AND tablename = 'objects' 
-                  AND policyname = 'Public Update for seo-reports'
+                  AND policyname = 'Public Update for monthly_seo_reports'
               ) THEN
-                CREATE POLICY "Public Update for seo-reports" ON storage.objects FOR UPDATE USING (bucket_id = 'seo-reports');
+                CREATE POLICY "Public Update for monthly_seo_reports" ON storage.objects FOR UPDATE USING (bucket_id = 'monthly_seo_reports');
               END IF;
             END
             $$;
