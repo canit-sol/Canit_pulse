@@ -1328,6 +1328,9 @@ async def upload_client_logo(client_id: str, file: UploadFile = File(...), curre
     if ext not in [".png", ".jpg", ".jpeg", ".svg", ".webp", ".gif"]:
         raise HTTPException(status_code=400, detail="Unsupported image format.")
         
+    safe_name = file.filename.replace(" ", "_").replace("#", "_")
+    file.filename = safe_name
+
     try:
         contents = await file.read()
     except Exception as e:
@@ -1385,11 +1388,13 @@ async def upload_client_logo(client_id: str, file: UploadFile = File(...), curre
 
 @router.get("/clients/{client_id}/logo/{filename}")
 def serve_local_client_logo(client_id: str, filename: str, db: Session = Depends(get_db)):
-    # 1. Check Client table for client_logo_url
     client_rec = db.query(Client).filter(Client.id == client_id).first()
     if client_rec and client_rec.client_logo_url:
-        from fastapi.responses import RedirectResponse
-        return RedirectResponse(url=client_rec.client_logo_url)
+        stored = client_rec.client_logo_url
+        # Avoid redirect loop: if stored URL points back here, serve directly
+        if not stored.startswith("/api/clients/") and not stored.startswith(f"/clients/{client_id}/logo/"):
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url=stored)
         
     # Local fallback
     from pathlib import Path
