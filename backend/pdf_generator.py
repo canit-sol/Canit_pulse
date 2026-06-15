@@ -880,6 +880,405 @@ def _write_page_start(f):
 def _write_page_end(f):
     f.write('</div>')
 
+
+def _parse_num(v):
+    """Parse ints and human-formatted strings like '2.8K' or '1.2M'. Return int when possible, else 0."""
+    if v is None:
+        return 0
+    if isinstance(v, (int, float)):
+        return int(v)
+    s = str(v).strip()
+    if s == '' or s.upper() == 'N/A' or s == '\u2014':
+        return 0
+    s2 = s.replace(',', '')
+    m = re.match(r'^([0-9,.]+)\s*([kKmM]?)$', s2)
+    if m:
+        num = float(m.group(1))
+        suf = m.group(2).upper()
+        if suf == 'K':
+            return int(num * 1000)
+        if suf == 'M':
+            return int(num * 1_000_000)
+        return int(num)
+    try:
+        return int(float(s2))
+    except Exception:
+        return 0
+
+
+def _normalize_instagram(insta: dict) -> dict:
+    if not isinstance(insta, dict):
+        return {}
+    if 'instagram' in insta and isinstance(insta.get('instagram'), dict):
+        insta = insta['instagram']
+    out = dict(insta)
+    for key, alias in [
+        ('followers', 'follower_count'),
+        ('total_followers', 'follower_count'),
+        ('audience_size', 'follower_count'),
+        ('likes', 'like_count'),
+        ('avg_likes', 'like_count'),
+    ]:
+        if key in insta and alias not in out:
+            out[alias] = insta[key]
+    total_keys = [
+        'total_followers', 'follower_count', 'followers',
+        'audience_size', 'audience_growth'
+    ]
+    has_total = any(k in insta for k in total_keys)
+    if not has_total and 'instagram_summary' in insta:
+        s = insta['instagram_summary']
+        if isinstance(s, dict):
+            for k, alias in [('followers', 'follower_count'), ('likes', 'like_count')]:
+                if k in s and alias not in out:
+                    out[alias] = s[k]
+    counts = ['email_count', 'click_count', 'like_count', 'follower_count',
+              'comments_count', 'shares_count', 'saves_count', 'profile_visits',
+              'website_taps', 'reach_count', 'impressions_count']
+    for ak in counts:
+        if ak in out:
+            out[ak] = _parse_num(out[ak])
+    return out
+
+
+def generate_pdf_html_to_file(
+    f,
+    report_data:    dict,
+    instagram_data: dict,
+    synopsis:       str,
+    seo_data:       dict = {},
+    facebook_data:  dict = {},
+    brand_color:    str  = '#c8922a',
+    client_logo_url: str = ''
+) -> None:
+    """
+    Streaming version: writes HTML directly to file handle `f` instead of building
+    a massive string in memory. This dramatically reduces peak memory usage.
+    """
+    import time
+    from datetime import datetime, timezone
+
+    instagram = _normalize_instagram(instagram_data)
+
+    month = report_data.get('month', '').title()
+    year  = str(report_data.get('year', ''))
+    client_name = report_data.get('client_name', 'Client')
+    rdata = report_data.get('report_data', {})
+
+    CANIT_LOGO = _load_canit_logo()
+    bg_hex = brand_color.lstrip('#') if isinstance(brand_color, str) else 'c8922a'
+    initials = ''.join(w[0].upper() for w in client_name.split() if w)[:2] or 'CL'
+    if client_logo_url:
+        CLIENT_LOGO = client_logo_url
+    else:
+        CLIENT_LOGO = _svg_logo_data_uri(initials, bg_hex)
+
+    css = f"""
+    *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    @page {{ size: A4; margin: 0; }}
+    :root {{
+      --brand:       {BRAND_ACCENT};
+      --navy:        {BRAND_PRIMARY};
+      --accent-sec:  {BRAND_ACCENT_SEC};
+      --text:        {TEXT_PRIMARY};
+      --muted:       {TEXT_SECONDARY};
+      --label:       {TEXT_LABEL};
+      --card:        {BG_CARD};
+      --bg:          {BG_PAGE};
+      --border:      {BG_CARD_BORDER};
+      --status-bg:   {STATUS_ACTIVE_BG};
+      --status:      {STATUS_ACTIVE};
+      --green:       {GREEN_POS};
+      --blue-link:   {BLUE_LINK};
+    }}
+    body {{ background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--text); font-size: 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; display: flex; flex-direction: column; align-items: center; }}
+    .pdf-page {{ width: 210mm; min-height: 297mm; padding: 12mm 14mm 10mm; background: var(--bg); page-break-after: always; break-after: page; display: flex; flex-direction: column; }}
+    .pdf-page > .page-topbar, .pdf-page > .page-footer, .pdf-page > .page-title {{ max-width: 180mm; width: 100%; margin-left: auto; margin-right: auto; }}
+    .page-topbar {{ display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }}
+    .topbar-left, .topbar-right {{ display: flex; align-items: center; gap: 8px; }}
+    .topbar-logo {{ height: 24px; width: 24px; border-radius: 6px; object-fit: cover; }}
+    .topbar-report-label {{ font-size: 8px; font-weight: 600; color: var(--label); letter-spacing: 0.10em; text-transform: uppercase; }}
+    .topbar-brand {{ font-size: 10px; font-weight: 700; color: var(--navy); letter-spacing: 0.12em; text-transform: uppercase; }}
+    .page-footer {{ display: flex; justify-content: space-between; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); font-size: 8px; color: var(--label); text-transform: uppercase; letter-spacing: 0.12em; }}
+    .page-title {{ font-family: 'Poppins', sans-serif; font-weight: 900; font-size: 22px; color: var(--text); line-height: 1.1; margin-bottom: 8px; }}
+    .section-title {{ font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 14px; color: var(--navy); margin-bottom: 8px; }}
+    .metrics-row {{ display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }}
+    .metric-card {{ background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }}
+    .metric-val {{ font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 20px; color: var(--navy); }}
+    .metric-lbl {{ font-size: 7px; font-weight: 600; color: var(--label); text-transform: uppercase; letter-spacing: 0.10em; margin-top: 4px; }}
+    .overview-text {{ font-size: 10px; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }}
+    .metric-block {{ margin-bottom: 12px; }}
+    .metric-block-title {{ font-weight: 700; font-size: 10px; color: var(--text); }}
+    .metric-block-desc {{ font-size: 9px; color: var(--muted); }}
+    .synopsis-block {{ background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-size: 10px; line-height: 1.7; color: var(--muted); }}
+    .post-card {{ display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }}
+    .post-rank {{ font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 14px; color: var(--brand); min-width: 24px; }}
+    .post-info {{ flex: 1; }}
+    .post-caption {{ font-size: 9px; color: var(--muted); margin-bottom: 4px; }}
+    .post-stats {{ display: flex; gap: 12px; font-size: 8px; color: var(--label); }}
+    .seo-item {{ display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 9px; }}
+    .seo-keyword {{ font-weight: 600; color: var(--text); }}
+    .seo-data {{ color: var(--muted); }}
+    .rec-card {{ display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }}
+    .rec-number {{ font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 16px; color: var(--brand); min-width: 28px; }}
+    .rec-text {{ font-size: 10px; color: var(--muted); line-height: 1.5; }}
+    .cover-section {{ display: flex; gap: 20px; align-items: flex-start; }}
+    .cover-left {{ flex: 1; }}
+    .cover-right {{ text-align: center; min-width: 120px; }}
+    .cover-badge {{ display: inline-block; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); color: var(--muted); font-size: 8px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }}
+    .cover-title {{ font-family: 'Poppins', sans-serif; font-weight: 900; font-size: 28px; color: var(--text); line-height: 1.05; margin-bottom: 8px; }}
+    .cover-subtitle {{ font-size: 10px; color: var(--muted); line-height: 1.5; margin-bottom: 14px; }}
+    .cover-desc {{ font-size: 9px; color: var(--label); line-height: 1.5; margin-bottom: 14px; }}
+    .cover-stats {{ display: flex; gap: 14px; }}
+    .cover-stat {{ }}
+    .cover-stat-val {{ font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 22px; color: var(--brand); }}
+    .cover-stat-lbl {{ font-size: 7px; font-weight: 600; color: var(--label); text-transform: uppercase; letter-spacing: 0.10em; }}
+    .recommendations {{ font-size: 10px; color: var(--muted); line-height: 1.5; margin-bottom: 14px; }}
+    """
+
+    _write_html_head(f, client_name, month, year, css)
+
+    # --- Cover page ---
+    _write_page_start(f)
+    _write_page_header(f, CLIENT_LOGO, CANIT_LOGO, month, year)
+    f.write(f'''
+    <div class="cover-section">
+      <div class="cover-left">
+        <div class="cover-badge">MONTHLY PERFORMANCE REPORT</div>
+        <h1 class="cover-title">{client_name}</h1>
+        <p class="cover-subtitle">{month} {year} | Brand Intelligence &amp; AI Insights</p>
+        <p class="cover-desc">
+          Your comprehensive monthly overview of Instagram performance, Facebook engagement,
+          search visibility, and AI-powered brand sentiment analysis.
+        </p>
+        <div class="cover-stats">
+          <div class="cover-stat">
+            <span class="cover-stat-val">{instagram.get('follower_count', '...')}</span>
+            <span class="cover-stat-lbl">FOLLOWERS</span>
+          </div>
+          <div class="cover-stat">
+            <span class="cover-stat-val">{instagram.get('like_count', '...')}</span>
+            <span class="cover-stat-lbl">AVG. LIKES</span>
+          </div>
+        </div>
+      </div>
+      <div class="cover-right">
+        <div class="cover-hero-svg">{CANIT_LOGO}</div>
+      </div>
+    </div>''')
+    _write_page_footer(f, 1)
+    _write_page_end(f)
+
+    # --- Overview page ---
+    _write_page_start(f)
+    _write_page_header(f, client_logo_url, CANIT_LOGO, month, year)
+    overviews = rdata.get('overviews', []) or []
+    metrics   = rdata.get('metrics', []) or []
+    raw_fb = facebook_data
+    if isinstance(raw_fb, dict) and 'summary' in raw_fb:
+        fb = raw_fb['summary']
+    else:
+        fb = raw_fb or {}
+    f.write(f'''
+    <h1 class="page-title" style="margin-bottom:24px;">Performance &amp; Audience Overview</h1>
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-val">{instagram.get('follower_count', 0):,}</div>
+        <div class="metric-lbl">Instagram Followers</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">{instagram.get('like_count', 0):,}</div>
+        <div class="metric-lbl">Avg. Likes / Post</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">{instagram.get('email_count', 0):,}</div>
+        <div class="metric-lbl">Emails Collected</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">{instagram.get('click_count', 0):,}</div>
+        <div class="metric-lbl">Total Clicks</div>
+      </div>
+    </div>''')
+    if overviews:
+        for ov in overviews:
+            ov_text = ov.get('overview_text', '') or ''
+            if ov_text:
+                f.write(f'<p class="overview-text">{ov_text}</p>')
+    if metrics:
+        for m in metrics:
+            f.write(f'''
+    <div class="metric-block">
+      <div class="metric-block-title">{m.get('metric_name', '')}</div>
+      <div class="metric-block-desc">{m.get('metric_value', '')}</div>
+    </div>''')
+    _write_page_footer(f, 2)
+    _write_page_end(f)
+
+    # --- Synopsis / AI Summary page ---
+    _write_page_start(f)
+    _write_page_header(f, client_logo_url, CANIT_LOGO, month, year)
+    f.write(f'''
+    <h1 class="page-title">AI Brand Intelligence Summary</h1>
+    <div class="synopsis-block">
+      {synopsis}
+    </div>''')
+    _write_page_footer(f, 3)
+    _write_page_end(f)
+
+    # --- Instagram detailed analytics ---
+    _write_page_start(f)
+    _write_page_header(f, client_logo_url, CANIT_LOGO, month, year)
+    f.write(f'''
+    <h1 class="page-title">Instagram Detailed Analytics</h1>
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-val">{instagram.get('impressions_count', 0):,}</div>
+        <div class="metric-lbl">Impressions</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">{instagram.get('reach_count', 0):,}</div>
+        <div class="metric-lbl">Reach</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">{instagram.get('profile_visits', 0):,}</div>
+        <div class="metric-lbl">Profile Visits</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">{instagram.get('website_taps', 0):,}</div>
+        <div class="metric-lbl">Website Taps</div>
+      </div>
+    </div>''')
+    posts = instagram_data.get('posts', []) or []
+    if posts:
+        f.write('<h2 class="section-title">Top Posts</h2>')
+        for i, post in enumerate(posts[:6]):
+            likes  = _parse_num(post.get('like_count', 0))
+            comments = _parse_num(post.get('comments_count', 0))
+            caption = (post.get('caption', '') or '')[:120]
+            media = post.get('media_url', '')
+            f.write(f'''
+    <div class="post-card">
+      <div class="post-rank">#{i+1}</div>
+      <div class="post-info">
+        <div class="post-caption">{caption}</div>
+        <div class="post-stats">
+          <span>&#10084; {likes:,}</span>
+          <span>&#9993; {comments}</span>
+        </div>
+      </div>
+    </div>''')
+    _write_page_footer(f, 4)
+    _write_page_end(f)
+
+    # --- Facebook analytics ---
+    _write_page_start(f)
+    _write_page_header(f, client_logo_url, CANIT_LOGO, month, year)
+    fb_likes    = _parse_num(fb.get('likes', 0) or fb.get('followers', 0))
+    fb_follows  = _parse_num(fb.get('followers', 0))
+    fb_engaged  = _parse_num(fb.get('engaged_users', 0))
+    fb_impressions = _parse_num(fb.get('impressions', 0))
+    f.write(f'''
+    <h1 class="page-title">Facebook Analytics</h1>
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-val">{fb_likes:,}</div>
+        <div class="metric-lbl">Page Likes</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">{fb_follows:,}</div>
+        <div class="metric-lbl">Followers</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">{fb_engaged:,}</div>
+        <div class="metric-lbl">Engaged Users</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">{fb_impressions:,}</div>
+        <div class="metric-lbl">Impressions</div>
+      </div>
+    </div>''')
+    fb_posts = facebook_data.get('posts', []) or []
+    if fb_posts:
+        f.write('<h2 class="section-title">Top Facebook Posts</h2>')
+        for i, post in enumerate(fb_posts[:6]):
+            likes = _parse_num(post.get('like_count', 0) or post.get('reactions', {}).get('like', 0))
+            comments = _parse_num(post.get('comments_count', 0) or post.get('comments', 0))
+            shares = _parse_num(post.get('shares_count', 0))
+            msg = (post.get('message', '') or post.get('caption', '') or '')[:120]
+            f.write(f'''
+    <div class="post-card">
+      <div class="post-rank">#{i+1}</div>
+      <div class="post-info">
+        <div class="post-caption">{msg}</div>
+        <div class="post-stats">
+          <span>&#10084; {likes:,}</span>
+          <span>&#9993; {comments}</span>
+          <span>&#128257; {shares}</span>
+        </div>
+      </div>
+    </div>''')
+    _write_page_footer(f, 5)
+    _write_page_end(f)
+
+    # --- SEO Analytics ---
+    _write_page_start(f)
+    _write_page_header(f, client_logo_url, CANIT_LOGO, month, year)
+    f.write('<h1 class="page-title">SEO &amp; Search Visibility</h1>')
+    seo_metrics = seo_data.get('metrics', []) or []
+    if seo_metrics:
+        f.write('<div class="metrics-row">')
+        for sm in seo_metrics[:4]:
+            val  = sm.get('value', '')
+            name = sm.get('name', '')
+            f.write(f'''
+      <div class="metric-card">
+        <div class="metric-val">{val}</div>
+        <div class="metric-lbl">{name}</div>
+      </div>''')
+        f.write('</div>')
+    seo_items = seo_data.get('items', []) or seo_data.get('results', []) or []
+    if seo_items:
+        f.write('<h2 class="section-title">Top Keywords</h2>')
+        for item in seo_items[:8]:
+            kw   = item.get('keyword', item.get('query', ''))
+            pos  = item.get('position', item.get('rank', ''))
+            vol  = item.get('volume', item.get('search_volume', ''))
+            f.write(f'''
+    <div class="seo-item">
+      <span class="seo-keyword">{kw}</span>
+      <span class="seo-data">Pos: {pos} | Vol: {vol}</span>
+    </div>''')
+    _write_page_footer(f, 6)
+    _write_page_end(f)
+
+    # --- Recommendations & Close ---
+    _write_page_start(f)
+    _write_page_header(f, client_logo_url, CANIT_LOGO, month, year)
+    f.write(f'''
+    <h1 class="page-title">Strategic Recommendations</h1>
+    <div class="recommendations">
+      <p>Based on the analysis of your {month} {year} performance data, we recommend the following strategic actions:</p>
+    </div>''')
+    recommendations = rdata.get('recommendations', []) or []
+    if not recommendations:
+        recommendations = [
+            'Increase posting frequency to maintain audience engagement.',
+            'Leverage top-performing content formats for future posts.',
+            'Engage with your audience through Stories and Reels.',
+        ]
+    for i, rec in enumerate(recommendations):
+        rec_text = rec if isinstance(rec, str) else rec.get('recommendation', rec.get('text', ''))
+        f.write(f'''
+    <div class="rec-card">
+      <span class="rec-number">{i+1}</span>
+      <span class="rec-text">{rec_text}</span>
+    </div>''')
+    _write_page_footer(f, 7)
+    _write_page_end(f)
+
+    f.write('</body></html>')
+
+
 def generate_pdf_html(
     report_data:    dict,
     instagram_data: dict,
