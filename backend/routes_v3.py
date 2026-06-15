@@ -547,25 +547,28 @@ def download_report_pdf(
         if not client:
             raise HTTPException(status_code=404, detail="Client not found")
 
-        ig_raw = report.ig_data
-        if isinstance(ig_raw, str):
-            ig_raw = json.loads(ig_raw)
+        from sqlalchemy import text as sqltext
 
-        platforms = ig_raw.get("platforms", {})
-        if platforms:
-            instagram_data = platforms.get("instagram", {})
-            facebook_data  = platforms.get("facebook", {})
-        else:
-            instagram_data = ig_raw.get("instagram", {})
-            facebook_data  = ig_raw.get("facebook", {})
+        # Extract only KPI fields via PostgreSQL JSONB — avoids loading multi-MB base64 blobs
+        kpi_row = db.execute(sqltext("""
+            SELECT
+                (COALESCE(ig_data->'platforms'->'instagram', ig_data->'instagram', '{}') - 'posts') as ig_kpis,
+                (SELECT jsonb_agg(item - 'media_base64' - 'thumbnail_base64')
+                 FROM jsonb_array_elements(COALESCE(ig_data->'platforms'->'instagram', ig_data->'instagram', '{}')->'posts') AS item
+                 LIMIT 6) as ig_posts,
+                (COALESCE(ig_data->'platforms'->'facebook', ig_data->'facebook', '{}') - 'posts') as fb_kpis,
+                (SELECT jsonb_agg(item - 'media_base64' - 'thumbnail_base64')
+                 FROM jsonb_array_elements(COALESCE(ig_data->'platforms'->'facebook', ig_data->'facebook', '{}')->'posts') AS item
+                 LIMIT 6) as fb_posts,
+                COALESCE(ig_data->>'synopsis', '') as synopsis
+            FROM reports WHERE id = :id
+        """), {"id": report_id}).first()
 
-        synopsis = ig_raw.get("synopsis", "")
-
-        for pd in (instagram_data, facebook_data):
-            for pl in (pd.get('posts', []), *(pd.get(k, []) for k in ('media', 'posts_list', 'all_posts'))):
-                if isinstance(pl, list):
-                    for p in pl:
-                        p.pop('media_base64', None)
+        instagram_data = dict(kpi_row.ig_kpis) if kpi_row.ig_kpis else {}
+        instagram_data['posts'] = list(kpi_row.ig_posts) if kpi_row.ig_posts else []
+        facebook_data = dict(kpi_row.fb_kpis) if kpi_row.fb_kpis else {}
+        facebook_data['posts'] = list(kpi_row.fb_posts) if kpi_row.fb_posts else []
+        synopsis = kpi_row.synopsis or ""
 
         facebook_data['page_reach']     = facebook_data.get('total_reach') or 0
         facebook_data['impressions']    = facebook_data.get('total_impressions') or 0
