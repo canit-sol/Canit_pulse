@@ -24,6 +24,32 @@ from ai_chat import generate_synopsis, chat_with_report
 from report_generator_v3 import generate_report_html
 from services.blog_ingestor import fetch_client_blogs
 
+def _slim_for_storage(data: dict) -> dict:
+    """Remove bloat from ig_data before saving to DB."""
+    import copy, json
+    data = copy.deepcopy(data)
+    
+    # 1. Remove redundant platforms key
+    data.pop('platforms', None)
+    
+    # 2. Strip media_base64 and limit lists to 50 items per post array
+    for platform_key in ('instagram', 'facebook'):
+        platform = data.get(platform_key)
+        if not isinstance(platform, dict):
+            continue
+        for list_key in ('posts', 'media', 'posts_list', 'all_posts'):
+            posts = platform.get(list_key)
+            if not isinstance(posts, list):
+                continue
+            platform[list_key] = posts[:50]
+            for post in platform[list_key]:
+                if isinstance(post, dict):
+                    post.pop('media_base64', None)
+                    post.pop('thumbnail_base64', None)
+    
+    return data
+
+
 # Create the router instance
 router_v3 = APIRouter()
 
@@ -171,32 +197,35 @@ def generate_report(
 
         html = generate_report_html(report_data, instagram_data, synopsis, client.brand_color)
 
-        # Save to DB
+        # Save to DB (slim storage to avoid 19MB blobs)
+        raw_ig_data = {
+            "platforms": {
+                "instagram": instagram_data,
+                "facebook": facebook_data,
+                "youtube": youtube_data
+            },
+            "instagram_data": {k: v for k, v in instagram_data.items() if k != "posts"},
+            "posts": instagram_data.get("posts", []),
+            "synopsis": synopsis,
+            "combined": {
+                "total_reach": combined_metrics["total_reach"],
+                "paid_reach": combined_metrics["paid_reach"],
+                "organic_reach": combined_metrics["organic_reach"],
+                "total_impressions": combined_metrics["total_impressions"],
+                "paid_impressions": combined_metrics["paid_impressions"],
+                "organic_impressions": combined_metrics["organic_impressions"],
+                "total_followers": int(instagram_data.get("followers") or 0) + int(facebook_data.get("followers") or 0)
+            }
+        }
+        slim_ig_data = _slim_for_storage(raw_ig_data)
+
         report = Report(
             id=report_id,
             client_id=client.id,
             month=data.month,
             year=data.year,
             html_content=html,
-            ig_data={
-                "platforms": {
-                    "instagram": instagram_data,
-                    "facebook": facebook_data,
-                    "youtube": youtube_data
-                },
-                "instagram_data": {k: v for k, v in instagram_data.items() if k != "posts"}, # Legacy
-                "posts": instagram_data.get("posts", []), # Legacy
-                "synopsis": synopsis,
-                "combined": {
-                    "total_reach": combined_metrics["total_reach"],
-                    "paid_reach": combined_metrics["paid_reach"],
-                    "organic_reach": combined_metrics["organic_reach"],
-                    "total_impressions": combined_metrics["total_impressions"],
-                    "paid_impressions": combined_metrics["paid_impressions"],
-                    "organic_impressions": combined_metrics["organic_impressions"],
-                    "total_followers": int(instagram_data.get("followers") or 0) + int(facebook_data.get("followers") or 0)
-                }
-            }
+            ig_data=slim_ig_data
         )
         db.add(report)
         db.commit()
@@ -530,6 +559,8 @@ def download_report_pdf(
         ig_raw = report.ig_data
         if isinstance(ig_raw, str):
             ig_raw = json.loads(ig_raw)
+
+        ig_raw.pop('platforms', None)  # safety net — never needed for PDF
 
         platforms = ig_raw.get("platforms", {})
         if platforms:
