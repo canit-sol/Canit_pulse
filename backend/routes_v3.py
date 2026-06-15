@@ -537,34 +537,35 @@ def download_report_pdf(
 ):
     """Returns a styled HTML report from stored data — no re-computation."""
     try:
-        from sqlalchemy.orm import load_only
-
-        report = db.query(Report).options(load_only(Report.id, Report.client_id, Report.month, Report.year)).filter(Report.id == report_id).first()
-        if not report:
-            raise HTTPException(status_code=404, detail="Report not found in vault")
-        if current_user.role == "client" and current_user.client_id != report.client_id:
-            raise HTTPException(status_code=403, detail="Forbidden")
-
-        client = db.query(Client).options(load_only(Client.id, Client.name, Client.brand_color, Client.client_logo_url)).filter(Client.id == report.client_id).first()
-        if not client:
-            raise HTTPException(status_code=404, detail="Client not found")
-
         from sqlalchemy import text as sqltext
 
-        # Extract only KPI fields via PostgreSQL JSONB — avoids loading multi-MB base64 blobs
+        # Single raw SQL query — no ORM objects, no identity map loading heavy columns
         kpi_row = db.execute(sqltext("""
             SELECT
-                (COALESCE(ig_data->'platforms'->'instagram', ig_data->'instagram', '{}') - 'posts') as ig_kpis,
+                r.client_id,
+                r.month,
+                r.year,
+                c.name AS client_name,
+                c.brand_color,
+                c.client_logo_url,
+                (COALESCE(r.raw_data->'platforms'->'instagram', r.raw_data->'instagram', '{}') - 'posts') AS ig_kpis,
                 (SELECT jsonb_agg(item - 'media_base64' - 'thumbnail_base64')
-                 FROM jsonb_array_elements(COALESCE(ig_data->'platforms'->'instagram', ig_data->'instagram', '{}')->'posts') AS item
-                 LIMIT 6) as ig_posts,
-                (COALESCE(ig_data->'platforms'->'facebook', ig_data->'facebook', '{}') - 'posts') as fb_kpis,
+                 FROM jsonb_array_elements(COALESCE(r.raw_data->'platforms'->'instagram', r.raw_data->'instagram', '{}')->'posts') AS item
+                 LIMIT 6) AS ig_posts,
+                (COALESCE(r.raw_data->'platforms'->'facebook', r.raw_data->'facebook', '{}') - 'posts') AS fb_kpis,
                 (SELECT jsonb_agg(item - 'media_base64' - 'thumbnail_base64')
-                 FROM jsonb_array_elements(COALESCE(ig_data->'platforms'->'facebook', ig_data->'facebook', '{}')->'posts') AS item
-                 LIMIT 6) as fb_posts,
-                COALESCE(ig_data->>'synopsis', '') as synopsis
-            FROM reports WHERE id = :id
+                 FROM jsonb_array_elements(COALESCE(r.raw_data->'platforms'->'facebook', r.raw_data->'facebook', '{}')->'posts') AS item
+                 LIMIT 6) AS fb_posts,
+                COALESCE(r.raw_data->>'synopsis', '') AS synopsis
+            FROM reports r
+            JOIN clients c ON c.id = r.client_id
+            WHERE r.id = :id
         """), {"id": report_id}).first()
+
+        if not kpi_row:
+            raise HTTPException(status_code=404, detail="Report not found in vault")
+        if current_user.role == "client" and current_user.client_id != kpi_row.client_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
 
         instagram_data = dict(kpi_row.ig_kpis) if kpi_row.ig_kpis else {}
         instagram_data['posts'] = list(kpi_row.ig_posts) if kpi_row.ig_posts else []
@@ -588,9 +589,9 @@ def download_report_pdf(
             facebook_data['type_counts'] = {k:v for k,v in mtc.items() if v>0} or {'Photos':0,'Video / Reels':0,'Link Shares':0}
 
         report_data = {
-            "client_name": client.name,
-            "month": report.month,
-            "year": report.year,
+            "client_name": kpi_row.client_name,
+            "month": kpi_row.month,
+            "year": kpi_row.year,
             "recommendations": [],
         }
 
@@ -599,8 +600,8 @@ def download_report_pdf(
         import tempfile, os
         from pdf_generator import generate_pdf_html_to_file
 
-        brand_color = client.brand_color or "#c8922a"
-        html_filename = f"{client.name.replace(' ', '_')}_Report_{report.month}_{report.year}.html"
+        brand_color = kpi_row.brand_color or "#c8922a"
+        html_filename = f"{kpi_row.client_name.replace(' ', '_')}_Report_{kpi_row.month}_{kpi_row.year}.html"
 
         print("[DOWNLOAD-PDF] Streaming HTML from stored data")
         tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8')
@@ -612,7 +613,7 @@ def download_report_pdf(
             seo_data=seo_data,
             facebook_data=facebook_data,
             brand_color=brand_color,
-            client_logo_url=client.client_logo_url or ''
+            client_logo_url=kpi_row.client_logo_url or ''
         )
         tmp.close()
 
