@@ -553,6 +553,19 @@ def download_report_pdf(
     print(f"[PDF DEBUG] facebook_data extracted: {facebook_data}")
     print(f"[PDF DEBUG] synopsis: {synopsis}")
 
+    # Strip heavy base64 image data from posts (only top_post.media_base64 is used in template)
+    for platform_data in (instagram_data, facebook_data):
+        posts = platform_data.get('posts', [])
+        if isinstance(posts, list):
+            for p in posts:
+                p.pop('media_base64', None)
+        # Also strip from post-like lists in nested structures
+        for key in ('media', 'posts_list', 'all_posts'):
+            inner = platform_data.get(key, [])
+            if isinstance(inner, list):
+                for p in inner:
+                    p.pop('media_base64', None)
+
     # 4a. Normalize Facebook metrics for PDF rendering from stored report data
     facebook_data['page_reach'] = facebook_data.get('total_reach') or 0
     facebook_data['impressions'] = facebook_data.get('total_impressions') or 0
