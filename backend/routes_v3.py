@@ -802,6 +802,7 @@ def download_report_pdf(
         )
     except Exception as e:
         import traceback
+        tb = traceback.format_exc()
         print(f"[PDF ERROR] {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"HTML generation failed: {str(e)}")
+        print(tb)
+        raise HTTPException(status_code=500, detail={"error": str(e), "traceback": tb})
