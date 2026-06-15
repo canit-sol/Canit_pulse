@@ -6,6 +6,7 @@ import os
 import json
 import re
 import time
+from urllib import response
 from groq import Groq
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=True)
@@ -86,6 +87,10 @@ Return ONLY the JSON structure as specified. No other text."""
 
     raw_response = response.choices[0].message.content.strip()
 
+    print("\n========== GROQ SEO RESPONSE ==========")
+    print(raw_response)
+    print("=======================================\n")
+
     # Clean up if model wraps in backticks anyway
     raw_response = re.sub(r"^```json\s*", "", raw_response)
     raw_response = re.sub(r"^```\s*", "", raw_response)
@@ -93,14 +98,24 @@ Return ONLY the JSON structure as specified. No other text."""
 
     try:
         data = json.loads(raw_response)
-    except json.JSONDecodeError:
-        # Try to extract JSON from the response
-        match = re.search(r'\{.*\}', raw_response, re.DOTALL)
-        if match:
-            data = json.loads(match.group())
-        else:
-            raise ValueError("AI did not return valid JSON. Check your Groq API key and try again.")
+    except json.JSONDecodeError as e:
+        print("\n========== JSON PARSE ERROR ==========")
+        print(str(e))
+        print("=====================================\n")
 
+    # Try to extract JSON from the response
+    match = re.search(r'\{.*\}', raw_response, re.DOTALL)
+
+    if match:
+        json_text = match.group()
+
+        print("\n========== RECOVERED JSON ==========")
+        print(json_text)
+        print("===================================\n")
+
+        data = json.loads(json_text)
+    else:
+        raise ValueError("AI did not return valid JSON for SEO metrics.")
     # Override with user-provided values
     data["client_name"] = client_name
     data["month"] = month
