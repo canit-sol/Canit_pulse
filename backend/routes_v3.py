@@ -412,10 +412,33 @@ def get_all_reports(db: Session = Depends(get_db)):
 # Deprecated duplicate get_single_report endpoint removed. Handled by backend/main.py.
 
 @router_v3.get("/clients/{client_id}/analytics")
+def get_client_analytics(client_id: str, month: str = None, year: str = None, db: Session = Depends(get_db)):
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found.")
+    
+    from datetime import datetime
+    now = datetime.now()
+    target_month = month or str(now.month)
+    target_year = year or str(now.year)
+    
+    keys = {
+        "ig_access_token": client.ig_access_token,
+        "ig_account_id": client.ig_user_id,
+        "ad_account_id": client.ad_account_id,
+        "instagram_handle": client.instagram_handle or "",
+        "fb_page_id": client.fb_page_id,
+        "fb_page_token": client.fb_page_token,
+        "client_id": client.id,
+    }
+    
+    ig_data = get_client_instagram_stats(keys, month=target_month, year=target_year)
+    
+    print(f"🔵 FB keys: page_id={keys.get('fb_page_id')}, has_token={bool(keys.get('fb_page_token'))}")
+    fb_data = get_client_facebook_stats(keys, month=target_month, year=target_year)
 
 # Debug endpoint to inspect stored Facebook data
 @router_v3.get("/debug/client/{client_id}/facebook-data")
-
 def debug_client_facebook_data(client_id: str, month: str = None, year: str = None, db: Session = Depends(get_db)):
     from datetime import datetime
     from facebook import get_client_facebook_stats
@@ -442,31 +465,6 @@ def debug_client_facebook_data(client_id: str, month: str = None, year: str = No
         "live": live,
         "merged": {**stored, **live}
     }
-
-def get_client_analytics(client_id: str, month: str = None, year: str = None, db: Session = Depends(get_db)):
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found.")
-    
-    from datetime import datetime
-    now = datetime.now()
-    target_month = month or str(now.month)
-    target_year = year or str(now.year)
-    
-    keys = {
-        "ig_access_token": client.ig_access_token,
-        "ig_account_id": client.ig_user_id,
-        "ad_account_id": client.ad_account_id,
-        "instagram_handle": client.instagram_handle or "",
-        "fb_page_id": client.fb_page_id,
-        "fb_page_token": client.fb_page_token,
-        "client_id": client.id,
-    }
-    
-    ig_data = get_client_instagram_stats(keys, month=target_month, year=target_year)
-    
-    print(f"🔵 FB keys: page_id={keys.get('fb_page_id')}, has_token={bool(keys.get('fb_page_token'))}")
-    fb_data = get_client_facebook_stats(keys, month=target_month, year=target_year)
     print(f"🔵 FB result: {fb_data.get('status')} - {fb_data.get('error', 'ok')}")
     
     combined_followers = (ig_data.get("followers") or 0) + (fb_data.get("followers") or 0)
@@ -576,7 +574,7 @@ def download_report_pdf(
     facebook_data['reactions'] = facebook_data.get('total_reactions') or facebook_data.get('total_likes') or 0
     facebook_data['comments'] = facebook_data.get('total_comments') or 0
     facebook_data['shares'] = facebook_data.get('total_shares') or 0
-    facebook_data['posts'] = len(facebook_data.get('posts', [])) if isinstance(facebook_data.get('posts'), list) else 0
+    facebook_data['post_count'] = len(facebook_data.get('posts', [])) if isinstance(facebook_data.get('posts'), list) else 0
     fb_type_counts = facebook_data.get('type_counts', {})
     if fb_type_counts:
         mapped_type_counts = {
