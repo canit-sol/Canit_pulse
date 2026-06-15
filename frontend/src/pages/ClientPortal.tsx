@@ -1486,7 +1486,6 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
               )}
             </div>
           )}
-          {/* Download PDF button disabled until 500 error is fixed
           <button 
             onClick={handleDownloadPdf} 
             disabled={downloadingPdf || !active}
@@ -1495,7 +1494,6 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
             {downloadingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             {downloadingPdf ? "Generating..." : "Download PDF"}
           </button>
-          */}
           <button onClick={fetchData} className="p-2 rounded-xl text-gray-400 hover:text-[#113a87] hover:bg-[#113a87]/5 transition-all">
             <RefreshCw className="w-4 h-4" />
           </button>
