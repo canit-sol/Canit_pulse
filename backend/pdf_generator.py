@@ -44,13 +44,8 @@ def _parse_engagement_rate(eng_rate_str):
 
 
 def _load_canit_logo() -> str:
-    logo_path = os.path.join(os.path.dirname(__file__), 'cai.png')
-    try:
-        with open(logo_path, 'rb') as f:
-            b64 = base64.b64encode(f.read()).decode('ascii')
-        return f'data:image/png;base64,{b64}'
-    except Exception:
-        return 'data:image/svg+xml;base64,' + base64.b64encode(b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#1E2B8F"/><text x="20" y="26" text-anchor="middle" fill="white" font-size="18" font-weight="bold" font-family="sans-serif">CP</text></svg>').decode('ascii')
+    """Return SVG data URI for Canit Pulse logo - no base64 image loading."""
+    return _svg_logo_data_uri('CP', '#1E2B8F', 40)
 
 
 def _safe_val(val, default='N/A'):
@@ -1186,10 +1181,7 @@ def generate_pdf_html(
           <div class="fmt-pct">{cnt} posts ({pct:.0f}%)</div>
         </div>'''
 
-    import base64
-    import requests
-    
-    # ΓöÇΓöÇ Top performing post ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    # ── Top performing post (use stored base64 only; no live fetch) ─────────────────
     tp_img     = top_post.get('media_url', '')
     tp_media_type = top_post.get('media_type', 'IMAGE')
     tp_permalink = top_post.get('permalink', '#')
@@ -1198,15 +1190,9 @@ def generate_pdf_html(
     tp_comments= top_post.get('comments', 0)
     tp_saves   = top_post.get('saves', 0)
     
-    # Use pre-stored base64 from generation time; fall back to live fetch for legacy reports
     tp_img_b64 = top_post.get('media_base64', '') or ''
-    if not tp_img_b64 and tp_img and tp_media_type == 'IMAGE':
-        try:
-            resp = requests.get(tp_img, timeout=10)
-            if resp.ok:
-                tp_img_b64 = f"data:image/jpeg;base64,{base64.b64encode(resp.content).decode()}"
-        except Exception:
-            pass
+    if not tp_img_b64:
+        tp_img_b64 = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23f0f0f0' width='200' height='200'/%3E%3Ctext x='100' y='100' text-anchor='middle' fill='%23999' font-size='14'%3ETop Post%3C/text%3E%3C/svg%3E"
     
     # No posts grid - only show top performing post
     posts_grid = ''

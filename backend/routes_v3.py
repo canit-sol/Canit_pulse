@@ -553,80 +553,42 @@ def download_report_pdf(
     print(f"[PDF DEBUG] facebook_data extracted: {facebook_data}")
     print(f"[PDF DEBUG] synopsis: {synopsis}")
 
-    # 4a. Fetch live Facebook data (like client portal does)
-    if client.fb_page_id and client.fb_page_token:
+    # 4a. Normalize Facebook metrics for PDF rendering from stored report data
+    facebook_data['page_reach'] = facebook_data.get('total_reach') or 0
+    facebook_data['impressions'] = facebook_data.get('total_impressions') or 0
+    facebook_data['page_likes'] = facebook_data.get('total_likes') or 0
+    facebook_data['page_comments'] = facebook_data.get('total_comments') or 0
+    facebook_data['page_shares'] = facebook_data.get('total_shares') or 0
+    facebook_data['page_saves'] = facebook_data.get('total_saves') or 0
+    facebook_data['reactions'] = facebook_data.get('total_reactions') or facebook_data.get('total_likes') or 0
+    facebook_data['comments'] = facebook_data.get('total_comments') or 0
+    facebook_data['shares'] = facebook_data.get('total_shares') or 0
+    facebook_data['posts'] = len(facebook_data.get('posts', [])) if isinstance(facebook_data.get('posts'), list) else 0
+    fb_type_counts = facebook_data.get('type_counts', {})
+    if fb_type_counts:
+        mapped_type_counts = {
+            'Photos': fb_type_counts.get('IMAGE', 0) + fb_type_counts.get('CAROUSEL_ALBUM', 0),
+            'Video / Reels': fb_type_counts.get('VIDEO', 0),
+            'Link Shares': fb_type_counts.get('LINK', 0) + fb_type_counts.get('LINK_SHARE', 0)
+        }
+        facebook_data['type_counts'] = {k: v for k, v in mapped_type_counts.items() if v > 0}
+        if not facebook_data['type_counts']:
+            facebook_data['type_counts'] = {'Photos': 0, 'Video / Reels': 0, 'Link Shares': 0}
+
+    # 5. Resolve Previous Report for MoM comparisons in Brand Health
+    def get_previous_month_year(month_name: str, year_str: str):
+        months = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ]
         try:
-            month_map = {
-                "January": 1, "February": 2, "March": 3, "April": 4,
-                "May": 5, "June": 6, "July": 7, "August": 8,
-                "September": 9, "October": 10, "November": 11, "December": 12
-            }
-            month_num = month_map.get(report.month, 1)
-            live_fb_data = get_client_facebook_stats(
-                {
-                    "fb_page_id": client.fb_page_id,
-                    "fb_page_token": client.fb_page_token,
-                    "ad_account_id": client.ad_account_id or "",
-                },
-                month=month_num,
-                year=report.year,
-            )
-            if live_fb_data and live_fb_data.get("status") == "success":
-                facebook_data.update(live_fb_data)
-                facebook_data["posts"] = live_fb_data.get("posts", []) or facebook_data.get("posts", [])
-                facebook_data["active_days"] = live_fb_data.get("active_days", []) or facebook_data.get("active_days", [])
-                facebook_data["weekly_posts"] = live_fb_data.get("weekly_posts", []) or facebook_data.get("weekly_posts", [])
-                facebook_data["type_counts"] = live_fb_data.get("type_counts", {}) or facebook_data.get("type_counts", {})
-                print(f"[PDF DEBUG] Merged live Facebook data: total_reach={facebook_data.get('total_reach')}, total_impressions={facebook_data.get('total_impressions')}, total_posts={facebook_data.get('total_posts')}")
+            idx = months.index(month_name)
+            if idx == 0:
+                return months[11], str(int(year_str) - 1)
             else:
-                print(f"[PDF DEBUG] Live Facebook data not available or error: {live_fb_data}")
-        except Exception as e:
-            print(f"[PDF DEBUG] Failed to fetch live Facebook data: {e}")
-        else:
-            print(f"[PDF DEBUG] No Facebook credentials configured for client {client.id}")
-        # Normalize Facebook metrics for PDF rendering (expected keys in the template)
-        # The PDF template reads fb_page_reach, fb_impressions, fb_reactions, fb_comments, fb_shares, fb_followers, fb_engagement, fb_posts
-        facebook_data['page_reach'] = facebook_data.get('total_reach') or 0
-        facebook_data['impressions'] = facebook_data.get('total_impressions') or 0
-        facebook_data['page_likes'] = facebook_data.get('total_likes') or 0
-        facebook_data['page_comments'] = facebook_data.get('total_comments') or 0
-        facebook_data['page_shares'] = facebook_data.get('total_shares') or 0
-        facebook_data['page_saves'] = facebook_data.get('total_saves') or 0
-        # Map total_reactions/total_likes to 'reactions' for PDF template
-        facebook_data['reactions'] = facebook_data.get('total_reactions') or facebook_data.get('total_likes') or 0
-        facebook_data['comments'] = facebook_data.get('total_comments') or 0
-        facebook_data['shares'] = facebook_data.get('total_shares') or 0
-        # Ensure followers and engagement_rate are preserved from live data
-        # (they come from live_fb_data via facebook_data.update(live_fb_data))
-        # Normalize total post count for Facebook (PDF expects a numeric value)
-        facebook_data['posts'] = len(facebook_data.get('posts', [])) if isinstance(facebook_data.get('posts'), list) else 0
-        # Map Facebook type_counts to template expected format (Photos, Video / Reels, Link Shares)
-        fb_type_counts = facebook_data.get('type_counts', {})
-        if fb_type_counts:
-            mapped_type_counts = {
-                'Photos': fb_type_counts.get('IMAGE', 0) + fb_type_counts.get('CAROUSEL_ALBUM', 0),
-                'Video / Reels': fb_type_counts.get('VIDEO', 0),
-                'Link Shares': fb_type_counts.get('LINK', 0) + fb_type_counts.get('LINK_SHARE', 0)
-            }
-            # Remove zero entries
-            facebook_data['type_counts'] = {k: v for k, v in mapped_type_counts.items() if v > 0}
-            if not facebook_data['type_counts']:
-                facebook_data['type_counts'] = {'Photos': 0, 'Video / Reels': 0, 'Link Shares': 0}
-        
-        # 5. Resolve Previous Report for MoM comparisons in Brand Health
-        def get_previous_month_year(month_name: str, year_str: str):
-            months = [
-                "January", "February", "March", "April", "May", "June",
-                "July", "August", "September", "October", "November", "December"
-            ]
-            try:
-                idx = months.index(month_name)
-                if idx == 0:
-                    return months[11], str(int(year_str) - 1)
-                else:
-                    return months[idx - 1], year_str
-            except ValueError:
-                return None, None
+                return months[idx - 1], year_str
+        except ValueError:
+            return None, None
 
     prev_month, prev_year = get_previous_month_year(report.month, report.year)
     prev_report = None
@@ -760,18 +722,13 @@ def download_report_pdf(
             diff = ((c_reach - p_reach) / p_reach) * 100
             growth_reach = f"{diff:+.1f}% MoM"
 
-    # AI performance observations
+    # AI observations from stored synopsis
     ai_perf_obs = f"Engagement rate is {instagram_data.get('engagement_rate', '0%')}, which represents healthy audience activity relative to follower tier."
     ai_format_obs = "Video content continues to perform strongly across key interaction metrics."
     ai_cadence_obs = f"Active days: {len(instagram_data.get('active_days', []))} days registered this cycle."
-    strategic_forecast = "Leaning into video reels and high-interest carousels is projected to lift organic brand reach."
+    strategic_forecast = synopsis if synopsis else "Leaning into video reels and high-interest carousels is projected to lift organic brand reach."
     recommendations = []
     
-    from insight_engine import generate_insights
-    insights = generate_insights(instagram_data, growth={"reach": 0, "followers": 0, "engagement": 0, "has_previous": bool(prev_ig)}, month=report.month, year=report.year)
-    if insights:
-        recommendations = [ins for ins in insights[:5]]
-        
     report_data_mapped = {
         "client_name": client.name,
         "month": report.month,
