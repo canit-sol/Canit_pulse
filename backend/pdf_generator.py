@@ -836,6 +836,50 @@ def _svg_logo_data_uri(initials: str, bg_hex: str, size: int = 32) -> str:
     import urllib.parse
     return 'data:image/svg+xml,' + urllib.parse.quote(svg)
 
+
+def _write_html_head(f, client_name: str, month: str, year: str, css: str):
+    """Write HTML head section directly to file."""
+    f.write(f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{client_name} · {month} {year}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>{css}</style>
+</head>
+<body>
+''')
+
+
+def _write_page_header(f, client_logo: str, canit_logo: str, month: str, year: str):
+    f.write(f'''
+    <div class="page-topbar">
+      <div class="topbar-left">
+        <img src="{client_logo}" class="topbar-logo" alt="Client">
+        <span class="topbar-report-label">{month.upper()} {year} REPORT</span>
+      </div>
+      <div class="topbar-right">
+        <img src="{canit_logo}" class="topbar-logo" alt="Canit Pulse">
+        <span class="topbar-brand">CANIT PULSE</span>
+      </div>
+    </div>''')
+
+
+def _write_page_footer(f, page_num: int, total: int = 7):
+    f.write(f'''
+    <div class="page-footer">
+      <span>CANIT PULSE © 2026 | PERFORMANCE &amp; AI BRAND REPORT</span>
+      <span>PAGE {page_num} OF {total}</span>
+    </div>''')
+
+
+def _write_page_start(f):
+    f.write('<div class="pdf-page">')
+
+
+def _write_page_end(f):
+    f.write('</div>')
+
 def generate_pdf_html(
     report_data:    dict,
     instagram_data: dict,
