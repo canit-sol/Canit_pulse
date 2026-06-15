@@ -1047,7 +1047,7 @@ def get_client_reports(client_id: str, current_user: AuthIdentity = Depends(requ
                 "year": rep.year,
                 "filename": rep.filename,
                 "url": rep.url,
-                "uploaded_at": rep.uploaded_at.isoformat(),
+                "uploaded_at": rep.uploaded_at.isoformat() if rep.uploaded_at else None,
                 "seo_metrics": rep.seo_metrics
             })
 

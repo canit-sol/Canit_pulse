@@ -194,7 +194,7 @@ def generate_report(
                     "total_impressions": combined_metrics["total_impressions"],
                     "paid_impressions": combined_metrics["paid_impressions"],
                     "organic_impressions": combined_metrics["organic_impressions"],
-                    "total_followers": (instagram_data.get("followers") or 0) + (facebook_data.get("followers") or 0)
+                    "total_followers": int(instagram_data.get("followers") or 0) + int(facebook_data.get("followers") or 0)
                 }
             }
         )
@@ -214,7 +214,7 @@ def generate_report(
                     followers=int(instagram_data.get("followers", 0) or 0),
                     total_reach=int(instagram_data.get("total_reach", 0) or 0),
                     total_impressions=int(instagram_data.get("total_impressions", 0) or 0),
-                    engagement_rate=float(str(instagram_data.get("engagement_rate", 0)).replace("%", "") or 0),
+                    engagement_rate=float(str(instagram_data.get("engagement_rate") or 0).replace("%", "") or 0),
                     total_likes=int(instagram_data.get("total_likes", 0) or 0),
                     total_comments=int(instagram_data.get("total_comments", 0) or 0),
                     total_saves=int(instagram_data.get("total_saves", 0) or 0),
@@ -232,7 +232,7 @@ def generate_report(
                     followers=int(facebook_data.get("followers", 0) or 0),
                     total_reach=int(facebook_data.get("total_reach", 0) or 0),
                     total_impressions=int(facebook_data.get("total_impressions", 0) or 0),
-                    engagement_rate=float(str(facebook_data.get("engagement_rate", 0)).replace("%", "") or 0),
+                    engagement_rate=float(str(facebook_data.get("engagement_rate") or 0).replace("%", "") or 0),
                     total_likes=int(facebook_data.get("total_likes", 0) or 0),
                     total_comments=int(facebook_data.get("total_comments", 0) or 0),
                     total_saves=int(facebook_data.get("total_saves", 0) or 0),
@@ -437,34 +437,6 @@ def get_client_analytics(client_id: str, month: str = None, year: str = None, db
     print(f"🔵 FB keys: page_id={keys.get('fb_page_id')}, has_token={bool(keys.get('fb_page_token'))}")
     fb_data = get_client_facebook_stats(keys, month=target_month, year=target_year)
 
-# Debug endpoint to inspect stored Facebook data
-@router_v3.get("/debug/client/{client_id}/facebook-data")
-def debug_client_facebook_data(client_id: str, month: str = None, year: str = None, db: Session = Depends(get_db)):
-    from datetime import datetime
-    from facebook import get_client_facebook_stats
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
-    stored = client.facebook_data or {}
-    live = {}
-    if client.fb_page_id and client.fb_page_token:
-        try:
-            live = get_client_facebook_stats(
-                {
-                    "fb_page_id": client.fb_page_id,
-                    "fb_page_token": client.fb_page_token,
-                    "ad_account_id": client.ad_account_id or "",
-                },
-                month=month or str(datetime.utcnow().month),
-                year=year or str(datetime.utcnow().year),
-            )
-        except Exception as e:
-            print(f"[DEBUG] Failed to fetch live Facebook data: {e}")
-    return {
-        "stored": stored,
-        "live": live,
-        "merged": {**stored, **live}
-    }
     print(f"🔵 FB result: {fb_data.get('status')} - {fb_data.get('error', 'ok')}")
     
     combined_followers = (ig_data.get("followers") or 0) + (fb_data.get("followers") or 0)
@@ -499,6 +471,38 @@ def debug_client_facebook_data(client_id: str, month: str = None, year: str = No
         "instagram": ig_data,
         "facebook": fb_data,
         "combined": combined_info
+    }
+
+
+# Debug endpoint to inspect stored Facebook data
+@router_v3.get("/debug/client/{client_id}/facebook-data")
+def debug_client_facebook_data(client_id: str, month: str = None, year: str = None, db: Session = Depends(get_db)):
+    from datetime import datetime
+    from facebook import get_client_facebook_stats
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Using fb_page_id as a proxy to test since facebook_data might not exist
+    stored = getattr(client, 'facebook_data', {}) 
+    live = {}
+    if client.fb_page_id and client.fb_page_token:
+        try:
+            live = get_client_facebook_stats(
+                {
+                    "fb_page_id": client.fb_page_id,
+                    "fb_page_token": client.fb_page_token,
+                    "ad_account_id": client.ad_account_id or "",
+                },
+                month=month or str(datetime.utcnow().month),
+                year=year or str(datetime.utcnow().year),
+            )
+        except Exception as e:
+            print(f"[DEBUG] Failed to fetch live Facebook data: {e}")
+    return {
+        "stored": stored,
+        "live": live,
+        "merged": {**stored, **live}
     }
 
 

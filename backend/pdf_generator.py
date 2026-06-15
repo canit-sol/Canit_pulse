@@ -966,7 +966,7 @@ def generate_pdf_html_to_file(
 
     instagram = _normalize_instagram(instagram_data)
 
-    month = report_data.get('month', '').title()
+    month = str(report_data.get('month') or '').title()
     year  = str(report_data.get('year', ''))
     client_name = report_data.get('client_name', 'Client')
 
