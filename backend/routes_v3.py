@@ -776,14 +776,18 @@ def download_report_pdf(
         "next_conversion_proj": "+15.0% Projected"
     }
 
-    # 8. Render to HTML (generated to temp file, streamed back)
+    # 8. Render to HTML (streaming directly to temp file)
     import tempfile, os
-    from pdf_generator import generate_pdf_html
+    from pdf_generator import generate_pdf_html_to_file
     from fastapi.responses import FileResponse
     
     try:
         brand_color = client.brand_color or "#c8922a"
-        html_content = generate_pdf_html(
+        html_filename = f"{client.name.replace(' ', '_')}_Report_{report.month}_{report.year}.html"
+        
+        tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8')
+        generate_pdf_html_to_file(
+            f=tmp,
             report_data=report_data_mapped,
             instagram_data=instagram_data,
             synopsis=synopsis,
@@ -792,16 +796,10 @@ def download_report_pdf(
             brand_color=brand_color,
             client_logo_url=client.client_logo_url or ''
         )
+        tmp.close()
         
         # Free large data structures
         del instagram_data, facebook_data, seo_data_mapped, report_data_mapped
-        
-        html_filename = f"{client.name.replace(' ', '_')}_Report_{report.month}_{report.year}.html"
-        
-        tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8')
-        tmp.write(html_content)
-        tmp.close()
-        del html_content
         
         background_tasks.add_task(os.unlink, tmp.name)
         return FileResponse(
