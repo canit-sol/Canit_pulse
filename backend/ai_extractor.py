@@ -248,6 +248,10 @@ Return ONLY the JSON structure as specified. No other text."""
 
     raw_response = response.choices[0].message.content.strip()
 
+    print("\n========== GROQ SEO RESPONSE ==========")
+    print(raw_response)
+    print("=======================================\n")
+
     # Clean up if model wraps in backticks anyway
     raw_response = re.sub(r"^```json\s*", "", raw_response)
     raw_response = re.sub(r"^```\s*", "", raw_response)
@@ -255,13 +259,31 @@ Return ONLY the JSON structure as specified. No other text."""
 
     try:
         data = json.loads(raw_response)
-    except json.JSONDecodeError:
-        # Try to extract JSON from the response
+
+    except json.JSONDecodeError as e:
+        print("\n========== JSON PARSE ERROR ==========")
+        print(str(e))
+        print("======================================\n")
+
         match = re.search(r'\{.*\}', raw_response, re.DOTALL)
+
         if match:
-            data = json.loads(match.group())
+            json_text = match.group()
+
+            print("\n========== RECOVERED JSON ==========")
+            print(json_text)
+            print("====================================\n")
+
+            data = json.loads(json_text)
+
         else:
-            raise ValueError("AI did not return valid JSON for SEO metrics.")
+            print("\n========== RAW RESPONSE ==========")
+            print(raw_response)
+            print("==================================\n")
+
+            raise ValueError(
+                f"AI returned invalid JSON: {raw_response[:500]}"
+            )
             
     # Ensure all keys exist with fallback defaults to prevent frontend crashes
     schema_defaults = {
