@@ -537,13 +537,15 @@ def download_report_pdf(
 ):
     """Returns a styled HTML report from stored data — no re-computation."""
     try:
-        report = db.query(Report).filter(Report.id == report_id).first()
+        from sqlalchemy.orm import load_only
+
+        report = db.query(Report).options(load_only(Report.id, Report.client_id, Report.month, Report.year)).filter(Report.id == report_id).first()
         if not report:
             raise HTTPException(status_code=404, detail="Report not found in vault")
         if current_user.role == "client" and current_user.client_id != report.client_id:
             raise HTTPException(status_code=403, detail="Forbidden")
 
-        client = db.query(Client).filter(Client.id == report.client_id).first()
+        client = db.query(Client).options(load_only(Client.id, Client.name, Client.brand_color, Client.client_logo_url)).filter(Client.id == report.client_id).first()
         if not client:
             raise HTTPException(status_code=404, detail="Client not found")
 
