@@ -781,6 +781,7 @@ def download_report_pdf(
     from pdf_generator import generate_pdf_html_to_file
     from fastapi.responses import FileResponse
     
+    print("[DOWNLOAD-PDF] Starting streaming HTML generation")
     try:
         brand_color = client.brand_color or "#c8922a"
         html_filename = f"{client.name.replace(' ', '_')}_Report_{report.month}_{report.year}.html"

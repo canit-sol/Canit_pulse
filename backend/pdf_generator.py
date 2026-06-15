@@ -955,6 +955,7 @@ def generate_pdf_html_to_file(
     Streaming version: writes HTML directly to file handle `f` instead of building
     a massive string in memory. This dramatically reduces peak memory usage.
     """
+    print("[STREAMING] generate_pdf_html_to_file called - v2")
     import time
     from datetime import datetime, timezone
 
@@ -1070,7 +1071,7 @@ def generate_pdf_html_to_file(
 
     # --- Overview page ---
     _write_page_start(f)
-    _write_page_header(f, client_logo_url, CANIT_LOGO, month, year)
+    _write_page_header(f, CLIENT_LOGO, CANIT_LOGO, month, year)
     overviews = report_data.get('overviews', []) or []
     metrics   = report_data.get('metrics', []) or []
     raw_fb = facebook_data
@@ -1115,7 +1116,7 @@ def generate_pdf_html_to_file(
 
     # --- Synopsis / AI Summary page ---
     _write_page_start(f)
-    _write_page_header(f, client_logo_url, CANIT_LOGO, month, year)
+    _write_page_header(f, CLIENT_LOGO, CANIT_LOGO, month, year)
     f.write(f'''
     <h1 class="page-title">AI Brand Intelligence Summary</h1>
     <div class="synopsis-block">
@@ -1126,7 +1127,7 @@ def generate_pdf_html_to_file(
 
     # --- Instagram detailed analytics ---
     _write_page_start(f)
-    _write_page_header(f, client_logo_url, CANIT_LOGO, month, year)
+    _write_page_header(f, CLIENT_LOGO, CANIT_LOGO, month, year)
     f.write(f'''
     <h1 class="page-title">Instagram Detailed Analytics</h1>
     <div class="metrics-row">
@@ -1171,7 +1172,7 @@ def generate_pdf_html_to_file(
 
     # --- Facebook analytics ---
     _write_page_start(f)
-    _write_page_header(f, client_logo_url, CANIT_LOGO, month, year)
+    _write_page_header(f, CLIENT_LOGO, CANIT_LOGO, month, year)
     fb_likes    = _parse_num(fb.get('likes', 0) or fb.get('followers', 0))
     fb_follows  = _parse_num(fb.get('followers', 0))
     fb_engaged  = _parse_num(fb.get('engaged_users', 0))
@@ -1221,7 +1222,7 @@ def generate_pdf_html_to_file(
 
     # --- SEO Analytics ---
     _write_page_start(f)
-    _write_page_header(f, client_logo_url, CANIT_LOGO, month, year)
+    _write_page_header(f, CLIENT_LOGO, CANIT_LOGO, month, year)
     f.write('<h1 class="page-title">SEO &amp; Search Visibility</h1>')
     seo_metrics = seo_data.get('metrics', []) or []
     if seo_metrics:
@@ -1252,7 +1253,7 @@ def generate_pdf_html_to_file(
 
     # --- Recommendations & Close ---
     _write_page_start(f)
-    _write_page_header(f, client_logo_url, CANIT_LOGO, month, year)
+    _write_page_header(f, CLIENT_LOGO, CANIT_LOGO, month, year)
     f.write(f'''
     <h1 class="page-title">Strategic Recommendations</h1>
     <div class="recommendations">
