@@ -1398,19 +1398,24 @@ def serve_local_client_logo(client_id: str, filename: str, db: Session = Depends
         
     # Local fallback
     from pathlib import Path
-    file_path = Path("uploads/logos") / f"{client_id}_{filename}"
-    if file_path.exists():
-        ext = Path(filename).suffix.lower()
-        content_types = {
-            ".png": "image/png",
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-            ".svg": "image/svg+xml",
-            ".webp": "image/webp",
-            ".gif": "image/gif"
-        }
-        content_type = content_types.get(ext, "image/png")
-        return FileResponse(file_path, media_type=content_type)
+    # Try exact filename first, then sanitized version (for pre-sanitization uploads)
+    candidates = [
+        Path("uploads/logos") / f"{client_id}_{filename}",
+        Path("uploads/logos") / f"{client_id}_{filename.replace(' ', '_').replace('#', '_')}",
+    ]
+    for file_path in candidates:
+        if file_path.exists():
+            ext = Path(filename).suffix.lower()
+            content_types = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".svg": "image/svg+xml",
+                ".webp": "image/webp",
+                ".gif": "image/gif"
+            }
+            content_type = content_types.get(ext, "image/png")
+            return FileResponse(file_path, media_type=content_type)
     raise HTTPException(status_code=404, detail="Logo not found.")
 
 

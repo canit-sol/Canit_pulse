@@ -963,7 +963,6 @@ def generate_pdf_html_to_file(
     month = report_data.get('month', '').title()
     year  = str(report_data.get('year', ''))
     client_name = report_data.get('client_name', 'Client')
-    rdata = report_data.get('report_data', {})
 
     CANIT_LOGO = _load_canit_logo()
     bg_hex = brand_color.lstrip('#') if isinstance(brand_color, str) else 'c8922a'
@@ -1072,8 +1071,8 @@ def generate_pdf_html_to_file(
     # --- Overview page ---
     _write_page_start(f)
     _write_page_header(f, client_logo_url, CANIT_LOGO, month, year)
-    overviews = rdata.get('overviews', []) or []
-    metrics   = rdata.get('metrics', []) or []
+    overviews = report_data.get('overviews', []) or []
+    metrics   = report_data.get('metrics', []) or []
     raw_fb = facebook_data
     if isinstance(raw_fb, dict) and 'summary' in raw_fb:
         fb = raw_fb['summary']
@@ -1259,7 +1258,7 @@ def generate_pdf_html_to_file(
     <div class="recommendations">
       <p>Based on the analysis of your {month} {year} performance data, we recommend the following strategic actions:</p>
     </div>''')
-    recommendations = rdata.get('recommendations', []) or []
+    recommendations = report_data.get('recommendations', []) or []
     if not recommendations:
         recommendations = [
             'Increase posting frequency to maintain audience engagement.',
