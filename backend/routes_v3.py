@@ -740,12 +740,24 @@ def download_report_pdf(
     strategic_forecast = synopsis if synopsis else "Leaning into video reels and high-interest carousels is projected to lift organic brand reach."
     recommendations = []
     
+    def _to_int(v):
+        try:
+            s = str(v).replace(',', '').replace('K', '000').replace('k', '000').replace('M', '000000').replace('m', '000000')
+            if '.' in s:
+                s = s.split('.')[0]
+            return int(s)
+        except Exception:
+            return 0
+
+    has_prev = bh_result.metadata.get("has_prev_data", False)
+    audience_growth = f"{_to_int(instagram_data.get('followers', 0)) - _to_int(prev_ig.get('followers', 0)):+d}" if has_prev else "Stable"
+
     report_data_mapped = {
         "client_name": client.name,
         "month": report.month,
         "year": report.year,
         "brand_health_index": bh_result.score,
-        "audience_growth": bh_result.metadata.get("has_prev_data", False) and f"{instagram_data.get('followers', 0) - prev_ig.get('followers', 0):+d}" or "Stable",
+        "audience_growth": audience_growth,
         "reach_acceleration": growth_reach,
         "engagement_energy_label": bh_result.label,
         "market_percentile": "Top 15%",
