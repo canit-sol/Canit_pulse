@@ -5,7 +5,6 @@ import json
 from uuid import uuid4
 import math
 import base64
-import pdfkit
 import re
 from typing import Optional, Tuple
 import os
@@ -2253,22 +2252,4 @@ def generate_pdf_html(
     return final_html
 
 
-# ---------------------------------------------------------------------------
-# PDF renderer (unchanged)
-# ---------------------------------------------------------------------------
 
-def generate_pdf_from_html(html_content: str, output_path: str) -> None:
-    """Render the provided HTML content to a PDF file using pdfkit (wkhtmltopdf)."""
-    logger.info('Rendering HTML to PDF: %s', output_path)
-    options = {
-        'page-size': 'A4',
-        'margin-top': '0mm',
-        'margin-right': '0mm',
-        'margin-bottom': '0mm',
-        'margin-left': '0mm',
-        'encoding': 'UTF-8',
-        'no-outline': None,
-        'enable-local-file-access': None,
-        'print-media-type': None,
-    }
-    pdfkit.from_string(html_content, output_path, options=options)
