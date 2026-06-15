@@ -916,8 +916,13 @@ def _normalize_instagram(insta: dict) -> dict:
         ('followers', 'follower_count'),
         ('total_followers', 'follower_count'),
         ('audience_size', 'follower_count'),
+        ('follower_count', 'follower_count'),
         ('likes', 'like_count'),
         ('avg_likes', 'like_count'),
+        ('total_reach', 'reach_count'),
+        ('reach', 'reach_count'),
+        ('total_impressions', 'impressions_count'),
+        ('impressions', 'impressions_count'),
     ]:
         if key in insta and alias not in out:
             out[alias] = insta[key]
@@ -932,12 +937,12 @@ def _normalize_instagram(insta: dict) -> dict:
             for k, alias in [('followers', 'follower_count'), ('likes', 'like_count')]:
                 if k in s and alias not in out:
                     out[alias] = s[k]
+    # All numeric fields used by the streaming template — parse to int and default to 0
     counts = ['email_count', 'click_count', 'like_count', 'follower_count',
               'comments_count', 'shares_count', 'saves_count', 'profile_visits',
               'website_taps', 'reach_count', 'impressions_count']
     for ak in counts:
-        if ak in out:
-            out[ak] = _parse_num(out[ak])
+        out[ak] = _parse_num(out.get(ak, 0))
     return out
 
 
@@ -1083,19 +1088,19 @@ def generate_pdf_html_to_file(
     <h1 class="page-title" style="margin-bottom:24px;">Performance &amp; Audience Overview</h1>
     <div class="metrics-row">
       <div class="metric-card">
-        <div class="metric-val">{instagram.get('follower_count', 0):,}</div>
+        <div class="metric-val">{_parse_num(instagram.get('follower_count', 0)):,}</div>
         <div class="metric-lbl">Instagram Followers</div>
       </div>
       <div class="metric-card">
-        <div class="metric-val">{instagram.get('like_count', 0):,}</div>
+        <div class="metric-val">{_parse_num(instagram.get('like_count', 0)):,}</div>
         <div class="metric-lbl">Avg. Likes / Post</div>
       </div>
       <div class="metric-card">
-        <div class="metric-val">{instagram.get('email_count', 0):,}</div>
+        <div class="metric-val">{_parse_num(instagram.get('email_count', 0)):,}</div>
         <div class="metric-lbl">Emails Collected</div>
       </div>
       <div class="metric-card">
-        <div class="metric-val">{instagram.get('click_count', 0):,}</div>
+        <div class="metric-val">{_parse_num(instagram.get('click_count', 0)):,}</div>
         <div class="metric-lbl">Total Clicks</div>
       </div>
     </div>''')
@@ -1132,19 +1137,19 @@ def generate_pdf_html_to_file(
     <h1 class="page-title">Instagram Detailed Analytics</h1>
     <div class="metrics-row">
       <div class="metric-card">
-        <div class="metric-val">{instagram.get('impressions_count', 0):,}</div>
+        <div class="metric-val">{_parse_num(instagram.get('impressions_count', 0)):,}</div>
         <div class="metric-lbl">Impressions</div>
       </div>
       <div class="metric-card">
-        <div class="metric-val">{instagram.get('reach_count', 0):,}</div>
+        <div class="metric-val">{_parse_num(instagram.get('reach_count', 0)):,}</div>
         <div class="metric-lbl">Reach</div>
       </div>
       <div class="metric-card">
-        <div class="metric-val">{instagram.get('profile_visits', 0):,}</div>
+        <div class="metric-val">{_parse_num(instagram.get('profile_visits', 0)):,}</div>
         <div class="metric-lbl">Profile Visits</div>
       </div>
       <div class="metric-card">
-        <div class="metric-val">{instagram.get('website_taps', 0):,}</div>
+        <div class="metric-val">{_parse_num(instagram.get('website_taps', 0)):,}</div>
         <div class="metric-lbl">Website Taps</div>
       </div>
     </div>''')
@@ -1173,10 +1178,10 @@ def generate_pdf_html_to_file(
     # --- Facebook analytics ---
     _write_page_start(f)
     _write_page_header(f, CLIENT_LOGO, CANIT_LOGO, month, year)
-    fb_likes    = _parse_num(fb.get('likes', 0) or fb.get('followers', 0))
-    fb_follows  = _parse_num(fb.get('followers', 0))
-    fb_engaged  = _parse_num(fb.get('engaged_users', 0))
-    fb_impressions = _parse_num(fb.get('impressions', 0))
+    fb_likes    = _parse_num(fb.get('likes') or fb.get('followers') or 0)
+    fb_follows  = _parse_num(fb.get('followers') or 0)
+    fb_engaged  = _parse_num(fb.get('engaged_users') or 0)
+    fb_impressions = _parse_num(fb.get('impressions') or fb.get('total_impressions') or 0)
     f.write(f'''
     <h1 class="page-title">Facebook Analytics</h1>
     <div class="metrics-row">
