@@ -5,6 +5,7 @@ Swap GROQ_API_KEY in your .env file.
 import os
 import json
 import re
+import time
 from groq import Groq
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=True)
@@ -172,20 +173,62 @@ def extract_seo_pdf_data(raw_text: str) -> dict:
 
 RAW TEXT:
 ---
-{raw_text[:8000]}
+{raw_text[:4000]}
 ---
 
 Return ONLY the JSON structure as specified. No other text."""
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "system", "content": SEO_SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.2,
-        max_tokens=2000,
-    )
+    max_retries = 3
+    delay = 1.0
+    response = None
+    last_err = None
+
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[
+                    {"role": "system", "content": SEO_SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.2,
+                max_tokens=2000,
+            )
+            break
+        except Exception as e:
+            last_err = e
+            # Detect Rate Limit (429) errors
+            is_429 = False
+            err_class = e.__class__.__name__
+            if "RateLimit" in err_class or "RateLimitError" in err_class:
+                is_429 = True
+            elif hasattr(e, "status_code") and e.status_code == 429:
+                is_429 = True
+            elif "429" in str(e):
+                is_429 = True
+
+            if is_429 and attempt < max_retries - 1:
+                print(f"[Groq Client] 429 Rate Limit encountered. Retrying in {delay}s...")
+                time.sleep(delay)
+                delay *= 2
+            else:
+                break
+
+    if response is None:
+        is_429 = False
+        if last_err:
+            err_class = last_err.__class__.__name__
+            if "RateLimit" in err_class or "RateLimitError" in err_class:
+                is_429 = True
+            elif hasattr(last_err, "status_code") and last_err.status_code == 429:
+                is_429 = True
+            elif "429" in str(last_err):
+                is_429 = True
+
+        if is_429:
+            raise ValueError("The SEO analysis service is temporarily busy due to rate limits. Please wait a moment and try again.")
+        else:
+            raise ValueError("Failed to extract SEO metrics due to an AI service error. Please verify the file and try again.")
 
     raw_response = response.choices[0].message.content.strip()
 
