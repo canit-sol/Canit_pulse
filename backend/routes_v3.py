@@ -766,22 +766,13 @@ def download_report_pdf(
         "next_conversion_proj": "+15.0% Projected"
     }
 
-    # 8. Render to HTML (PDF generation skipped, returning HTML directly)
+    # 8. Render to HTML (generated to temp file, streamed back)
+    import tempfile, os
     from pdf_generator import generate_pdf_html
-    from fastapi import Response
+    from fastapi.responses import FileResponse
     
     try:
-        # Get brand color
         brand_color = client.brand_color or "#c8922a"
-        
-        # Debug: Print what data we have
-        print(f"[PDF DEBUG] report_data_mapped keys: {list(report_data_mapped.keys()) if report_data_mapped else 'None'}")
-        print(f"[PDF DEBUG] instagram_data: {instagram_data}")
-        print(f"[PDF DEBUG] facebook_data: {facebook_data}")
-        print(f"[PDF DEBUG] seo_data_mapped: {seo_data_mapped}")
-        print(f"[PDF DEBUG] synopsis length: {len(synopsis) if synopsis else 0}")
-        print(f"[PDF DEBUG] brand_color: {brand_color}")
-        
         html_content = generate_pdf_html(
             report_data=report_data_mapped,
             instagram_data=instagram_data,
@@ -792,11 +783,21 @@ def download_report_pdf(
             client_logo_url=client.client_logo_url or ''
         )
         
+        # Free large data structures
+        del instagram_data, facebook_data, seo_data_mapped, report_data_mapped
+        
         html_filename = f"{client.name.replace(' ', '_')}_Report_{report.month}_{report.year}.html"
         
-        return Response(
-            content=html_content,
+        tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8')
+        tmp.write(html_content)
+        tmp.close()
+        del html_content
+        
+        background_tasks.add_task(os.unlink, tmp.name)
+        return FileResponse(
+            tmp.name,
             media_type="text/html",
+            filename=html_filename,
             headers={"Content-Disposition": f"attachment; filename={html_filename}"}
         )
     except Exception as e:
