@@ -512,277 +512,278 @@ def download_report_pdf(
     db: Session = Depends(get_db)
 ):
     """Fetches all raw metrics for the month, calculates brand health/gauges, maps schemas, and returns a high-fidelity PDF."""
-    # 1. Fetch active report
-    report = db.query(Report).filter(Report.id == report_id).first()
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found in vault")
-        
-    # Check tenant access (clients can only view their own reports)
-    if current_user.role == "client" and current_user.client_id != report.client_id:
-        raise HTTPException(status_code=403, detail="Forbidden: Access to another tenant's report is denied.")
-        
-    # 2. Fetch Client
-    client = db.query(Client).filter(Client.id == report.client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
-        
-    # 3. Extract Platform Stats
-    ig_raw = report.ig_data
-    print(f"[PDF DEBUG] Raw ig_data type: {type(ig_raw)}")
-    print(f"[PDF DEBUG] Raw ig_data: {ig_raw}")
-    if isinstance(ig_raw, str):
-        ig_raw = json.loads(ig_raw)
-        print(f"[PDF DEBUG] After json.loads: {ig_raw}")
-    
-    # Handle both data formats:
-    # New format: {"platforms": {"instagram": {...}, "facebook": {...}, ...}}
-    # Old format: {"instagram": {...}, "facebook": {...}, "synopsis": "...", ...}
-    platforms = ig_raw.get("platforms", {})
-    if platforms:  # New format
-        instagram_data = platforms.get("instagram", {})
-        facebook_data = platforms.get("facebook", {})
-    else:  # Old format
-        instagram_data = ig_raw.get("instagram", {})
-        facebook_data = ig_raw.get("facebook", {})
-    
-    synopsis = ig_raw.get("synopsis", "")
-    print(f"[PDF DEBUG] platforms: {platforms}")
-    print(f"[PDF DEBUG] instagram_data extracted: {instagram_data}")
-    print(f"[PDF DEBUG] facebook_data extracted: {facebook_data}")
-    print(f"[PDF DEBUG] synopsis: {synopsis}")
-
-    # Strip heavy base64 image data from posts (only top_post.media_base64 is used in template)
-    for platform_data in (instagram_data, facebook_data):
-        posts = platform_data.get('posts', [])
-        if isinstance(posts, list):
-            for p in posts:
-                p.pop('media_base64', None)
-        # Also strip from post-like lists in nested structures
-        for key in ('media', 'posts_list', 'all_posts'):
-            inner = platform_data.get(key, [])
-            if isinstance(inner, list):
-                for p in inner:
-                    p.pop('media_base64', None)
-
-    # 4a. Normalize Facebook metrics for PDF rendering from stored report data
-    facebook_data['page_reach'] = facebook_data.get('total_reach') or 0
-    facebook_data['impressions'] = facebook_data.get('total_impressions') or 0
-    facebook_data['page_likes'] = facebook_data.get('total_likes') or 0
-    facebook_data['page_comments'] = facebook_data.get('total_comments') or 0
-    facebook_data['page_shares'] = facebook_data.get('total_shares') or 0
-    facebook_data['page_saves'] = facebook_data.get('total_saves') or 0
-    facebook_data['reactions'] = facebook_data.get('total_reactions') or facebook_data.get('total_likes') or 0
-    facebook_data['comments'] = facebook_data.get('total_comments') or 0
-    facebook_data['shares'] = facebook_data.get('total_shares') or 0
-    facebook_data['post_count'] = len(facebook_data.get('posts', [])) if isinstance(facebook_data.get('posts'), list) else 0
-    fb_type_counts = facebook_data.get('type_counts', {})
-    if fb_type_counts:
-        mapped_type_counts = {
-            'Photos': fb_type_counts.get('IMAGE', 0) + fb_type_counts.get('CAROUSEL_ALBUM', 0),
-            'Video / Reels': fb_type_counts.get('VIDEO', 0),
-            'Link Shares': fb_type_counts.get('LINK', 0) + fb_type_counts.get('LINK_SHARE', 0)
-        }
-        facebook_data['type_counts'] = {k: v for k, v in mapped_type_counts.items() if v > 0}
-        if not facebook_data['type_counts']:
-            facebook_data['type_counts'] = {'Photos': 0, 'Video / Reels': 0, 'Link Shares': 0}
-
-    # 5. Resolve Previous Report for MoM comparisons in Brand Health
-    def get_previous_month_year(month_name: str, year_str: str):
-        months = [
-            "January", "February", "March", "April", "May", "June",
-            "July", "August", "September", "October", "November", "December"
-        ]
-        try:
-            idx = months.index(month_name)
-            if idx == 0:
-                return months[11], str(int(year_str) - 1)
-            else:
-                return months[idx - 1], year_str
-        except ValueError:
-            return None, None
-
-    prev_month, prev_year = get_previous_month_year(report.month, report.year)
-    prev_report = None
-    if prev_month and prev_year:
-        prev_report = db.query(Report).filter(
-            Report.client_id == report.client_id,
-            Report.month == prev_month,
-            Report.year == prev_year
-        ).first()
-
-    prev_ig = {}
-    if prev_report:
-        prev_raw = prev_report.ig_data
-        if isinstance(prev_raw, str):
-            prev_raw = json.loads(prev_raw)
-        prev_ig = prev_raw.get("platforms", {}).get("instagram", {}) if "platforms" in prev_raw else prev_raw.get("instagram", prev_raw)
-
-    # 5. Calculate Brand Health and Gauges
-    from services.brand_health import compute_brand_health
-    from services.gauge_engine import compute_gauges
-    from database import ContentCalendar
-    
-    bh_result = compute_brand_health(instagram_data, platform="instagram", prev_data=prev_ig)
-    
-    cal_count = db.query(ContentCalendar).filter(ContentCalendar.client_id == report.client_id).count()
-    gauge_result = compute_gauges(platform_data=instagram_data, prev_data=prev_ig, cal_count=cal_count, platform="instagram")
-    gauges = gauge_result.get("gauges", {})
-    
-    # 6. Fetch & Map Monthly SEO Report
-    from database import MonthlySEOReport
-    seo_report = db.query(MonthlySEOReport).filter(
-        MonthlySEOReport.client_id == report.client_id,
-        MonthlySEOReport.month == report.month,
-        MonthlySEOReport.year == report.year
-    ).first()
-    
-    seo_metrics = seo_report.seo_metrics if seo_report else {}
-    
-    # Map keyword rankings to target_keywords
-    target_keywords = []
-    if seo_metrics and "keyword_rankings" in seo_metrics:
-        for r in seo_metrics["keyword_rankings"]:
-            target_keywords.append({
-                "keyword": r.get("keyword", ""),
-                "rank": f"Pos #{r.get('position', '—')}",
-                "trend": r.get("change", "0")
-            })
-            
-    # Map search trends to visits_trend
-    visits_trend = []
-    if seo_metrics and "search_trends" in seo_metrics:
-        for t in seo_metrics["search_trends"]:
-            visits_trend.append({
-                "visits": t.get("clicks", 0),
-                "month": t.get("date", "")
-            })
-            
-    # Calculate SEO Score using same logic as frontend
-    def calculate_seo_score_backend(m: dict) -> int:
-        if not m: return 0
-        score = 50
-        ctr = m.get("ctr", 0)
-        if ctr > 5: score += 15
-        elif ctr > 2: score += 10
-        elif ctr > 0: score += 5
-        
-        br = m.get("bounce_rate", 0)
-        if 0 < br < 50: score += 15
-        elif 50 <= br < 70: score += 10
-        elif br >= 70: score += 5
-        
-        pos = m.get("avg_position", 0)
-        if 0 < pos < 5: score += 10
-        elif 5 <= pos < 15: score += 5
-        
-        imp = m.get("impressions", 0)
-        if imp > 50000: score += 10
-        elif imp > 10000: score += 5
-        
-        sess = m.get("sessions", 0)
-        if sess > 10000: score += 10
-        elif sess > 1000: score += 5
-        return min(100, max(0, int(round(score))))
-
-    # Fetch Blogs from ClientBlog table
-    from database import ClientBlog
-    from sqlalchemy import and_, extract
-    months = {
-        "January": 1, "February": 2, "March": 3, "April": 4, "May": 5, "June": 6,
-        "July": 7, "August": 8, "September": 9, "October": 10, "November": 11, "December": 12
-    }
-    month_idx = list(months.keys()).index(report.month) + 1 if report.month in months else 0
-    year_int = int(report.year)
-    blogs = db.query(ClientBlog).filter(
-        and_(
-            ClientBlog.client_id == report.client_id,
-            ClientBlog.published_at.isnot(None),
-            extract('month', ClientBlog.published_at) == month_idx,
-            extract('year', ClientBlog.published_at) == year_int,
-        )
-    ).all()
-    
-    blog_posts_list = [{
-        "title": b.title,
-        "excerpt": b.excerpt or "",
-        "date": b.created_at.strftime("%Y-%m-%d") if b.created_at else ""
-    } for b in blogs]
-    
-    seo_data_mapped = {
-        "website_visits": seo_metrics.get("sessions", "N/A"),
-        "seo_score": calculate_seo_score_backend(seo_metrics),
-        "blog_posts_list": blog_posts_list,
-        "blog_posts": len(blog_posts_list),
-        "impressions": seo_metrics.get("impressions", "N/A"),
-        "clicks": seo_metrics.get("clicks", "N/A"),
-        "avg_position": seo_metrics.get("avg_position", "N/A"),
-        "bounce_rate": seo_metrics.get("bounce_rate", "N/A"),
-        "target_keywords": target_keywords,
-        "unique_users": seo_metrics.get("users", 0),
-        "key_conversions": seo_metrics.get("key_events", 0),
-        "visits_trend": visits_trend
-    }
-    
-    # 7. Assemble Report Data Mapped
-    # Resolve growth MoM stats
-    growth_reach = "Stable"
-    if prev_ig and instagram_data:
-        p_reach = prev_ig.get("total_reach", 0) or 0
-        c_reach = instagram_data.get("total_reach", 0) or 0
-        if p_reach > 0:
-            diff = ((c_reach - p_reach) / p_reach) * 100
-            growth_reach = f"{diff:+.1f}% MoM"
-
-    # AI observations from stored synopsis
-    ai_perf_obs = f"Engagement rate is {instagram_data.get('engagement_rate', '0%')}, which represents healthy audience activity relative to follower tier."
-    ai_format_obs = "Video content continues to perform strongly across key interaction metrics."
-    ai_cadence_obs = f"Active days: {len(instagram_data.get('active_days', []))} days registered this cycle."
-    strategic_forecast = synopsis if synopsis else "Leaning into video reels and high-interest carousels is projected to lift organic brand reach."
-    recommendations = []
-    
-    def _to_int(v):
-        try:
-            s = str(v).replace(',', '').replace('K', '000').replace('k', '000').replace('M', '000000').replace('m', '000000')
-            if '.' in s:
-                s = s.split('.')[0]
-            return int(s)
-        except Exception:
-            return 0
-
-    has_prev = bh_result.metadata.get("has_prev_data", False)
-    audience_growth = f"{_to_int(instagram_data.get('followers', 0)) - _to_int(prev_ig.get('followers', 0)):+d}" if has_prev else "Stable"
-
-    report_data_mapped = {
-        "client_name": client.name,
-        "month": report.month,
-        "year": report.year,
-        "brand_health_index": bh_result.score,
-        "audience_growth": audience_growth,
-        "reach_acceleration": growth_reach,
-        "engagement_energy_label": bh_result.label,
-        "market_percentile": "Top 15%",
-        "interaction_energy": gauges.get("engagement_quality", 70.0),
-        "consistency_index": gauges.get("content_consistency", 70.0),
-        "reach_efficiency": gauges.get("reach_efficiency", 70.0),
-        "virality_factor": gauges.get("virality_potential", 70.0),
-        "ai_perf_observation": ai_perf_obs,
-        "ai_format_observation": ai_format_obs,
-        "ai_cadence_observation": ai_cadence_obs,
-        "strategic_forecast": strategic_forecast,
-        "recommendations": recommendations,
-        "action_steps": recommendations[:3] if len(recommendations) >= 3 else ["Create structured campaign around core keywords"],
-        "next_reach_proj": "+12.4% Projected",
-        "next_engagement_proj": "+8.5% Projected",
-        "next_conversion_proj": "+15.0% Projected"
-    }
-
-    # 8. Render to HTML (streaming directly to temp file)
-    import tempfile, os
-    from pdf_generator import generate_pdf_html_to_file
-    from fastapi.responses import FileResponse
-    
-    print("[DOWNLOAD-PDF] Starting streaming HTML generation")
+    import gc
     try:
+        # 1. Fetch active report
+        report = db.query(Report).filter(Report.id == report_id).first()
+        if not report:
+            raise HTTPException(status_code=404, detail="Report not found in vault")
+            
+        # Check tenant access (clients can only view their own reports)
+        if current_user.role == "client" and current_user.client_id != report.client_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Access to another tenant's report is denied.")
+            
+        # 2. Fetch Client
+        client = db.query(Client).filter(Client.id == report.client_id).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+            
+        # 3. Extract Platform Stats
+        ig_raw = report.ig_data
+        print(f"[PDF DEBUG] Raw ig_data type: {type(ig_raw)}")
+        if isinstance(ig_raw, str):
+            ig_raw = json.loads(ig_raw)
+        
+        # Handle both data formats:
+        # New format: {"platforms": {"instagram": {...}, "facebook": {...}, ...}}
+        # Old format: {"instagram": {...}, "facebook": {...}, "synopsis": "...", ...}
+        platforms = ig_raw.get("platforms", {})
+        if platforms:  # New format
+            instagram_data = platforms.get("instagram", {})
+            facebook_data = platforms.get("facebook", {})
+        else:  # Old format
+            instagram_data = ig_raw.get("instagram", {})
+            facebook_data = ig_raw.get("facebook", {})
+        
+        synopsis = ig_raw.get("synopsis", "")
+        del ig_raw, platforms
+        gc.collect()
+        # Strip base64 from posts after we're done with normalization
+        for platform_data in (instagram_data, facebook_data):
+            posts = platform_data.get('posts', [])
+            if isinstance(posts, list):
+                for p in posts:
+                    p.pop('media_base64', None)
+            for key in ('media', 'posts_list', 'all_posts'):
+                inner = platform_data.get(key, [])
+                if isinstance(inner, list):
+                    for p in inner:
+                        p.pop('media_base64', None)
+        gc.collect()
+
+        # 4a. Normalize Facebook metrics for PDF rendering from stored report data
+        facebook_data['page_reach'] = facebook_data.get('total_reach') or 0
+        facebook_data['impressions'] = facebook_data.get('total_impressions') or 0
+        facebook_data['page_likes'] = facebook_data.get('total_likes') or 0
+        facebook_data['page_comments'] = facebook_data.get('total_comments') or 0
+        facebook_data['page_shares'] = facebook_data.get('total_shares') or 0
+        facebook_data['page_saves'] = facebook_data.get('total_saves') or 0
+        facebook_data['reactions'] = facebook_data.get('total_reactions') or facebook_data.get('total_likes') or 0
+        facebook_data['comments'] = facebook_data.get('total_comments') or 0
+        facebook_data['shares'] = facebook_data.get('total_shares') or 0
+        facebook_data['post_count'] = len(facebook_data.get('posts', [])) if isinstance(facebook_data.get('posts'), list) else 0
+        fb_type_counts = facebook_data.get('type_counts', {})
+        if fb_type_counts:
+            mapped_type_counts = {
+                'Photos': fb_type_counts.get('IMAGE', 0) + fb_type_counts.get('CAROUSEL_ALBUM', 0),
+                'Video / Reels': fb_type_counts.get('VIDEO', 0),
+                'Link Shares': fb_type_counts.get('LINK', 0) + fb_type_counts.get('LINK_SHARE', 0)
+            }
+            facebook_data['type_counts'] = {k: v for k, v in mapped_type_counts.items() if v > 0}
+            if not facebook_data['type_counts']:
+                facebook_data['type_counts'] = {'Photos': 0, 'Video / Reels': 0, 'Link Shares': 0}
+
+        # 5. Resolve Previous Report for MoM comparisons in Brand Health
+        def get_previous_month_year(month_name: str, year_str: str):
+            months = [
+                "January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"
+            ]
+            try:
+                idx = months.index(month_name)
+                if idx == 0:
+                    return months[11], str(int(year_str) - 1)
+                else:
+                    return months[idx - 1], year_str
+            except ValueError:
+                return None, None
+
+        prev_month, prev_year = get_previous_month_year(report.month, report.year)
+        prev_report = None
+        if prev_month and prev_year:
+            prev_report = db.query(Report).filter(
+                Report.client_id == report.client_id,
+                Report.month == prev_month,
+                Report.year == prev_year
+            ).first()
+
+        prev_ig = {}
+        if prev_report:
+            prev_raw = prev_report.ig_data
+            if isinstance(prev_raw, str):
+                prev_raw = json.loads(prev_raw)
+            prev_ig = prev_raw.get("platforms", {}).get("instagram", {}) if "platforms" in prev_raw else prev_raw.get("instagram", prev_raw)
+
+        # 5. Calculate Brand Health and Gauges
+        from services.brand_health import compute_brand_health
+        from services.gauge_engine import compute_gauges
+        from database import ContentCalendar
+        
+        bh_result = compute_brand_health(instagram_data, platform="instagram", prev_data=prev_ig)
+        
+        cal_count = db.query(ContentCalendar).filter(ContentCalendar.client_id == report.client_id).count()
+        gauge_result = compute_gauges(platform_data=instagram_data, prev_data=prev_ig, cal_count=cal_count, platform="instagram")
+        gauges = gauge_result.get("gauges", {})
+        del gauge_result
+        gc.collect()
+        
+        # 6. Fetch & Map Monthly SEO Report
+        from database import MonthlySEOReport
+        seo_report = db.query(MonthlySEOReport).filter(
+            MonthlySEOReport.client_id == report.client_id,
+            MonthlySEOReport.month == report.month,
+            MonthlySEOReport.year == report.year
+        ).first()
+        
+        seo_metrics = seo_report.seo_metrics if seo_report else {}
+        del seo_report
+        
+        # Map keyword rankings to target_keywords
+        target_keywords = []
+        if seo_metrics and "keyword_rankings" in seo_metrics:
+            for r in seo_metrics["keyword_rankings"]:
+                target_keywords.append({
+                    "keyword": r.get("keyword", ""),
+                    "rank": f"Pos #{r.get('position', '—')}",
+                    "trend": r.get("change", "0")
+                })
+                
+        # Map search trends to visits_trend
+        visits_trend = []
+        if seo_metrics and "search_trends" in seo_metrics:
+            for t in seo_metrics["search_trends"]:
+                visits_trend.append({
+                    "visits": t.get("clicks", 0),
+                    "month": t.get("date", "")
+                })
+                
+        # Calculate SEO Score using same logic as frontend
+        def calculate_seo_score_backend(m: dict) -> int:
+            if not m: return 0
+            score = 50
+            ctr = m.get("ctr", 0)
+            if ctr > 5: score += 15
+            elif ctr > 2: score += 10
+            elif ctr > 0: score += 5
+            
+            br = m.get("bounce_rate", 0)
+            if 0 < br < 50: score += 15
+            elif 50 <= br < 70: score += 10
+            elif br >= 70: score += 5
+            
+            pos = m.get("avg_position", 0)
+            if 0 < pos < 5: score += 10
+            elif 5 <= pos < 15: score += 5
+            
+            imp = m.get("impressions", 0)
+            if imp > 50000: score += 10
+            elif imp > 10000: score += 5
+            
+            sess = m.get("sessions", 0)
+            if sess > 10000: score += 10
+            elif sess > 1000: score += 5
+            return min(100, max(0, int(round(score))))
+
+        # Fetch Blogs from ClientBlog table
+        from database import ClientBlog
+        from sqlalchemy import and_, extract
+        months = {
+            "January": 1, "February": 2, "March": 3, "April": 4, "May": 5, "June": 6,
+            "July": 7, "August": 8, "September": 9, "October": 10, "November": 11, "December": 12
+        }
+        month_idx = list(months.keys()).index(report.month) + 1 if report.month in months else 0
+        year_int = int(report.year)
+        blogs = db.query(ClientBlog).filter(
+            and_(
+                ClientBlog.client_id == report.client_id,
+                ClientBlog.published_at.isnot(None),
+                extract('month', ClientBlog.published_at) == month_idx,
+                extract('year', ClientBlog.published_at) == year_int,
+            )
+        ).all()
+        
+        blog_posts_list = [{
+            "title": b.title,
+            "excerpt": b.excerpt or "",
+            "date": b.created_at.strftime("%Y-%m-%d") if b.created_at else ""
+        } for b in blogs]
+        del blogs
+        
+        seo_data_mapped = {
+            "website_visits": seo_metrics.get("sessions", "N/A"),
+            "seo_score": calculate_seo_score_backend(seo_metrics),
+            "blog_posts_list": blog_posts_list,
+            "blog_posts": len(blog_posts_list),
+            "impressions": seo_metrics.get("impressions", "N/A"),
+            "clicks": seo_metrics.get("clicks", "N/A"),
+            "avg_position": seo_metrics.get("avg_position", "N/A"),
+            "bounce_rate": seo_metrics.get("bounce_rate", "N/A"),
+            "target_keywords": target_keywords,
+            "unique_users": seo_metrics.get("users", 0),
+            "key_conversions": seo_metrics.get("key_events", 0),
+            "visits_trend": visits_trend
+        }
+        del blog_posts_list, target_keywords, visits_trend, seo_metrics
+        gc.collect()
+        
+        # 7. Assemble Report Data Mapped
+        growth_reach = "Stable"
+        if prev_ig and instagram_data:
+            p_reach = prev_ig.get("total_reach", 0) or 0
+            c_reach = instagram_data.get("total_reach", 0) or 0
+            if p_reach > 0:
+                diff = ((c_reach - p_reach) / p_reach) * 100
+                growth_reach = f"{diff:+.1f}% MoM"
+        ai_perf_obs = f"Engagement rate is {instagram_data.get('engagement_rate', '0%')}, which represents healthy audience activity relative to follower tier."
+        ai_format_obs = "Video content continues to perform strongly across key interaction metrics."
+        ai_cadence_obs = f"Active days: {len(instagram_data.get('active_days', []))} days registered this cycle."
+        strategic_forecast = synopsis if synopsis else "Leaning into video reels and high-interest carousels is projected to lift organic brand reach."
+        recommendations = []
+        
+        def _to_int(v):
+            try:
+                s = str(v).replace(',', '').replace('K', '000').replace('k', '000').replace('M', '000000').replace('m', '000000')
+                if '.' in s:
+                    s = s.split('.')[0]
+                return int(s)
+            except Exception:
+                return 0
+
+        has_prev = bh_result.metadata.get("has_prev_data", False)
+        audience_growth = f"{_to_int(instagram_data.get('followers', 0)) - _to_int(prev_ig.get('followers', 0)):+d}" if has_prev else "Stable"
+        del prev_ig, prev_report
+
+        report_data_mapped = {
+            "client_name": client.name,
+            "month": report.month,
+            "year": report.year,
+            "brand_health_index": bh_result.score,
+            "audience_growth": audience_growth,
+            "reach_acceleration": growth_reach,
+            "engagement_energy_label": bh_result.label,
+            "market_percentile": "Top 15%",
+            "interaction_energy": gauges.get("engagement_quality", 70.0),
+            "consistency_index": gauges.get("content_consistency", 70.0),
+            "reach_efficiency": gauges.get("reach_efficiency", 70.0),
+            "virality_factor": gauges.get("virality_potential", 70.0),
+            "ai_perf_observation": ai_perf_obs,
+            "ai_format_observation": ai_format_obs,
+            "ai_cadence_observation": ai_cadence_obs,
+            "strategic_forecast": strategic_forecast,
+            "recommendations": recommendations,
+            "action_steps": recommendations[:3] if len(recommendations) >= 3 else ["Create structured campaign around core keywords"],
+            "next_reach_proj": "+12.4% Projected",
+            "next_engagement_proj": "+8.5% Projected",
+            "next_conversion_proj": "+15.0% Projected"
+        }
+        del bh_result, gauges, recommendations
+        gc.collect()
+
+        # 8. Render to HTML and stream directly to response
+        import tempfile, os
+        from pdf_generator import generate_pdf_html_to_file
+        
+        print("[DOWNLOAD-PDF] Starting streaming HTML generation")
         brand_color = client.brand_color or "#c8922a"
         html_filename = f"{client.name.replace(' ', '_')}_Report_{report.month}_{report.year}.html"
         
@@ -799,8 +800,8 @@ def download_report_pdf(
         )
         tmp.close()
         
-        # Free large data structures
-        del instagram_data, facebook_data, seo_data_mapped, report_data_mapped
+        del instagram_data, facebook_data, seo_data_mapped, report_data_mapped, synopsis
+        gc.collect()
         
         background_tasks.add_task(os.unlink, tmp.name)
         return FileResponse(
@@ -809,9 +810,11 @@ def download_report_pdf(
             filename=html_filename,
             headers={"Content-Disposition": f"attachment; filename={html_filename}"}
         )
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
-        print(f"[PDF ERROR] {e}")
+        print(f"[DOWNLOAD-PDF CRASH] {e}")
         print(tb)
         raise HTTPException(status_code=500, detail={"error": str(e), "traceback": tb})
