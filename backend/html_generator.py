@@ -259,6 +259,7 @@ def generate_report_html_to_file(
     report_data:    dict,
     instagram_data: dict,
     synopsis:       str,
+    seo_data:       dict = {},
     facebook_data:  dict = {},
     brand_color:    str  = '#c8922a',
     client_logo_url: str = ''
@@ -465,7 +466,8 @@ def generate_report_html_to_file(
         fb_reach = fb.get('page_reach') or fb.get('total_reach')
         fb_metrics.append(('Reach', _fmt_num(fb_reach)))
     if fb.get('total_impressions') or fb.get('impressions'):
-        fb_metrics.append(('Impressions', _fmt_num(fb.get('total_impressions') or fb.get('impressions'))))
+        fb_impressions = fb.get('total_impressions') or fb.get('impressions')
+        fb_metrics.append(('Impressions', _fmt_num(fb_impressions)))
     if fb.get('total_reactions'):
         fb_metrics.append(('Reactions', _fmt_num(fb['total_reactions'])))
     fb_eng = fb.get('engagement_rate', '')
