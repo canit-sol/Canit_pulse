@@ -566,7 +566,7 @@ def download_report(
                    )
                  ) AS item
                  LIMIT 6) AS fb_posts,
-                COALESCE(rd->>'synopsis', '') AS synopsis
+                 COALESCE(rd->>'synopsis', '') AS synopsis
             FROM (
                 SELECT id, client_id, month, year, raw_data::jsonb AS rd
                 FROM reports
@@ -608,8 +608,6 @@ def download_report(
             "recommendations": [],
         }
 
-        seo_data = {}
-
         import tempfile, os
         from html_generator import generate_report_html_to_file
 
@@ -623,7 +621,6 @@ def download_report(
             report_data=report_data,
             instagram_data=instagram_data,
             synopsis=synopsis,
-            seo_data=seo_data,
             facebook_data=facebook_data,
             brand_color=brand_color,
             client_logo_url=kpi_row.client_logo_url or ''

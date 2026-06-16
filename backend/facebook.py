@@ -420,6 +420,7 @@ def _fetch_real_data(page_id: str, token: str, month: int, year: int, ad_account
         "active_days":     active_days,
         "total_posts":     len(month_posts),
         "total_reach":     _fmt(total_reach),
+        "page_reach":      _fmt(page_reach),
         "total_impressions": _fmt(total_impressions),
         "total_likes":     total_reactions_display,
         "total_reactions": total_reactions_display,
