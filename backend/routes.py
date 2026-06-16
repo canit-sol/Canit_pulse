@@ -1375,7 +1375,7 @@ async def upload_client_logo(client_id: str, file: UploadFile = File(...), curre
     }
     content_type = content_types.get(ext, "image/png")
     
-    # Save the file strictly to Supabase Storage
+    # Save the file strictly to Supabase Storage (verified bucket configuration)
     supabase_url_path = None
     bucket_name = "client-logos"
     file_path = f"{client_id}/{file.filename}"
