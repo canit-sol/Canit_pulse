@@ -529,6 +529,7 @@ def debug_client_facebook_data(client_id: str, month: str = None, year: str = No
 # ── DOWNLOAD REPORT PDF ──────────────────────────
 
 @router_v3.get("/reports/{report_id}/download-report")
+@router_v3.get("/reports/{report_id}/download-pdf")
 def download_report(
     report_id: str,
     background_tasks: BackgroundTasks,
