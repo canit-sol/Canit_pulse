@@ -246,7 +246,7 @@ Return ONLY the JSON structure as specified. No other text."""
         if is_429:
             raise ValueError("The SEO analysis service is temporarily busy due to rate limits. Please wait a moment and try again.")
         else:
-            raise ValueError("Failed to extract SEO metrics due to an AI service error. Please verify the file and try again.")
+            raise ValueError(f"Failed to extract SEO metrics due to an AI service error: {str(last_err)}")
 
     raw_response = response.choices[0].message.content.strip()
 
