@@ -528,8 +528,8 @@ def debug_client_facebook_data(client_id: str, month: str = None, year: str = No
 
 # ── DOWNLOAD REPORT PDF ──────────────────────────
 
-@router_v3.get("/reports/{report_id}/download-pdf")
-def download_report_pdf(
+@router_v3.get("/reports/{report_id}/download-report")
+def download_report(
     report_id: str,
     background_tasks: BackgroundTasks,
     current_user: AuthIdentity = Depends(get_current_user),
@@ -548,16 +548,29 @@ def download_report_pdf(
                 c.name AS client_name,
                 c.brand_color,
                 c.client_logo_url,
-                (COALESCE(r.raw_data->'platforms'->'instagram', r.raw_data->'instagram', '{}') - 'posts') AS ig_kpis,
+                (COALESCE(rd->'platforms'->'instagram', rd->'instagram', '{}') - 'posts') AS ig_kpis,
                 (SELECT jsonb_agg(item - 'media_base64' - 'thumbnail_base64')
-                 FROM jsonb_array_elements(COALESCE(r.raw_data->'platforms'->'instagram', r.raw_data->'instagram', '{}')->'posts') AS item
+                 FROM jsonb_array_elements(
+                   COALESCE(
+                     NULLIF((COALESCE(rd->'platforms'->'instagram', rd->'instagram', '{}')->'posts'), 'null'::jsonb),
+                     '[]'::jsonb
+                   )
+                 ) AS item
                  LIMIT 6) AS ig_posts,
-                (COALESCE(r.raw_data->'platforms'->'facebook', r.raw_data->'facebook', '{}') - 'posts') AS fb_kpis,
+                (COALESCE(rd->'platforms'->'facebook', rd->'facebook', '{}') - 'posts') AS fb_kpis,
                 (SELECT jsonb_agg(item - 'media_base64' - 'thumbnail_base64')
-                 FROM jsonb_array_elements(COALESCE(r.raw_data->'platforms'->'facebook', r.raw_data->'facebook', '{}')->'posts') AS item
+                 FROM jsonb_array_elements(
+                   COALESCE(
+                     NULLIF((COALESCE(rd->'platforms'->'facebook', rd->'facebook', '{}')->'posts'), 'null'::jsonb),
+                     '[]'::jsonb
+                   )
+                 ) AS item
                  LIMIT 6) AS fb_posts,
-                COALESCE(r.raw_data->>'synopsis', '') AS synopsis
-            FROM reports r
+                COALESCE(rd->>'synopsis', '') AS synopsis
+            FROM (
+                SELECT id, client_id, month, year, raw_data::jsonb AS rd
+                FROM reports
+            ) r
             JOIN clients c ON c.id = r.client_id
             WHERE r.id = :id
         """), {"id": report_id}).first()
@@ -598,14 +611,14 @@ def download_report_pdf(
         seo_data = {}
 
         import tempfile, os
-        from pdf_generator import generate_pdf_html_to_file
+        from html_generator import generate_report_html_to_file
 
         brand_color = kpi_row.brand_color or "#c8922a"
         html_filename = f"{kpi_row.client_name.replace(' ', '_')}_Report_{kpi_row.month}_{kpi_row.year}.html"
 
-        print("[DOWNLOAD-PDF] Streaming HTML from stored data")
+        print("[DOWNLOAD-REPORT] Streaming HTML from stored data")
         tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8')
-        generate_pdf_html_to_file(
+        generate_report_html_to_file(
             f=tmp,
             report_data=report_data,
             instagram_data=instagram_data,
