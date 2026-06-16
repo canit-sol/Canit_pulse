@@ -129,7 +129,7 @@ SEO_SYSTEM_PROMPT = """You are an expert SEO auditor and data extractor.
 Your job is to read raw text from an uploaded SEO PDF report and extract key search marketing metrics.
 Always respond with ONLY valid JSON — no markdown, no explanation, no backticks.
 
-Extract the following structure exactly (use N/A or reasonable numeric defaults like 0 / 0.0 if not found):
+Extract the following structure exactly (use null or reasonable numeric defaults like 0 / 0.0 if not found, never output unquoted N/A):
 {
   "sessions": 26981,
   "users": 21843,
@@ -182,6 +182,7 @@ Rules:
 - traffic_source_trends must be a list of dicts mapping 'date' (str, e.g. month or day) to channel names with integer values (e.g. 'organic_search': 1200). Extrapolate time series data if available.
 - acquisition_table must be a list of dicts mapping 'channel' (str), 'users' (int), 'new_users' (int), 'sessions' (int), 'avg_session_duration' (float), and 'bounce_rate' (float).
 - search_trends must be a list of dicts mapping 'date' (str), 'clicks' (int), and 'impressions' (int). Extrapolate time series data if available.
+- If any value or metric is not found in the text, use null (or 0 / 0.0 for numbers) instead of writing N/A. Never output raw, unquoted N/A.
 """
 
 def extract_seo_pdf_data(raw_text: str) -> dict:
