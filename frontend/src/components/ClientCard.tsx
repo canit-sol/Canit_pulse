@@ -202,7 +202,15 @@ export default function ClientCard({
           {!isHrRole && (() => {
             const currentMonthName = new Date().toLocaleString("default", { month: "long" });
             const currentYearStr = new Date().getFullYear().toString();
-            const hasCurrentMonthReport = seoReports?.some(r => r.month === currentMonthName && r.year === currentYearStr);
+            
+            const prevDate = new Date();
+            prevDate.setMonth(prevDate.getMonth() - 1);
+            const prevMonthName = prevDate.toLocaleString("default", { month: "long" });
+            const prevYearStr = prevDate.getFullYear().toString();
+
+            const hasCurrentMonthReport = seoReports?.some(r => r.month === currentMonthName && String(r.year) === currentYearStr);
+            const hasPrevMonthReport = seoReports?.some(r => r.month === prevMonthName && String(r.year) === prevYearStr);
+            const hasActiveReport = hasCurrentMonthReport || hasPrevMonthReport;
 
             return (
               <div className="relative">
@@ -216,21 +224,21 @@ export default function ClientCard({
                     }
                   }}
                   className={`w-[32px] h-[32px] rounded-xl flex items-center justify-center shadow-sm transition-all duration-300 ${
-                    hasCurrentMonthReport 
+                    hasActiveReport 
                       ? "bg-green-50 text-green-600 border border-green-200 hover:scale-105" 
                       : "bg-gray-100/50 hover:bg-gray-100/80 text-gray-400 hover:text-gray-600 hover:scale-105"
                   }`}
-                  title={hasCurrentMonthReport ? `Monthly SEO PDF Uploaded (Click to update)` : "Upload Monthly SEO PDF"}
+                  title={hasActiveReport ? `Monthly SEO PDF Uploaded (Click to update)` : "Upload Monthly SEO PDF"}
                 >
                   {isUploadingSeo ? (
                     <Loader2 size={13} className="animate-spin text-[#113a87]" />
-                  ) : hasCurrentMonthReport ? (
+                  ) : hasActiveReport ? (
                     <FileCheck className="w-3.5 h-3.5 text-green-600" />
                   ) : (
                     <UploadCloud className="w-3.5 h-3.5" />
                   )}
                 </button>
-                {hasCurrentMonthReport && (
+                {hasActiveReport && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white bg-green-500 shadow-sm" />
                 )}
               </div>
