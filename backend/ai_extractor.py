@@ -201,6 +201,7 @@ Return ONLY the JSON structure as specified. No other text."""
 
     for attempt in range(max_retries):
         try:
+            # Using JSON mode to guarantee valid JSON structure from Groq
             response = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[
@@ -209,6 +210,7 @@ Return ONLY the JSON structure as specified. No other text."""
                 ],
                 temperature=0.2,
                 max_tokens=2000,
+                response_format={"type": "json_object"}
             )
             break
         except Exception as e:
@@ -252,29 +254,50 @@ Return ONLY the JSON structure as specified. No other text."""
     print(raw_response)
     print("=======================================\n")
 
-    # Clean up if model wraps in backticks anyway
-    raw_response = re.sub(r"^```json\s*", "", raw_response)
-    raw_response = re.sub(r"^```\s*", "", raw_response)
-    raw_response = re.sub(r"\s*```$", "", raw_response)
+    # Clean up and sanitize the JSON string to fix common syntax errors (e.g. unquoted N/A)
+    clean_response = raw_response
+    clean_response = re.sub(r"^```json\s*", "", clean_response, flags=re.IGNORECASE)
+    clean_response = re.sub(r"^```\s*", "", clean_response, flags=re.IGNORECASE)
+    clean_response = re.sub(r"\s*```$", "", clean_response)
+    clean_response = clean_response.strip()
+
+    # Replace unquoted N/A, None, NaN, undefined values with null to keep JSON parseable
+    clean_response = re.sub(r':\s*\bN/A\b', ': null', clean_response, flags=re.IGNORECASE)
+    clean_response = re.sub(r':\s*\bNone\b', ': null', clean_response)
+    clean_response = re.sub(r':\s*\bNaN\b', ': null', clean_response)
+    clean_response = re.sub(r':\s*\bundefined\b', ': null', clean_response)
+
+    # Fix trailing commas
+    clean_response = re.sub(r',\s*\}', '}', clean_response)
+    clean_response = re.sub(r',\s*\]', ']', clean_response)
 
     try:
-        data = json.loads(raw_response)
+        data = json.loads(clean_response)
 
     except json.JSONDecodeError as e:
         print("\n========== JSON PARSE ERROR ==========")
         print(str(e))
         print("======================================\n")
 
-        match = re.search(r'\{.*\}', raw_response, re.DOTALL)
+        match = re.search(r'\{.*\}', clean_response, re.DOTALL)
 
         if match:
             json_text = match.group()
+            
+            # Re-sanitize the recovered group
+            json_text = re.sub(r':\s*\bN/A\b', ': null', json_text, flags=re.IGNORECASE)
+            json_text = re.sub(r':\s*\bNone\b', ': null', json_text)
+            json_text = re.sub(r':\s*\bNaN\b', ': null', json_text)
 
             print("\n========== RECOVERED JSON ==========")
             print(json_text)
             print("====================================\n")
 
-            data = json.loads(json_text)
+            try:
+                data = json.loads(json_text)
+            except Exception as e_inner:
+                print(f"[Sanitizer] Failed to parse recovered JSON: {e_inner}")
+                raise ValueError(f"AI returned invalid JSON: {raw_response[:500]}")
 
         else:
             print("\n========== RAW RESPONSE ==========")
@@ -285,7 +308,7 @@ Return ONLY the JSON structure as specified. No other text."""
                 f"AI returned invalid JSON: {raw_response[:500]}"
             )
             
-    # Ensure all keys exist with fallback defaults to prevent frontend crashes
+    # Ensure all keys exist with correct coerced types to prevent frontend crashes
     schema_defaults = {
         "sessions": 0,
         "users": 0,
@@ -306,9 +329,38 @@ Return ONLY the JSON structure as specified. No other text."""
         "acquisition_table": [],
         "search_trends": []
     }
-    for key, val in schema_defaults.items():
-        if key not in data or data[key] is None:
-            data[key] = val
-            
-    return data
+    
+    coerced_data = {}
+    for key, default_val in schema_defaults.items():
+        val = data.get(key)
+        if val is None or val == "N/A" or val == "n/a" or val == "None":
+            coerced_data[key] = default_val
+        else:
+            try:
+                if isinstance(default_val, int):
+                    coerced_data[key] = int(float(str(val).replace(",", "").strip()))
+                elif isinstance(default_val, float):
+                    coerced_data[key] = float(str(val).replace("%", "").replace(",", "").strip())
+                elif isinstance(default_val, list):
+                    if isinstance(val, list):
+                        if key == "keyword_rankings":
+                            cleaned_list = []
+                            for item in val:
+                                if isinstance(item, dict):
+                                    cleaned_list.append({
+                                        "keyword": str(item.get("keyword", "N/A")),
+                                        "position": int(float(str(item.get("position", 0)).replace(",", "").strip())) if item.get("position") is not None else 0,
+                                        "change": str(item.get("change", "0"))
+                                    })
+                            coerced_data[key] = cleaned_list
+                        else:
+                            coerced_data[key] = val
+                    else:
+                        coerced_data[key] = default_val
+                else:
+                    coerced_data[key] = val
+            except Exception:
+                coerced_data[key] = default_val
+
+    return coerced_data
 
