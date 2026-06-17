@@ -590,42 +590,7 @@ export default function ClientPortal() {
   const [chatMode, setChatMode] = useState<"text" | "voice">("text");
 
   const [competitors, setCompetitors] = useState<any[]>([]);
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
-
-  const handleDownloadPdf = async () => {
-    if (!active) return;
-    setDownloadingPdf(true);
-    try {
-      const response = await fetch(`/api/reports/${active.id}/download-pdf`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to generate report. Server returned status ${response.status}`);
-      }
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      // Use filename from Content-Disposition header if available
-      const contentDisposition = response.headers.get("Content-Disposition");
-      let filename = `${brandName}_Report_${active.month}_${active.year}.html`;
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="?([^"]+)"?/);
-        if (match) filename = match[1];
-      }
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error("Report generation failed", error);
-      alert("Could not generate report. Please try again later.");
-    } finally {
-      setDownloadingPdf(false);
-    }
-  };
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const [liveFBData, setLiveFBData] = useState<any>(null);
@@ -1486,14 +1451,6 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
               )}
             </div>
           )}
-          <button 
-            onClick={handleDownloadPdf} 
-            disabled={downloadingPdf || !active}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold bg-[#113a87] text-white hover:bg-[#0a2357] transition-all disabled:opacity-50"
-          >
-            {downloadingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            {downloadingPdf ? "Generating..." : "Download PDF"}
-          </button>
           <button onClick={fetchData} className="p-2 rounded-xl text-gray-400 hover:text-[#113a87] hover:bg-[#113a87]/5 transition-all">
             <RefreshCw className="w-4 h-4" />
           </button>

@@ -23,8 +23,8 @@ ML Integration:
 
 Score Labels:
      0–39  → "Needs Attention"
-    40–69  → "Moderate"
-    70–100 → "Strong"
+     40–69  → "Moderate"
+     70–100 → "Strong"
 
 Version: 1.0.0 | Platform: Instagram (multi-platform ready)
 """

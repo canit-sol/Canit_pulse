@@ -13,7 +13,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from groq import Groq
-
 # Internal Imports
 import database as models
 from database import get_db, Client, User, Report, SystemConfig, ContentCalendar, create_tables, seed_admin, supabase, get_config, set_config

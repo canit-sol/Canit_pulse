@@ -4,7 +4,6 @@ import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import List, Dict
-
 # Simple in-memory cache system:
 # { industry_query: { "timestamp": float_time, "articles": [...] } }
 _NEWS_CACHE: Dict[str, Dict] = {}

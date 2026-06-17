@@ -1,7 +1,6 @@
 from instagram import get_client_instagram_stats
 from facebook import get_client_facebook_stats
 from twitter import get_client_twitter_stats
-
 # Stub for linkedin
 def get_client_linkedin_stats(client_keys: dict, **kwargs) -> dict:
     return {"platform": "linkedin", "status": "not_implemented"}

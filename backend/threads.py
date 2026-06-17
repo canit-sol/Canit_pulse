@@ -1,7 +1,6 @@
 import requests
 from datetime import datetime
 from calendar import monthrange
-
 BASE_URL = "https://graph.threads.net/v1.0"
 
 def get_client_threads_stats(client_keys: dict, month=None, year=None) -> dict:

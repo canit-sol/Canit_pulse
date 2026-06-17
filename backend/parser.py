@@ -3,8 +3,6 @@ Extracts raw text from uploaded files (PDF, DOCX, TXT).
 Uses PyMuPDF for PDF (no cffi issues on Windows).
 """
 import io
-
-
 def extract_text_from_file(file_bytes: bytes, ext: str) -> str:
     ext = ext.lower()
 

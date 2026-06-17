@@ -28,8 +28,6 @@ from __future__ import annotations
 import math
 from datetime import datetime
 from typing import Any
-
-
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _sf(v: Any, d: float = 0.0) -> float:

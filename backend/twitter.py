@@ -1,5 +1,4 @@
 import requests
-
 # X (Twitter) API v2 Base URL
 BASE_URL = "https://api.twitter.com/2"
 

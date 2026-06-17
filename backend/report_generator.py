@@ -3,8 +3,6 @@ Generates a beautiful bento-grid HTML report from structured report data.
 Returns a complete standalone HTML string.
 """
 import json
-
-
 def generate_report_html(data: dict, brand_color: str = "#c8922a") -> str:
     # Derive color variants from brand_color
     client_name = data.get("client_name", "Client")

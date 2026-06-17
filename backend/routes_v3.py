@@ -5,17 +5,15 @@ New routes for v3:
 - GET  /api/clients/{id}/instagram-preview   ← preview before generating
 All existing v2 routes remain.
 """
-import uuid, json, os
+import uuid, json, os, psutil
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy.orm import Session
 
 from database import get_db, User, Client, Report, get_config
 from auth import get_current_user, require_admin, require_client, AuthIdentity
-
-
 # 🎯 Notice we only import the new, smart function now!
 from instagram import get_client_instagram_stats
 from facebook import get_client_facebook_stats
@@ -526,120 +524,4 @@ def debug_client_facebook_data(client_id: str, month: str = None, year: str = No
     }
 
 
-# ── DOWNLOAD REPORT PDF ──────────────────────────
 
-@router_v3.get("/reports/{report_id}/download-report")
-@router_v3.get("/reports/{report_id}/download-pdf")
-def download_report(
-    report_id: str,
-    background_tasks: BackgroundTasks,
-    current_user: AuthIdentity = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Returns a styled HTML report from stored data — no re-computation."""
-    try:
-        from sqlalchemy import text as sqltext
-
-        # Single raw SQL query — no ORM objects, no identity map loading heavy columns
-        kpi_row = db.execute(sqltext("""
-            SELECT
-                r.client_id,
-                r.month,
-                r.year,
-                c.name AS client_name,
-                c.brand_color,
-                c.client_logo_url,
-                (COALESCE(rd->'platforms'->'instagram', rd->'instagram', '{}') - 'posts') AS ig_kpis,
-                (SELECT jsonb_agg(item - 'media_base64' - 'thumbnail_base64')
-                 FROM jsonb_array_elements(
-                   COALESCE(
-                     NULLIF((COALESCE(rd->'platforms'->'instagram', rd->'instagram', '{}')->'posts'), 'null'::jsonb),
-                     '[]'::jsonb
-                   )
-                 ) AS item
-                 LIMIT 6) AS ig_posts,
-                (COALESCE(rd->'platforms'->'facebook', rd->'facebook', '{}') - 'posts') AS fb_kpis,
-                (SELECT jsonb_agg(item - 'media_base64' - 'thumbnail_base64')
-                 FROM jsonb_array_elements(
-                   COALESCE(
-                     NULLIF((COALESCE(rd->'platforms'->'facebook', rd->'facebook', '{}')->'posts'), 'null'::jsonb),
-                     '[]'::jsonb
-                   )
-                 ) AS item
-                 LIMIT 6) AS fb_posts,
-                 COALESCE(rd->>'synopsis', '') AS synopsis
-            FROM (
-                SELECT id, client_id, month, year, raw_data::jsonb AS rd
-                FROM reports
-            ) r
-            JOIN clients c ON c.id = r.client_id
-            WHERE r.id = :id
-        """), {"id": report_id}).first()
-
-        if not kpi_row:
-            raise HTTPException(status_code=404, detail="Report not found in vault")
-        if current_user.role == "client" and current_user.client_id != kpi_row.client_id:
-            raise HTTPException(status_code=403, detail="Forbidden")
-
-        instagram_data = dict(kpi_row.ig_kpis) if kpi_row.ig_kpis else {}
-        instagram_data['posts'] = list(kpi_row.ig_posts) if kpi_row.ig_posts else []
-        facebook_data = dict(kpi_row.fb_kpis) if kpi_row.fb_kpis else {}
-        facebook_data['posts'] = list(kpi_row.fb_posts) if kpi_row.fb_posts else []
-        synopsis = kpi_row.synopsis or ""
-
-        facebook_data['page_reach']     = facebook_data.get('total_reach') or 0
-        facebook_data['impressions']    = facebook_data.get('total_impressions') or 0
-        facebook_data['page_likes']     = facebook_data.get('total_likes') or 0
-        facebook_data['page_comments']  = facebook_data.get('total_comments') or 0
-        facebook_data['page_shares']    = facebook_data.get('total_shares') or 0
-        facebook_data['page_saves']     = facebook_data.get('total_saves') or 0
-        facebook_data['reactions']      = facebook_data.get('total_reactions') or facebook_data.get('total_likes') or 0
-        facebook_data['comments']       = facebook_data.get('total_comments') or 0
-        facebook_data['shares']         = facebook_data.get('total_shares') or 0
-        facebook_data['post_count']     = len(facebook_data.get('posts', [])) if isinstance(facebook_data.get('posts'), list) else 0
-        fb_tc = facebook_data.get('type_counts', {})
-        if fb_tc:
-            mtc = {'Photos': fb_tc.get('IMAGE',0)+fb_tc.get('CAROUSEL_ALBUM',0), 'Video / Reels': fb_tc.get('VIDEO',0), 'Link Shares': fb_tc.get('LINK',0)+fb_tc.get('LINK_SHARE',0)}
-            facebook_data['type_counts'] = {k:v for k,v in mtc.items() if v>0} or {'Photos':0,'Video / Reels':0,'Link Shares':0}
-
-        report_data = {
-            "client_name": kpi_row.client_name,
-            "month": kpi_row.month,
-            "year": kpi_row.year,
-            "recommendations": [],
-        }
-
-        import tempfile, os
-        from html_generator import generate_report_html_to_file
-
-        brand_color = kpi_row.brand_color or "#c8922a"
-        html_filename = f"{kpi_row.client_name.replace(' ', '_')}_Report_{kpi_row.month}_{kpi_row.year}.html"
-
-        print("[DOWNLOAD-REPORT] Streaming HTML from stored data")
-        tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8')
-        generate_report_html_to_file(
-            f=tmp,
-            report_data=report_data,
-            instagram_data=instagram_data,
-            synopsis=synopsis,
-            facebook_data=facebook_data,
-            brand_color=brand_color,
-            client_logo_url=kpi_row.client_logo_url or ''
-        )
-        tmp.close()
-
-        background_tasks.add_task(os.unlink, tmp.name)
-        return FileResponse(
-            tmp.name,
-            media_type="text/html",
-            filename=html_filename,
-            headers={"Content-Disposition": f"attachment; filename={html_filename}"}
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        print(f"[DOWNLOAD-PDF CRASH] {e}")
-        print(tb)
-        raise HTTPException(status_code=500, detail={"error": str(e), "traceback": tb})

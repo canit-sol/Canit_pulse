@@ -7,7 +7,6 @@ from datetime import datetime
 from urllib.parse import urljoin, urlparse
 from sqlalchemy.orm import Session
 from database import ClientBlog
-
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

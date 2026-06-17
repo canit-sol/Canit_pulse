@@ -3,7 +3,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 import re, os, urllib.parse
 from dotenv import load_dotenv
-
 load_dotenv()
 
 try:
@@ -26,12 +25,15 @@ def _parse_engagement_rate(eng_rate_str):
 
 
 def _load_canit_logo() -> str:
-    logo_path = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'public', 'logo.png')
-    if os.path.exists(logo_path):
-        import base64
-        with open(logo_path, 'rb') as lf:
-            data = lf.read()
-        return 'data:image/png;base64,' + base64.b64encode(data).decode('ascii')
+    import base64
+    for path in (
+        os.path.join(os.path.dirname(__file__), 'cai.png'),
+        os.path.join(os.path.dirname(__file__), '..', 'frontend', 'public', 'logo.png'),
+    ):
+        if os.path.exists(path):
+            with open(path, 'rb') as lf:
+                data = lf.read()
+            return 'data:image/png;base64,' + base64.b64encode(data).decode('ascii')
     return _svg_logo_data_uri('CP', '#1E2B8F', 40)
 
 
@@ -146,6 +148,55 @@ STATUS_ACTIVE        = '#E83E6C'
 STATUS_ACTIVE_BG     = '#FDE8EF'
 BLUE_LINK            = '#3B5BDB'
 GREEN_POS            = '#2ECC71'
+
+_REPORT_CSS = f"""\
+*,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
+@page{{size:A4;margin:8mm}}
+:root{{
+  --brand:{BRAND_ACCENT};
+  --navy:{BRAND_PRIMARY};
+  --text:{TEXT_PRIMARY};
+  --muted:{TEXT_SECONDARY};
+  --label:{TEXT_LABEL};
+  --card:{BG_CARD};
+  --bg:{BG_PAGE};
+  --border:{BG_CARD_BORDER};
+}}
+body{{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);font-size:11px}}
+.dashboard{{width:190mm;min-height:277mm;padding:8mm 10mm;margin:0 auto;overflow:hidden;display:flex;flex-direction:column;gap:12px}}
+.dash-header{{display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:3px solid var(--navy)}}
+.h-left,.h-right{{display:flex;align-items:center;gap:12px}}
+.h-logo{{height:32px;width:32px;border-radius:6px;flex-shrink:0}}
+.h-client-name{{font-family:'Poppins',sans-serif;font-weight:800;font-size:16px;color:var(--navy);text-transform:uppercase;letter-spacing:0.08em}}
+.h-brand{{font-size:14px;font-weight:700;color:var(--navy);letter-spacing:0.12em;text-transform:uppercase}}
+.title-row{{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0 6px}}
+.title-main{{font-family:'Poppins',sans-serif;font-weight:900;font-size:26px;color:var(--text)}}
+.title-sub{{font-size:12px;color:var(--label);text-transform:uppercase;letter-spacing:0.12em}}
+.kpi-row{{display:flex;flex-wrap:wrap;gap:10px}}
+.kpi-card{{flex-grow:1;flex-shrink:0;flex-basis:120px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 10px;text-align:center;min-width:0}}
+.kpi-val{{font-family:'Poppins',sans-serif;font-weight:800;font-size:22px;color:var(--navy);line-height:1.1}}
+.kpi-lbl{{font-size:9px;font-weight:600;color:var(--label);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px}}
+.synopsis-card{{background:linear-gradient(135deg,var(--navy),#2a3a8a);border-radius:10px;padding:14px 18px;font-size:12px;line-height:1.7;color:#e8ecf8;font-style:italic}}
+.full-card{{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;width:100%}}
+.mid-heading{{font-family:'Poppins',sans-serif;font-weight:700;font-size:13px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--brand)}}
+.mid-grid{{display:flex;flex-wrap:wrap;gap:8px}}
+.mid-metric{{flex-grow:1;flex-shrink:0;flex-basis:22%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px 8px;text-align:center}}
+.mid-metric-val{{font-family:'Poppins',sans-serif;font-weight:800;font-size:18px;color:var(--navy)}}
+.mid-metric-lbl{{font-size:8px;font-weight:600;color:var(--label);text-transform:uppercase;letter-spacing:0.08em;margin-top:3px}}
+.posts-row{{display:flex;gap:10px;flex-wrap:wrap}}
+.post-card{{flex:1 0 140px;background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden;text-decoration:none;display:flex;flex-direction:column;min-width:140px}}
+.post-img{{width:100%;height:140px;display:block;background:#eee}}
+.post-img-placeholder{{background:linear-gradient(135deg,#e8ecf8,#d0d8f0);height:140px;display:flex;align-items:center;justify-content:center;color:var(--label);font-size:11px}}
+.post-img-fail .post-img{{display:none}}
+.post-img-fail .post-img-placeholder{{display:flex}}
+.post-info{{padding:8px;display:flex;flex-direction:column;gap:4px}}
+.post-badge{{display:inline-block;padding:2px 7px;border-radius:4px;font-size:8px;font-weight:700;text-transform:uppercase;align-self:flex-start}}
+.post-badge-ig{{background:#FDE8EF;color:#E83E6C}}
+.post-badge-fb{{background:#E8F0FE;color:#1877F2}}
+.post-text{{font-size:9px;color:var(--muted);line-height:1.35;max-height:2.7em;overflow:hidden}}
+.post-stats{{font-size:9px;color:var(--navy);font-weight:600}}
+.dash-footer{{border-top:2px solid var(--border);padding-top:8px;margin-top:auto;font-size:9px;color:var(--label);text-align:center;text-transform:uppercase;letter-spacing:0.12em}}
+"""
 
 # ---------------------------------------------------------------------------
 # SVG helper
@@ -289,103 +340,12 @@ def generate_report_html_to_file(
     posts = instagram_data.get('posts', []) or []
     fb_posts = facebook_data.get('posts', []) or []
 
-    # ── CSS ──────────────────────────────────────────────────────────────
-    css = f"""
-    *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
-    @page{{size:A4;margin:8mm}}
-    :root{{
-      --brand:{BRAND_ACCENT};
-      --navy:{BRAND_PRIMARY};
-      --text:{TEXT_PRIMARY};
-      --muted:{TEXT_SECONDARY};
-      --label:{TEXT_LABEL};
-      --card:{BG_CARD};
-      --bg:{BG_PAGE};
-      --border:{BG_CARD_BORDER};
-    }}
-    body{{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-    .dashboard{{width:190mm;min-height:277mm;padding:8mm 10mm;margin:0 auto;overflow:hidden;display:flex;flex-direction:column;gap:12px}}
-
-    /* ── Header ── */
-    .dash-header{{display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:3px solid var(--navy)}}
-    .h-left,.h-right{{display:flex;align-items:center;gap:12px}}
-    .h-logo{{height:32px;width:32px;border-radius:6px;object-fit:cover;flex-shrink:0}}
-    .h-client-name{{font-family:'Poppins',sans-serif;font-weight:800;font-size:16px;color:var(--navy);text-transform:uppercase;letter-spacing:0.08em}}
-    .h-brand{{font-size:14px;font-weight:700;color:var(--navy);letter-spacing:0.12em;text-transform:uppercase}}
-
-    /* ── Title ── */
-    .title-row{{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0 6px}}
-    .title-main{{font-family:'Poppins',sans-serif;font-weight:900;font-size:26px;color:var(--text)}}
-    .title-sub{{font-size:12px;color:var(--label);text-transform:uppercase;letter-spacing:0.12em}}
-
-    /* ── KPI Row ── */
-    .kpi-row{{display:flex;flex-wrap:wrap;gap:10px}}
-    .kpi-card{{
-      flex:1 0 120px;background:var(--card);border:1px solid var(--border);
-      border-radius:10px;padding:14px 10px;text-align:center;min-width:0
-    }}
-    .kpi-val{{font-family:'Poppins',sans-serif;font-weight:800;font-size:22px;color:var(--navy);line-height:1.1}}
-    .kpi-lbl{{font-size:9px;font-weight:600;color:var(--label);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px}}
-
-    /* ── Synopsis ── */
-    .synopsis-card{{
-      background:linear-gradient(135deg,var(--navy),#2a3a8a);border-radius:10px;
-      padding:14px 18px;font-size:12px;line-height:1.7;color:#e8ecf8;font-style:italic
-    }}
-
-    /* ── Platform Cards (full-width stacked) ── */
-    .full-card{{
-      background:var(--card);border:1px solid var(--border);
-      border-radius:10px;padding:14px;width:100%
-    }}
-    .mid-heading{{
-      font-family:'Poppins',sans-serif;font-weight:700;font-size:13px;
-      color:var(--navy);margin-bottom:8px;padding-bottom:5px;
-      border-bottom:2px solid var(--brand)
-    }}
-    .mid-grid{{display:flex;flex-wrap:wrap;gap:8px}}
-    .mid-metric{{
-      flex:1 0 calc(25% - 6px);background:var(--bg);border:1px solid var(--border);
-      border-radius:6px;padding:12px 8px;text-align:center
-    }}
-    .mid-metric-val{{font-family:'Poppins',sans-serif;font-weight:800;font-size:18px;color:var(--navy)}}
-    .mid-metric-lbl{{font-size:8px;font-weight:600;color:var(--label);text-transform:uppercase;letter-spacing:0.08em;margin-top:3px}}
-
-    /* ── Top Posts Grid ── */
-    .posts-row{{display:flex;gap:10px;flex-wrap:wrap}}
-    .post-card{{
-      flex:1 0 calc(25% - 8px);background:var(--bg);border:1px solid var(--border);
-      border-radius:8px;overflow:hidden;text-decoration:none;display:flex;flex-direction:column;
-      min-width:140px;transition:transform 0.15s
-    }}
-    .post-card:hover{{transform:scale(1.02)}}
-    .post-img{{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#eee}}
-    .post-img-placeholder{{background:linear-gradient(135deg,#e8ecf8,#d0d8f0)}}
-    .post-img-fail .post-img{{display:none}}
-    .post-img-fail::before{{content:'No Image';display:flex;align-items:center;justify-content:center;aspect-ratio:1;color:var(--label);font-size:11px;background:var(--card)}}
-    .post-info{{padding:8px;display:flex;flex-direction:column;gap:4px}}
-    .post-badge{{
-      display:inline-block;padding:2px 7px;border-radius:4px;font-size:8px;
-      font-weight:700;text-transform:uppercase;align-self:flex-start
-    }}
-    .post-badge-ig{{background:#FDE8EF;color:#E83E6C}}
-    .post-badge-fb{{background:#E8F0FE;color:#1877F2}}
-    .post-text{{font-size:9px;color:var(--muted);line-height:1.35;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}}
-    .post-stats{{font-size:9px;color:var(--navy);font-weight:600}}
-
-    /* ── Footer ── */
-    .dash-footer{{
-      border-top:2px solid var(--border);padding-top:8px;margin-top:auto;
-      font-size:9px;color:var(--label);text-align:center;text-transform:uppercase;letter-spacing:0.12em
-    }}
-    """
-
     # ── HTML ────────────────────────────────────────────────────────────
     f.write('<!DOCTYPE html>\n<html lang="en">\n<head>\n')
     f.write(f'<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n')
     f.write(f'<title>{client_name} · {month} {year}</title>\n')
     f.write('<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">\n')
-    f.write(f'<style>{css}</style>\n</head>\n<body>\n<div class="dashboard">\n')
+    f.write(f'<style>{_REPORT_CSS}</style>\n</head>\n<body>\n<div class="dashboard">\n')
 
     # ── Header ──
     f.write(f'''
@@ -517,7 +477,7 @@ def generate_report_html_to_file(
             if img_url:
                 f.write(f'<img class="post-img" src="{img_url}" alt="" loading="lazy" onerror="this.parentElement.classList.add(\'post-img-fail\')">')
             else:
-                f.write('<div class="post-img post-img-placeholder"></div>')
+                f.write('<div class="post-img post-img-placeholder">No Image</div>')
             f.write(f'<div class="post-info"><span class="post-badge {badge_cls}">{badge}</span>')
             f.write(f'<span class="post-text">{text}</span>')
             f.write(f'<span class="post-stats">&#10084; {_fmt_num(likes)}</span>')

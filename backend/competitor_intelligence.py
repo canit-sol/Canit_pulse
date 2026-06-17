@@ -6,7 +6,6 @@ from typing import Dict, List
 from groq import Groq
 from dotenv import load_dotenv, find_dotenv
 from public_fetcher import fetch_public_profile
-
 load_dotenv(find_dotenv(), override=True)
 
 # Simple 24-hour caching mechanism to protect API rate limits

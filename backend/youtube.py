@@ -2,7 +2,6 @@ import requests
 import re
 import calendar
 from datetime import datetime
-
 def get_month_date_range(month_name: str, year_str: str) -> tuple:
     # Resolve year
     try:

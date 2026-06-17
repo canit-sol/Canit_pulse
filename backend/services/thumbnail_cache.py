@@ -1,7 +1,6 @@
 import os
 import requests
 from database import supabase
-
 def cache_thumbnail_to_storage(client_id: str, post_id: str, media_url: str) -> str:
     """
     Downloads the thumbnail from media_url and uploads it strictly to Supabase Storage.

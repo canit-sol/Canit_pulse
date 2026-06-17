@@ -13,7 +13,6 @@ Usage:
 from collections import defaultdict
 from datetime import datetime
 from typing import Any
-
 # ── Helper ──────────────────────────────────────────
 
 def _safe_int(v, default=0):

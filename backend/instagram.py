@@ -2,7 +2,6 @@ import requests
 import base64
 from datetime import datetime
 from calendar import monthrange
-
 # 🎯 Locked to v25.0 to ensure stability
 BASE_URL = "https://graph.facebook.com/v25.0"
 

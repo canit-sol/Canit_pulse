@@ -7,8 +7,6 @@ Fallback: AI-estimated data when no API key or API fails.
 """
 import os
 import requests
-
-
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "")
 RAPIDAPI_HOST = "instagram-scraper-api2.p.rapidapi.com"
 

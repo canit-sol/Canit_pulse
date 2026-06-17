@@ -6,7 +6,6 @@ import os
 import json
 from groq import Groq
 from dotenv import load_dotenv, find_dotenv
-
 load_dotenv(find_dotenv(), override=True)
 
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
