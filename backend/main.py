@@ -741,8 +741,14 @@ def get_industry_news_direct(industry: str, client_id: Optional[str] = None, db:
 # --- 10. STARTUP ---
 @app.on_event("startup")
 def startup_event():
-    create_tables()
-    seed_admin("report@canit.in", "canit#123", "Canit Team")
+    try:
+        create_tables()
+    except Exception as e:
+        print(f"[startup] create_tables skipped: {e}")
+    try:
+        seed_admin("report@canit.in", "canit#123", "Canit Team")
+    except Exception as e:
+        print(f"[startup] seed_admin skipped: {e}")
     
     # Auto-seed Client Access credentials for the 'canit' brand portal
     db = models.SessionLocal()

@@ -37,7 +37,10 @@ def _ensure_platform_column():
     else:
         print("WARNING: 'clients' table not found; cannot add platform column.")
 
-_ensure_platform_column()
+try:
+    _ensure_platform_column()
+except Exception as e:
+    print(f"[DB] _ensure_platform_column skipped: {e}")
 
 def _ensure_competitor_handle_column():
     insp = inspect(engine)
@@ -49,7 +52,10 @@ def _ensure_competitor_handle_column():
                 conn.commit()
                 print("Added missing 'instagram_handle' column to competitors table.")
 
-_ensure_competitor_handle_column()
+try:
+    _ensure_competitor_handle_column()
+except Exception as e:
+    print(f"[DB] _ensure_competitor_handle_column skipped: {e}")
 
 def _ensure_website_url_column():
     insp = inspect(engine)
@@ -61,7 +67,10 @@ def _ensure_website_url_column():
                 conn.commit()
                 print("Added missing 'website_url' column to clients table.")
 
-_ensure_website_url_column()
+try:
+    _ensure_website_url_column()
+except Exception as e:
+    print(f"[DB] _ensure_website_url_column skipped: {e}")
 
 def _ensure_client_logo_url_column():
     insp = inspect(engine)
@@ -73,7 +82,10 @@ def _ensure_client_logo_url_column():
                 conn.commit()
                 print("Added missing 'client_logo_url' column to clients table.")
 
-_ensure_client_logo_url_column()
+try:
+    _ensure_client_logo_url_column()
+except Exception as e:
+    print(f"[DB] _ensure_client_logo_url_column skipped: {e}")
 
 def _ensure_seo_columns():
     insp = inspect(engine)
@@ -102,7 +114,10 @@ def _ensure_seo_columns():
                 conn.commit()
                 print("Added missing 'seo_metrics' column to monthly_seo_reports table.")
 
-_ensure_seo_columns()
+try:
+    _ensure_seo_columns()
+except Exception as e:
+    print(f"[DB] _ensure_seo_columns skipped: {e}")
 
 def _ensure_youtube_column():
     insp = inspect(engine)
@@ -127,7 +142,10 @@ def _ensure_youtube_column():
                 conn.commit()
                 print("Migrated data from 'yt_channel_id' → 'youtube_channel_id' and dropped old column.")
 
-_ensure_youtube_column()
+try:
+    _ensure_youtube_column()
+except Exception as e:
+    print(f"[DB] _ensure_youtube_column skipped: {e}")
 
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
@@ -189,6 +207,8 @@ class Client(Base):
     competitors = relationship("Competitor", back_populates="client", cascade="all, delete-orphan")
     blogs       = relationship("ClientBlog", back_populates="client", cascade="all, delete-orphan")
     seo_reports = relationship("MonthlySEOReport", back_populates="client", cascade="all, delete-orphan")
+    ad_spends   = relationship("AdSpend", back_populates="client", cascade="all, delete-orphan")
+    ad_budgets  = relationship("AdBudget", back_populates="client", cascade="all, delete-orphan")
 
 class Competitor(Base):
     __tablename__ = "competitors"
@@ -331,6 +351,43 @@ class Deliverable(Base):
     assigned_to  = Column(String, nullable=True)
     created_at   = Column(DateTime, default=datetime.utcnow)
     updated_at   = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class AdSpend(Base):
+    __tablename__ = "ad_spends"
+    __table_args__ = {'extend_existing': True}
+
+    id                 = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    client_id          = Column(String, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False)
+    month              = Column(String, nullable=False)
+    year               = Column(String, nullable=False)
+    platform           = Column(String, nullable=False)
+    campaign_name      = Column(String, nullable=False)
+    allocated_budget   = Column(Float, default=0.0)
+    amount_spent       = Column(Float, default=0.0)
+    reach              = Column(Integer, default=0)
+    clicks             = Column(Integer, default=0)
+    leads              = Column(Integer, default=0)
+    custom_result      = Column(Integer, default=0)
+    custom_result_type = Column(String, nullable=True)
+    created_at         = Column(DateTime, default=datetime.utcnow)
+    updated_at         = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    client = relationship("Client", back_populates="ad_spends")
+
+class AdBudget(Base):
+    __tablename__ = "ad_budgets"
+    __table_args__ = {'extend_existing': True}
+
+    id        = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    client_id = Column(String, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False)
+    campaign  = Column(String, nullable=False)
+    platform  = Column(String, nullable=False)
+    month     = Column(String, nullable=False)
+    budget    = Column(Float, default=0.0)
+    status    = Column(String, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    client = relationship("Client", back_populates="ad_budgets")
 
 class MonthlySEOReport(Base):
     __tablename__ = "monthly_seo_reports"

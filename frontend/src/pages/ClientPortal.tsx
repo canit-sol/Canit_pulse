@@ -12,6 +12,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import BrandIntelligence from "@/components/BrandIntelligence";
 import PrintReportView from "../components/PrintReportView";
 import DeliverablesPanel from "@/components/DeliverablesPanel";
+import AdSpendsPanel from "@/components/AdSpendsPanel";
 import { Download, AlertCircle, Play } from "lucide-react";
 import { usePermissions } from "../hooks/usePermissions";
 
@@ -80,6 +81,7 @@ const SHOW_FACEBOOK_TAB = true;
 
 const PLATFORMS = [
   { id: "deliverables", label: "Deliverables", Icon: ClipboardList, color: "#7C3AED", bg: "bg-violet-50", active_bg: "bg-[#7C3AED]" },
+  { id: "ad-spends", label: "Ad Spends", Icon: DollarSign, color: "#059669", bg: "bg-emerald-50", active_bg: "bg-[#059669]" },
   { id: "instagram", label: "Instagram",  Icon: InstagramIcon,     color: "#E1306C", bg: "bg-pink-50",   active_bg: "bg-gradient-to-r from-[#E1306C] to-[#833AB4]" },
   ...(SHOW_FACEBOOK_TAB
     ? [{ id: "facebook", label: "Facebook", Icon: FacebookIcon, color: "#1877F2", bg: "bg-blue-50", active_bg: "bg-[#1877F2]" }]
@@ -502,6 +504,18 @@ const platformThemes: Record<string, {
     iconColor: "text-[#6D28D9]",
     accentBar: "bg-[#C4B5FD]",
     badge: "bg-[#7C3AED]",
+  },
+  "ad-spends": {
+    gradient: "linear-gradient(135deg, #d1fae5, #34d399, #059669)",
+    bg: "bg-gradient-to-br from-emerald-400 via-emerald-500 to-green-600",
+    cardBg: "bg-gradient-to-br from-[#ECFDF5] to-[#D1FAE5]",
+    cardBorder: "border-[#A7F3D0]",
+    valueColor: "text-[#047857]",
+    labelColor: "text-slate-500",
+    iconBg: "bg-[#D1FAE5]",
+    iconColor: "text-[#047857]",
+    accentBar: "bg-[#6EE7B7]",
+    badge: "bg-[#059669]",
   },
   youtube: {
     gradient: "linear-gradient(135deg, #fecaca, #f87171, #dc2626)",
@@ -1537,6 +1551,10 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
             {activePlatform === "deliverables" ? (
               <div className="mt-8">
                 <DeliverablesPanel clientId={id!} month={active.month} year={active.year} />
+              </div>
+            ) : activePlatform === "ad-spends" ? (
+              <div className="mt-8">
+                <AdSpendsPanel clientId={id!} month={active.month} year={active.year} />
               </div>
             ) : (
             <>

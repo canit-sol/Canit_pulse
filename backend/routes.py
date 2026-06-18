@@ -62,7 +62,7 @@ class ClientUserCreate(BaseModel):
 
 # Core database and auth imports
 import database as models
-from database import get_db, User, Client, Report, Competitor, ClientAccess, RefreshToken, LoginRateLimit, AccessAuditLog
+from database import get_db, User, Client, Report, Competitor, ClientAccess, RefreshToken, LoginRateLimit, AccessAuditLog, AdSpend, AdBudget
 from auth import (
     verify_password, hash_password, create_token,
     get_current_user, require_admin, require_client, AuthIdentity
@@ -2862,3 +2862,272 @@ def delete_deliverable(
     db.delete(d)
     db.commit()
     return {"message": "Deliverable deleted."}
+
+# ── AD SPENDS ──────────────────────────────────────────────
+
+def _parse_month_year(m: str):
+    """Parse a month string like 'Mar 2026' or 'April 2026' into (full_month_name, year)."""
+    parts = m.strip().split()
+    if len(parts) != 2:
+        return None, None
+    MONTH_NAMES_SHORT = {
+        "jan": "January", "feb": "February", "mar": "March", "apr": "April",
+        "may": "May", "jun": "June", "jul": "July", "aug": "August",
+        "sep": "September", "oct": "October", "nov": "November", "dec": "December",
+    }
+    raw = parts[0]
+    year = parts[1]
+    if raw in MONTH_NAMES:
+        return raw, year
+    return MONTH_NAMES_SHORT.get(raw.lower(), raw), year
+
+
+def _kpi_rows_from_spend(row, include_derived=True):
+    """Convert a pivot ad_spends row into flat KPI rows."""
+    rows = []
+    cols = [
+        ("Allocated Budget", row.allocated_budget, True),
+        ("Amount spent", row.amount_spent, True),
+        ("Reach", row.reach, False),
+        ("Clicks", row.clicks, False),
+        ("Leads", row.leads, False),
+    ]
+    for kpi_name, val, is_currency in cols:
+        if val is not None and val != 0:
+            rows.append({
+                "campaign_name": row.campaign_name,
+                "platform": row.platform,
+                "kpi": kpi_name,
+                "month": row.month,
+                "year": row.year,
+                "value": float(val),
+            })
+    if include_derived and row.clicks and row.clicks > 0 and row.amount_spent:
+        cpc = round(row.amount_spent / row.clicks, 2)
+        rows.append({
+            "campaign_name": row.campaign_name, "platform": row.platform,
+            "kpi": "CPC", "month": row.month, "year": row.year, "value": cpc,
+        })
+    if include_derived and row.leads and row.leads > 0 and row.amount_spent:
+        cpl = round(row.amount_spent / row.leads, 2)
+        rows.append({
+            "campaign_name": row.campaign_name, "platform": row.platform,
+            "kpi": "CPL", "month": row.month, "year": row.year, "value": cpl,
+        })
+    return rows
+
+
+@router.get("/clients/{client_id}/ad-spends")
+def list_ad_spends(
+    client_id: str,
+    month: str,
+    year: str,
+    current_user: AuthIdentity = Depends(require_client),
+    db: Session = Depends(get_db)
+):
+    if current_user.role == "client" and current_user.client_id != client_id:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+
+    from database import AdSpend, AdBudget
+
+    # Fetch all spend + budget rows for this client
+    spend_rows = db.query(AdSpend).filter(AdSpend.client_id == client_id).all()
+    budget_rows = db.query(AdBudget).filter(AdBudget.client_id == client_id).all()
+
+    # Build sorted month list from both tables
+    seen = set()
+    all_months = []
+    for r in spend_rows:
+        key = (r.year, r.month)
+        if key not in seen:
+            seen.add(key)
+            all_months.append(key)
+    for r in budget_rows:
+        bm, by = _parse_month_year(r.month)
+        if bm and by:
+            key = (by, bm)
+            if key not in seen:
+                seen.add(key)
+                all_months.append(key)
+    all_months.sort(key=lambda x: (int(x[0]), MONTH_NAMES.index(x[1])))
+    months = [m for _, m in all_months]
+
+    # Build flat KPI rows from ad_spends
+    flat_rows = []
+    for r in spend_rows:
+        flat_rows.extend(_kpi_rows_from_spend(r))
+
+    # Build flat KPI rows from ad_budgets (Allocated Budget)
+    for r in budget_rows:
+        bm, by = _parse_month_year(r.month)
+        if bm and by and r.budget and r.budget > 0:
+            flat_rows.append({
+                "campaign_name": r.campaign,
+                "platform": r.platform,
+                "kpi": "Allocated Budget",
+                "month": bm,
+                "year": by,
+                "value": float(r.budget),
+            })
+
+    # Filter to selected month
+    sel_spend = [r for r in spend_rows if r.month == month and r.year == year]
+    sel_budget = [
+        r for r in budget_rows
+        if (lambda bm, by: bm == month and by == year)(*_parse_month_year(r.month))
+    ]
+
+    # Compute stats for the selected month
+    allocated_budget = sum(
+        r.budget or 0 for r in sel_budget
+    ) + sum(r.allocated_budget or 0 for r in sel_spend)
+    amount_spent = sum(r.amount_spent or 0 for r in sel_spend)
+    total_clicks = sum(r.clicks or 0 for r in sel_spend)
+    total_leads  = sum(r.leads or 0 for r in sel_spend)
+
+    return {
+        "rows": flat_rows,
+        "months": months,
+        "stats": {
+            "allocated_budget": allocated_budget,
+            "amount_spent": amount_spent,
+            "total_clicks": total_clicks,
+            "total_leads": total_leads,
+        },
+    }
+
+
+@router.post("/clients/{client_id}/ad-spends/import")
+def import_ad_spends(
+    client_id: str,
+    file: UploadFile = File(...),
+    current_user: AuthIdentity = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    from services.permissions import can_create_client
+    if not can_create_client(current_user.role):
+        raise HTTPException(status_code=403, detail="Not authorized.")
+
+    import csv, io
+
+    content = file.file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty file.")
+
+    text = content.decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(text))
+
+    expected = {"campaign_name", "kpi", "value", "month", "year"}
+    if not expected.issubset(reader.fieldnames or []):
+        raise HTTPException(
+            status_code=400,
+            detail=f"CSV must have columns: campaign_name, platform, kpi, month, year, value. Got: {reader.fieldnames}",
+        )
+
+    from database import AdSpend
+
+    # Group flat CSV rows into pivot rows by (campaign_name, month, year)
+    groups: dict = {}
+    errors = []
+    row_num = 1
+    for row in reader:
+        row_num += 1
+        try:
+            campaign = row["campaign_name"].strip()
+            kpi      = row["kpi"].strip()
+            month_v  = row["month"].strip()
+            year_v   = row["year"].strip()
+            platform = row.get("platform", "Meta").strip()
+            value    = float(row["value"].strip()) if row["value"].strip() else 0.0
+
+            key = (campaign, month_v, year_v)
+            if key not in groups:
+                m, y = _parse_month_year(f"{month_v} {year_v}")
+                groups[key] = {
+                    "campaign_name": campaign,
+                    "platform": platform,
+                    "month": m or month_v,
+                    "year": y or year_v,
+                    "allocated_budget": 0.0,
+                    "amount_spent": 0.0,
+                    "reach": 0,
+                    "clicks": 0,
+                    "leads": 0,
+                    "custom_result": 0,
+                    "custom_result_type": None,
+                }
+
+            g = groups[key]
+            if kpi == "Allocated Budget":
+                g["allocated_budget"] = value
+            elif kpi == "Amount spent":
+                g["amount_spent"] = value
+            elif kpi == "Reach":
+                g["reach"] = int(value)
+            elif kpi == "Clicks":
+                g["clicks"] = int(value)
+            elif kpi == "Leads":
+                g["leads"] = int(value)
+            elif kpi == "CPC" or kpi == "CPL":
+                pass  # derived, skip on import
+            else:
+                g["custom_result"] = int(value)
+                g["custom_result_type"] = kpi
+
+            # Update platform from any row in the group
+            g["platform"] = platform
+
+        except Exception as e:
+            errors.append(f"Row {row_num}: {str(e)}")
+
+    imported = 0
+    for key, g in groups.items():
+        try:
+            existing = db.query(AdSpend).filter(
+                AdSpend.client_id == client_id,
+                AdSpend.campaign_name == g["campaign_name"],
+                AdSpend.month == g["month"],
+                AdSpend.year == g["year"],
+            ).first()
+
+            if existing:
+                existing.platform = g["platform"]
+                existing.allocated_budget = g["allocated_budget"]
+                existing.amount_spent = g["amount_spent"]
+                existing.reach = g["reach"]
+                existing.clicks = g["clicks"]
+                existing.leads = g["leads"]
+                existing.custom_result = g["custom_result"]
+                existing.custom_result_type = g["custom_result_type"]
+            else:
+                db.add(AdSpend(
+                    id=str(uuid.uuid4()),
+                    client_id=client_id,
+                    campaign_name=g["campaign_name"],
+                    platform=g["platform"],
+                    month=g["month"],
+                    year=g["year"],
+                    allocated_budget=g["allocated_budget"],
+                    amount_spent=g["amount_spent"],
+                    reach=g["reach"],
+                    clicks=g["clicks"],
+                    leads=g["leads"],
+                    custom_result=g["custom_result"],
+                    custom_result_type=g["custom_result_type"],
+                ))
+            imported += 1
+        except Exception as e:
+            errors.append(f"Group '{key}': {str(e)}")
+
+    db.commit()
+
+    return {
+        "imported": imported,
+        "errors": errors,
+    }
+
+
+MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+]
