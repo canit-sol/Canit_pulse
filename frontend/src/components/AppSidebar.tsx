@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import { useSidebar } from "../context/SidebarContext";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./ui/tooltip";
-import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { usePermissions } from "../hooks/usePermissions";
 
 export default function AppSidebar() {
@@ -231,22 +230,86 @@ export default function AppSidebar() {
     </div>
   );
 
+  // Mobile-only sidebar content — always expanded, no Tooltips
+  const mobileSidebarInner = (
+    <div className="flex flex-col h-full">
+      <div
+        onClick={() => { if (isInternalStaff) navigate("/admin/dashboard"); }}
+        className={`px-4 pt-5 pb-4 flex flex-col items-center justify-center min-h-[120px] relative overflow-hidden shrink-0 select-none ${isInternalStaff ? "cursor-pointer" : ""}`}
+      >
+        <img
+          src="/cai.png"
+          alt="Canit Logo"
+          onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
+          className="h-14 w-auto object-contain shrink-0 select-none"
+        />
+        <div className="flex flex-col items-center mt-1.5 whitespace-nowrap">
+          <span className="font-brand font-extrabold text-sm tracking-wide text-[#113a87]">CANIT Pulse</span>
+          <span className="font-heading font-bold text-[9px] tracking-wider text-slate-400 uppercase mt-0.5">AI Brand Intelligence Suite</span>
+        </div>
+      </div>
+      <nav className="flex-1 pt-4 pb-6 px-3 space-y-1.5 overflow-y-auto overflow-x-hidden">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            end={item.end}
+            onClick={() => setMobileOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center rounded-xl text-sm font-medium transition-all duration-200 ease-in-out px-3 py-3
+              ${isActive
+                ? "bg-[#113a87]/8 text-[#113a87] border-l-4 border-[#113a87] font-semibold"
+                : "text-gray-500 hover:bg-gray-100/40 hover:text-[#1a1a1a]"
+              }`
+            }
+          >
+            <item.icon className="w-5 h-5 shrink-0" />
+            <span className="font-heading ml-3">{item.label}</span>
+          </NavLink>
+        ))}
+      </nav>
+      <div className="p-3 border-t border-white/40 space-y-2 bg-white/30 backdrop-blur-sm shrink-0">
+        <div className="flex items-center rounded-xl p-2 bg-slate-50/50 border border-slate-100/60 shadow-sm">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#113a87] to-[#1e56b8] text-white flex items-center justify-center font-bold text-xs shrink-0 select-none shadow-sm">
+            {initials}
+          </div>
+          <div className="flex flex-col ml-3 min-w-0">
+            <span className="font-bold text-xs text-slate-800 truncate">{user.name}</span>
+            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider leading-none mt-0.5 truncate">{user.role}</span>
+          </div>
+        </div>
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center rounded-xl text-sm font-medium text-gray-500 hover:bg-red-50/50 hover:text-red-600 transition-all duration-200 ease-in-out px-3 py-3"
+        >
+          <LogOut className="w-5 h-5 shrink-0" />
+          <span className="font-heading ml-3">Sign Out</span>
+        </button>
+        <div className="text-center text-[9px] text-slate-400/50 font-medium font-heading tracking-wide py-1">
+          Powered by Canit Solutions
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <>
-      {/* Mobile hamburger trigger — visible only on small screens */}
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetTrigger asChild>
-          <button
-            className="fixed top-3 left-3 z-50 md:hidden flex items-center justify-center w-8 h-8 rounded-lg bg-white/80 backdrop-blur-md border border-slate-200/60 shadow-sm text-slate-600 hover:text-[#113a87] transition-all"
-            aria-label="Toggle navigation menu"
-          >
-            <Menu className="w-4 h-4" />
-          </button>
-        </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-56 bg-[#FBFDFE] border-r border-slate-100/40">
-          {sidebarInner}
-        </SheetContent>
-      </Sheet>
+      {/* Mobile hamburger trigger + overlay drawer — visible only on small screens */}
+      <button
+        onClick={() => setMobileOpen(!mobileOpen)}
+        className="fixed top-3 left-3 z-50 md:hidden flex items-center justify-center w-8 h-8 rounded-lg bg-white/80 backdrop-blur-md border border-slate-200/60 shadow-sm text-slate-600 hover:text-[#113a87] transition-all"
+        aria-label="Toggle navigation menu"
+      >
+        <Menu className="w-4 h-4" />
+      </button>
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} />
+          <div className="absolute left-0 top-0 bottom-0 w-56 bg-[#FBFDFE] shadow-xl animate-in slide-in-from-left duration-300">
+            {mobileSidebarInner}
+          </div>
+        </div>
+      )}
 
       {/* Desktop fixed sidebar — hidden on mobile */}
       <TooltipProvider delayDuration={0}>
