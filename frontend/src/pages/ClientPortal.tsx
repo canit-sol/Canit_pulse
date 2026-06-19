@@ -1502,7 +1502,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
             {/* ── Platform Tabs (ON TOP OF ALL SECTIONS) ── */}
             <div className="glass-panel overflow-hidden mb-6 relative">
               {/* Tab bar */}
-              <div className="flex border-b border-slate-100 bg-slate-50/50 relative z-10">
+              <div className="flex overflow-x-auto hide-scrollbar border-b border-slate-100 bg-slate-50/50 relative z-10">
                 {(() => {
                   const visiblePlatforms = PLATFORMS.filter(({ id: pid }) => {
                     if (pid === "facebook" && !SHOW_FACEBOOK_TAB) return false;

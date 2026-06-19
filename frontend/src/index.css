@@ -217,6 +217,15 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* Hidden scrollbar for horizontal scroll containers */
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
   /* Stagger children animations */
   .stagger-children > * {
     opacity: 0;
