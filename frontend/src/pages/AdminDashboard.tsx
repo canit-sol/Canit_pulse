@@ -802,15 +802,15 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className={`min-h-screen bg-transparent transition-[padding] duration-200 ease-in-out ${collapsed ? "pl-[68px]" : "pl-56"}`}>
+    <div className={`min-h-screen bg-transparent transition-[padding] duration-200 ease-in-out ${collapsed ? "pl-0 md:pl-[68px]" : "pl-0 md:pl-56"}`}>
       <AppSidebar />
 
-      <main className="flex-1 p-10 overflow-y-auto">
+      <main className="flex-1 p-4 pl-12 md:p-10 overflow-y-auto">
         <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 animate-fade-in">
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-[#1a1a1a] font-heading bg-gradient-to-r from-[#113a87] to-[#1e56b8] bg-clip-text text-transparent">Active Clients</h1>
+            <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-[#1a1a1a] font-heading bg-gradient-to-r from-[#113a87] to-[#1e56b8] bg-clip-text text-transparent">Active Clients</h1>
             <p className="text-xs font-medium text-gray-500 mt-1">Manage brands, social connections, and performance reports.</p>
           </div>
           <div className="flex items-center gap-2">
@@ -821,7 +821,7 @@ export default function AdminDashboard() {
                 placeholder="Search brands..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-2.5 rounded-xl bg-white/60 backdrop-blur-md border border-white/50 outline-none w-64 shadow-sm focus:border-[#113a87] focus:ring-4 focus:ring-[#113a87]/8 text-xs transition-all font-medium text-[#1a1a1a] placeholder:text-gray-300"
+                className="pl-9 pr-4 py-2.5 rounded-xl bg-white/60 backdrop-blur-md border border-white/50 outline-none w-full md:w-64 shadow-sm focus:border-[#113a87] focus:ring-4 focus:ring-[#113a87]/8 text-xs transition-all font-medium text-[#1a1a1a] placeholder:text-gray-300"
               />
             </div>
             {permissions.canCreateClient && (

@@ -2863,6 +2863,59 @@ def delete_deliverable(
     db.commit()
     return {"message": "Deliverable deleted."}
 
+# ── CLIENT NOTES (Further Changes) ─────────────────────────
+
+@router.get("/client-notes")
+def get_client_note(
+    clientId: str,
+    month: str,
+    year: str,
+    current_user: AuthIdentity = Depends(require_client),
+    db: Session = Depends(get_db)
+):
+    if current_user.role == "client" and current_user.client_id != clientId:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+    from database import ClientNote
+    note = db.query(ClientNote).filter(
+        ClientNote.client_id == clientId,
+        ClientNote.month == month,
+        ClientNote.year == year,
+    ).first()
+    return {"content": note.content if note else ""}
+
+@router.put("/client-notes")
+def update_client_note(
+    req: dict,
+    current_user: AuthIdentity = Depends(require_client),
+    db: Session = Depends(get_db)
+):
+    if current_user.role not in ("super_admin", "client", "admin"):
+        raise HTTPException(status_code=403, detail="Only super admins and clients can edit notes.")
+    clientId = req["clientId"]
+    if current_user.role == "client" and current_user.client_id != clientId:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+    from database import ClientNote
+    note = db.query(ClientNote).filter(
+        ClientNote.client_id == clientId,
+        ClientNote.month == req["month"],
+        ClientNote.year == req["year"],
+    ).first()
+    if note:
+        note.content = req.get("content", "")
+        from datetime import datetime
+        note.updated_at = datetime.utcnow()
+    else:
+        note = ClientNote(
+            id=str(uuid.uuid4()),
+            client_id=clientId,
+            month=req["month"],
+            year=req["year"],
+            content=req.get("content", ""),
+        )
+        db.add(note)
+    db.commit()
+    return {"content": note.content}
+
 # ── AD SPENDS ──────────────────────────────────────────────
 
 def _parse_month_year(m: str):

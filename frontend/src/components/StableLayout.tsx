@@ -21,14 +21,14 @@ export default function StableLayout({
   // Compute responsive padding/left offset for sidebar
   const sidebarPaddingClass = showSidebar
     ? collapsed
-      ? "pl-[68px]"
-      : "pl-56"
+      ? "pl-0 md:pl-[68px]"
+      : "pl-0 md:pl-56"
     : "pl-0";
 
   const sidebarLeftClass = showSidebar
     ? collapsed
-      ? "left-[68px]"
-      : "left-56"
+      ? "left-0 md:left-[68px]"
+      : "left-0 md:left-56"
     : "left-0";
 
   return (
@@ -66,7 +66,7 @@ export default function StableLayout({
 
       {/* Main Content Area */}
       <main
-        className="stable-main flex-1 transition-all duration-200 ease-in-out p-6 md:p-8"
+        className="stable-main flex-1 transition-all duration-200 ease-in-out p-6 pl-14 md:p-8"
       >
         {/* Centered container with max-width to prevent wobbling */}
         <div className="stable-content w-full max-w-[1200px] mx-auto relative">

@@ -209,6 +209,7 @@ class Client(Base):
     seo_reports = relationship("MonthlySEOReport", back_populates="client", cascade="all, delete-orphan")
     ad_spends   = relationship("AdSpend", back_populates="client", cascade="all, delete-orphan")
     ad_budgets  = relationship("AdBudget", back_populates="client", cascade="all, delete-orphan")
+    client_notes = relationship("ClientNote", back_populates="client", cascade="all, delete-orphan")
 
 class Competitor(Base):
     __tablename__ = "competitors"
@@ -401,6 +402,18 @@ class MonthlySEOReport(Base):
     seo_metrics  = Column(JSON, nullable=True)
 
     client       = relationship("Client", back_populates="seo_reports")
+
+class ClientNote(Base):
+    __tablename__ = "client_notes"
+    id        = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    client_id = Column(String, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False)
+    month     = Column(String, nullable=False)
+    year      = Column(String, nullable=False)
+    content   = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    client = relationship("Client", back_populates="client_notes")
 
 # 4. HELPERS
 def get_db():

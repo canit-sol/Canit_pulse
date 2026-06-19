@@ -240,9 +240,9 @@ export default function ClientsPage() {
   };
 
   return (
-    <div className={`min-h-screen bg-transparent transition-[padding] duration-200 ease-in-out ${collapsed ? "pl-[68px]" : "pl-56"}`}>
+    <div className={`min-h-screen bg-transparent transition-[padding] duration-200 ease-in-out ${collapsed ? "pl-0 md:pl-[68px]" : "pl-0 md:pl-56"}`}>
       <AppSidebar />
-      <main className="flex-1 p-8 md:p-10 animate-fade-in">
+      <main className="flex-1 p-4 pl-12 md:p-10 animate-fade-in">
         <div className="max-w-6xl mx-auto">
         <div className="flex items-center gap-3 mb-2">
           <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">

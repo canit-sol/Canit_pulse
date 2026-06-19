@@ -167,9 +167,9 @@ export default function UsersPage() {
   };
 
   return (
-    <div className={`min-h-screen bg-transparent transition-[padding] duration-200 ease-in-out ${collapsed ? "pl-[68px]" : "pl-56"}`}>
+    <div className={`min-h-screen bg-transparent transition-[padding] duration-200 ease-in-out ${collapsed ? "pl-0 md:pl-[68px]" : "pl-0 md:pl-56"}`}>
       <AppSidebar />
-      <main className="flex-1 p-10">
+      <main className="flex-1 p-4 pl-12 md:p-10">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="flex items-center gap-3 mb-8">

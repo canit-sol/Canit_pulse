@@ -315,32 +315,32 @@ export default function AdSpendsPanel({ clientId, month, year }: { clientId: str
             <Loader2 className="w-8 h-8 animate-spin text-emerald-600/80" />
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-slate-200/80 shadow-sm">
-            <table className="w-full min-w-[900px] border-collapse">
+          <div className="rounded-2xl border border-slate-200/80 shadow-sm">
+            <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="sticky top-0 z-10 bg-slate-50 text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 min-w-[180px]">
-                    Campaign Name
+                  <th className="text-left px-1 md:px-4 py-2 md:py-3 text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Campaign
                   </th>
-                  <th className="sticky top-0 z-10 bg-slate-50 text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 min-w-[100px]">
+                  <th className="text-left px-1 md:px-4 py-2 md:py-3 text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     Platform
                   </th>
-                  <th className="sticky top-0 z-10 bg-slate-50 text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 min-w-[120px]">
+                  <th className="text-left px-1 md:px-4 py-2 md:py-3 text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
                     KPI
                   </th>
                   {months.map(m => (
                     <th
                       key={m}
-                      className={`sticky top-0 z-10 text-right px-4 py-3 text-[11px] font-bold uppercase tracking-wider min-w-[90px] ${
+                      className={`text-right px-1 md:px-4 py-2 md:py-3 text-[10px] md:text-[11px] font-bold uppercase tracking-wider whitespace-nowrap ${
                         m === MONTH_NAMES[selMonth]
                           ? "bg-emerald-50 text-emerald-700"
-                          : "bg-slate-50 text-slate-500"
+                          : "bg-slate-50 text-slate-500 hidden md:table-cell"
                       }`}
                     >
                       {m.slice(0, 3)}
                     </th>
                   ))}
-                  <th className="sticky top-0 z-10 bg-slate-50 text-right px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 min-w-[80px]">
+                  <th className="text-right px-1 md:px-4 py-2 md:py-3 text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
                     Total
                   </th>
                 </tr>
@@ -360,7 +360,7 @@ export default function AdSpendsPanel({ clientId, month, year }: { clientId: str
                         {isFirst && (
                           <td
                             rowSpan={campaign.kpis.length}
-                            className="px-4 py-2.5 text-sm font-bold text-slate-800 align-top"
+                            className="px-1 md:px-4 py-1.5 md:py-2 text-[10px] md:text-sm font-bold text-slate-800 align-top leading-tight md:leading-normal"
                           >
                             {campaign.campaign}
                           </td>
@@ -368,15 +368,15 @@ export default function AdSpendsPanel({ clientId, month, year }: { clientId: str
                         {isFirst && (
                           <td
                             rowSpan={campaign.kpis.length}
-                            className="px-4 py-2.5 align-top"
+                            className="px-1 md:px-4 py-1.5 md:py-2 align-top"
                           >
-                            <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-600">
+                            <div className="flex items-center gap-0.5 md:gap-1.5 text-xs md:text-sm font-semibold text-slate-600">
                               {metaIcon(campaign.platform)}
-                              {campaign.platform}
+                              <span className="hidden md:inline">{campaign.platform}</span>
                             </div>
                           </td>
                         )}
-                        <td className="px-4 py-2 text-xs text-slate-500 font-medium whitespace-nowrap">
+                        <td className="px-1 md:px-4 py-1.5 md:py-2 text-[9px] md:text-xs text-slate-500 font-medium whitespace-nowrap">
                           {kpi}
                         </td>
                         {months.map(m => {
@@ -385,15 +385,15 @@ export default function AdSpendsPanel({ clientId, month, year }: { clientId: str
                           return (
                             <td
                               key={m}
-                              className={`text-right px-4 py-2 text-sm font-bold tabular-nums ${
-                                isCurrent ? "bg-emerald-50/60 text-emerald-800" : "text-slate-700"
+                              className={`text-right px-1 md:px-4 py-1.5 md:py-2 text-[10px] md:text-sm font-bold tabular-nums ${
+                                isCurrent ? "bg-emerald-50/60 text-emerald-800" : "text-slate-700 hidden md:table-cell"
                               }`}
                             >
                               {displayVal(v, kpi)}
                             </td>
                           );
                         })}
-                        <td className="text-right px-4 py-2 text-sm font-bold tabular-nums text-slate-800">
+                        <td className="text-right px-1 md:px-4 py-1.5 md:py-2 text-[10px] md:text-sm font-bold tabular-nums text-slate-800">
                           {displayVal(totalForKpi(campaign.campaign, kpi), kpi)}
                         </td>
                       </tr>

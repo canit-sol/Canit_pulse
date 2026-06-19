@@ -29,10 +29,14 @@ const CUTE_PLACEHOLDERS = [
 export default function DeliverablesPanel({ clientId, month, year }: { clientId: string; month: string; year: string }) {
   const permissions = usePermissions();
   const canEdit = permissions.role === "super_admin" || permissions.role === "csm" || permissions.role === "admin";
+  const canEditNotes = permissions.role === "super_admin" || permissions.role === "admin" || permissions.role === "client";
 
   const [items, setItems] = useState<Deliverable[]>([]);
   const [loading, setLoading] = useState(true);
   const [focusItemId, setFocusItemId] = useState<string | null>(null);
+  const [notes, setNotes] = useState("");
+  const [notesLoading, setNotesLoading] = useState(true);
+  const notesSaveTimer = useRef<NodeJS.Timeout | null>(null);
 
   const saveTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
 
@@ -58,8 +62,44 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
 
   useEffect(() => {
     setLoading(true);
+    setNotesLoading(true);
     fetchDeliverables();
   }, [clientId, month, year]);
+
+  useEffect(() => {
+    const fetchNotes = async () => {
+      try {
+        const res = await fetch(`/api/client-notes?clientId=${clientId}&month=${month}&year=${year}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("bento_token")}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setNotes(data.content || "");
+        }
+      } catch (err) {
+        console.error("Failed to fetch notes", err);
+      } finally {
+        setNotesLoading(false);
+      }
+    };
+    fetchNotes();
+  }, [clientId, month, year]);
+
+  const handleNotesChange = (val: string) => {
+    setNotes(val);
+    if (notesSaveTimer.current) clearTimeout(notesSaveTimer.current);
+    notesSaveTimer.current = setTimeout(async () => {
+      try {
+        await fetch(`/api/client-notes`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("bento_token")}` },
+          body: JSON.stringify({ clientId, month, year, content: val }),
+        });
+      } catch (err) {
+        console.error("Failed to save notes", err);
+      }
+    }, 800);
+  };
 
   // Clean up timeouts on unmount
   useEffect(() => {
@@ -67,6 +107,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
       Object.keys(saveTimeoutsRef.current).forEach((id) => {
         clearTimeout(saveTimeoutsRef.current[id]);
       });
+      if (notesSaveTimer.current) clearTimeout(notesSaveTimer.current);
     };
   }, []);
 
@@ -343,7 +384,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
           </div>
           <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-violet-400 via-pink-400 to-emerald-400 transition-all duration-500 ease-out"
+              className="h-full bg-violet-500 transition-all duration-500 ease-out"
               style={{ width: `${percentage}%` }}
             />
           </div>
@@ -439,6 +480,38 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
           </div>
         </div>
       )}
+
+      {/* Any Further Changes */}
+      <div className="bg-white/60 backdrop-blur-md rounded-3xl p-6 lg:p-8 border border-white/80 shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_16px_36px_-8px_rgba(17,58,135,0.05)] transition-all duration-300 animate-fade-in flex flex-col">
+        <div className="flex items-center gap-3 mb-4 select-none">
+          <div className="w-10 h-10 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 shadow-sm border border-amber-100/50">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-base font-extrabold font-heading text-slate-800 leading-tight">Any Further Changes</h3>
+          </div>
+        </div>
+        {notesLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-5 h-5 animate-spin text-amber-600/60" />
+          </div>
+        ) : (
+          <textarea
+            value={notes}
+            onChange={(e) => handleNotesChange(e.target.value)}
+            placeholder="Add any further changes or requests here..."
+            readOnly={!canEditNotes}
+            rows={4}
+            className={`w-full resize-none rounded-xl border text-sm font-medium p-4 transition-all duration-200 outline-none ${
+              canEditNotes
+                ? "bg-white border-slate-200/80 text-slate-700 focus:border-amber-400 focus:ring-4 focus:ring-amber-100 placeholder:text-slate-300"
+                : "bg-slate-50/50 border-slate-100/60 text-slate-500 cursor-default select-none"
+            }`}
+          />
+        )}
+      </div>
     </div>
   );
 }

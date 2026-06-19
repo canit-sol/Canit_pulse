@@ -3,14 +3,15 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, Settings, LogOut,
   ChevronLeft, ChevronRight, FolderKanban, UsersRound,
-  FileText
+  FileText, Menu
 } from "lucide-react";
 import { useSidebar } from "../context/SidebarContext";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./ui/tooltip";
+import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { usePermissions } from "../hooks/usePermissions";
 
 export default function AppSidebar() {
-  const { collapsed, setCollapsed } = useSidebar();
+  const { collapsed, setCollapsed, mobileOpen, setMobileOpen } = useSidebar();
   const navigate = useNavigate();
   const permissions = usePermissions();
 
@@ -135,102 +136,128 @@ export default function AppSidebar() {
     </button>
   );
 
-  return (
-    <TooltipProvider delayDuration={0}>
-      <aside
-        className={`fixed left-0 top-0 h-screen z-40 flex flex-col transition-[width,background-color,border-color,box-shadow] duration-200 ease-in-out bg-[#FBFDFE]/25 backdrop-blur-3xl border-r border-slate-100/40 shadow-none ${
-          collapsed ? "w-[68px]" : "w-56"
-        }`}
-      >
-        {/* Logo Section */}
-        {logoSection}
+  // Desktop sidebar content (used for both mobile sheet and desktop fixed sidebar)
+  const sidebarInner = (
+    <div className="flex flex-col h-full">
+      {/* Logo Section */}
+      {logoSection}
 
-        {/* Navigation Section */}
-        <nav className="flex-1 pt-4 pb-6 px-3 space-y-1.5 overflow-y-auto overflow-x-hidden">
-          {navItems.map((item) => {
-            const navLink = (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={item.end}
-                className={({ isActive }) =>
-                  `flex items-center rounded-xl text-sm font-medium transition-[background-color,color,border-color,padding,justify-content] duration-200 ease-in-out
-                  ${isActive
-                    ? "bg-[#113a87]/8 text-[#113a87] border-l-4 border-[#113a87] font-semibold"
-                    : "text-gray-500 hover:bg-gray-100/40 hover:text-[#1a1a1a]"
-                  }
-                  ${collapsed ? "justify-center px-3 py-3" : "px-3 py-3"}`
+      {/* Navigation Section */}
+      <nav className="flex-1 pt-4 pb-6 px-3 space-y-1.5 overflow-y-auto overflow-x-hidden">
+        {navItems.map((item) => {
+          const navLink = (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.end}
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center rounded-xl text-sm font-medium transition-[background-color,color,border-color,padding,justify-content] duration-200 ease-in-out
+                ${isActive
+                  ? "bg-[#113a87]/8 text-[#113a87] border-l-4 border-[#113a87] font-semibold"
+                  : "text-gray-500 hover:bg-gray-100/40 hover:text-[#1a1a1a]"
                 }
+                ${collapsed ? "justify-center px-3 py-3" : "px-3 py-3"}`
+              }
+            >
+              <item.icon className="w-5 h-5 shrink-0" />
+              <span
+                className={`font-heading transition-[opacity,max-width,margin] duration-200 ease-in-out overflow-hidden whitespace-nowrap ${
+                  collapsed ? "max-w-0 opacity-0 ml-0" : "max-w-40 opacity-100 ml-3"
+                }`}
               >
-                <item.icon className="w-5 h-5 shrink-0" />
-                <span
-                  className={`font-heading transition-[opacity,max-width,margin] duration-200 ease-in-out overflow-hidden whitespace-nowrap ${
-                    collapsed ? "max-w-0 opacity-0 ml-0" : "max-w-40 opacity-100 ml-3"
-                  }`}
-                >
-                  {item.label}
-                </span>
-              </NavLink>
-            );
+                {item.label}
+              </span>
+            </NavLink>
+          );
 
-            return collapsed ? (
-              <Tooltip key={item.path}>
-                <TooltipTrigger asChild>{navLink}</TooltipTrigger>
-                <TooltipContent side="right" className="font-heading font-medium text-xs">
-                  {item.label}
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              navLink
-            );
-          })}
-        </nav>
-
-        {/* Bottom Section */}
-        <div className="p-3 border-t border-white/40 space-y-2 bg-white/30 backdrop-blur-sm shrink-0">
-          {/* User Profile Info Panel */}
-          {collapsed ? (
-            <Tooltip>
-              <TooltipTrigger asChild>{profilePanel}</TooltipTrigger>
+          return collapsed ? (
+            <Tooltip key={item.path}>
+              <TooltipTrigger asChild>{navLink}</TooltipTrigger>
               <TooltipContent side="right" className="font-heading font-medium text-xs">
-                <div className="font-bold">{user.name}</div>
-                <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">{user.role}</div>
+                {item.label}
               </TooltipContent>
             </Tooltip>
           ) : (
-            profilePanel
-          )}
+            navLink
+          );
+        })}
+      </nav>
 
-          {/* Sign Out Action Button */}
-          {collapsed ? (
-            <Tooltip>
-              <TooltipTrigger asChild>{signOutButton}</TooltipTrigger>
-              <TooltipContent side="right" className="font-heading font-medium text-xs">
-                Sign Out
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            signOutButton
-          )}
+      {/* Bottom Section */}
+      <div className="p-3 border-t border-white/40 space-y-2 bg-white/30 backdrop-blur-sm shrink-0">
+        {/* User Profile Info Panel */}
+        {collapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>{profilePanel}</TooltipTrigger>
+            <TooltipContent side="right" className="font-heading font-medium text-xs">
+              <div className="font-bold">{user.name}</div>
+              <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">{user.role}</div>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          profilePanel
+        )}
 
-          {/* Footer Text */}
-          <div
-            className={`text-center text-[9px] text-slate-400/50 font-medium font-heading tracking-wide transition-[opacity,max-height,padding] duration-200 ease-in-out overflow-hidden whitespace-nowrap ${
-              collapsed ? "max-h-0 opacity-0 py-0" : "max-h-6 opacity-100 py-1"
-            }`}
-          >
-            Powered by Canit Solutions
-          </div>
+        {/* Sign Out Action Button */}
+        {collapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>{signOutButton}</TooltipTrigger>
+            <TooltipContent side="right" className="font-heading font-medium text-xs">
+              Sign Out
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          signOutButton
+        )}
 
-          {/* Toggle Sidebar Button */}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="w-full flex items-center justify-center py-2.5 rounded-xl text-gray-400 hover:bg-gray-100/40 transition-[background-color,color] duration-200 ease-in-out"
-          >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
+        {/* Footer Text */}
+        <div
+          className={`text-center text-[9px] text-slate-400/50 font-medium font-heading tracking-wide transition-[opacity,max-height,padding] duration-200 ease-in-out overflow-hidden whitespace-nowrap ${
+            collapsed ? "max-h-0 opacity-0 py-0" : "max-h-6 opacity-100 py-1"
+          }`}
+        >
+          Powered by Canit Solutions
         </div>
-      </aside>
-    </TooltipProvider>
+
+        {/* Toggle Sidebar Button */}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="w-full flex items-center justify-center py-2.5 rounded-xl text-gray-400 hover:bg-gray-100/40 transition-[background-color,color] duration-200 ease-in-out"
+        >
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Mobile hamburger trigger — visible only on small screens */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetTrigger asChild>
+          <button
+            className="fixed top-3 left-3 z-50 md:hidden flex items-center justify-center w-8 h-8 rounded-lg bg-white/80 backdrop-blur-md border border-slate-200/60 shadow-sm text-slate-600 hover:text-[#113a87] transition-all"
+            aria-label="Toggle navigation menu"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+        </SheetTrigger>
+        <SheetContent side="left" className="p-0 w-56 bg-[#FBFDFE] border-r border-slate-100/40">
+          {sidebarInner}
+        </SheetContent>
+      </Sheet>
+
+      {/* Desktop fixed sidebar — hidden on mobile */}
+      <TooltipProvider delayDuration={0}>
+        <aside
+          className={`hidden md:flex fixed left-0 top-0 h-screen z-40 flex-col transition-[width,background-color,border-color,box-shadow] duration-200 ease-in-out bg-[#FBFDFE]/25 backdrop-blur-3xl border-r border-slate-100/40 shadow-none ${
+            collapsed ? "w-[68px]" : "w-56"
+          }`}
+        >
+          {sidebarInner}
+        </aside>
+      </TooltipProvider>
+    </>
   );
 }
