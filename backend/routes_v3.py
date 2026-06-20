@@ -523,5 +523,93 @@ def debug_client_facebook_data(client_id: str, month: str = None, year: str = No
         "merged": {**stored, **live}
     }
 
+# ── AD PERFORMANCE DASHBOARD ─────────────────────────────
+
+from services.meta_ads import sync_campaign_metrics_for_client
+from database import CampaignMetric
+
+@router_v3.get("/clients/{client_id}/ad-performance")
+def get_ad_performance(client_id: str, db: Session = Depends(get_db)):
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found.")
+
+    # Get the latest daily snapshot for each campaign
+    # (By querying for today's date, or the most recent date available)
+    metrics = db.query(CampaignMetric).filter(CampaignMetric.client_id == client_id).all()
+    
+    # We want the LATEST snapshot per campaign
+    latest_metrics = {}
+    for m in metrics:
+        c_id = m.campaign_id
+        if c_id not in latest_metrics or m.date > latest_metrics[c_id].date:
+            latest_metrics[c_id] = m
+            
+    campaigns = list(latest_metrics.values())
+    
+    total_spend = sum(c.spend for c in campaigns)
+    total_reach = sum(c.reach for c in campaigns)
+    total_clicks = sum(c.clicks for c in campaigns)
+    total_leads = sum(c.leads for c in campaigns)
+    total_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
+    total_cpl = (total_spend / total_leads) if total_leads > 0 else 0
+    
+    budget = client.monthly_ad_budget or 0.0
+    remaining_budget = max(0, budget - total_spend)
+
+    return {
+        "success": True,
+        "budget": budget,
+        "total_spend": total_spend,
+        "remaining_budget": remaining_budget,
+        "metrics": {
+            "reach": total_reach,
+            "clicks": total_clicks,
+            "leads": total_leads,
+            "cpc": round(total_cpc, 2),
+            "cpl": round(total_cpl, 2),
+        },
+        "ad_account_error": client.ad_account_error,
+        "campaigns": [
+            {
+                "campaign_id": c.campaign_id,
+                "campaign_name": c.campaign_name,
+                "spend": c.spend,
+                "reach": c.reach,
+                "impressions": c.impressions,
+                "clicks": c.clicks,
+                "ctr": round(c.ctr, 2),
+                "cpc": round(c.cpc, 2),
+                "leads": c.leads,
+                "cpl": round(c.cpl, 2),
+                "visits": c.visits,
+                "likes": c.likes,
+                "status": c.status,
+                "date": str(c.date)
+            } for c in campaigns
+        ]
+    }
+
+class AdBudgetRequest(BaseModel):
+    budget: float
+
+@router_v3.post("/clients/{client_id}/ad-budget")
+def update_ad_budget(client_id: str, req: AdBudgetRequest, db: Session = Depends(get_db)):
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found.")
+    
+    client.monthly_ad_budget = req.budget
+    db.commit()
+    return {"success": True, "budget": client.monthly_ad_budget}
+
+@router_v3.post("/clients/{client_id}/sync-ads")
+def manual_sync_ads(client_id: str, start: str = None, end: str = None, db: Session = Depends(get_db)):
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found.")
+    
+    success, msg = sync_campaign_metrics_for_client(client_id, db, start, end)
+    return {"success": success, "message": msg}
 
 

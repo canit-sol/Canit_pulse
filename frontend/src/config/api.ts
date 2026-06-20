@@ -1,7 +1,8 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export function getApiUrl(path: string): string {
-  return `${API_BASE_URL}${path}`;
+  // Use relative paths to rely on Vite/Vercel proxies
+  return `/api${path}`;
 }
 
 let isRefreshing = false;

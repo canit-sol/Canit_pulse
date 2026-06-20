@@ -147,6 +147,24 @@ try:
 except Exception as e:
     print(f"[DB] _ensure_youtube_column skipped: {e}")
 
+def _ensure_ad_columns():
+    insp = inspect(engine)
+    if 'clients' in insp.get_table_names():
+        cols = [c['name'] for c in insp.get_columns('clients')]
+        with engine.connect() as conn:
+            if 'monthly_ad_budget' not in cols:
+                conn.execute(text("ALTER TABLE clients ADD COLUMN monthly_ad_budget FLOAT DEFAULT 0.0;"))
+                print("Added missing 'monthly_ad_budget' column to clients table.")
+            if 'ad_account_error' not in cols:
+                conn.execute(text("ALTER TABLE clients ADD COLUMN ad_account_error VARCHAR;"))
+                print("Added missing 'ad_account_error' column to clients table.")
+            conn.commit()
+
+try:
+    _ensure_ad_columns()
+except Exception as e:
+    print(f"[DB] _ensure_ad_columns skipped: {e}")
+
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 Base = declarative_base()
@@ -197,6 +215,10 @@ class Client(Base):
     youtube_channel_id = Column(String, nullable=True)
     platform         = Column(String, default="instagram")
     
+    # Meta Ads Reporting
+    monthly_ad_budget = Column(Float, default=0.0)
+    ad_account_error  = Column(String, nullable=True)
+    
     # Creative Tracker & Brand Management
     purpose                = Column(String, nullable=True)
     social_media_count     = Column(Integer, default=0)
@@ -220,6 +242,8 @@ class Competitor(Base):
     engagement_est    = Column(Integer, default=0) 
     is_client         = Column(Boolean, default=False)
     instagram_handle  = Column(String, nullable=True)
+    posts_count       = Column(Integer, default=0)
+    recent_likes      = Column(Integer, default=0)
     client = relationship("Client", back_populates="competitors")
 
 class Report(Base):
@@ -414,6 +438,30 @@ class ClientNote(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     client = relationship("Client", back_populates="client_notes")
+
+class CampaignMetric(Base):
+    """Daily snapshots of Meta Ads campaign performance."""
+    __tablename__ = "campaign_metrics"
+    __table_args__ = {'extend_existing': True}
+    
+    id             = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    client_id      = Column(String, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
+    campaign_id    = Column(String, nullable=False, index=True)
+    campaign_name  = Column(String, nullable=False)
+    date           = Column(Date, nullable=False, index=True)
+    spend          = Column(Float, default=0.0)
+    reach          = Column(Integer, default=0)
+    impressions    = Column(Integer, default=0)
+    clicks         = Column(Integer, default=0)
+    ctr            = Column(Float, default=0.0)
+    cpc            = Column(Float, default=0.0)
+    leads          = Column(Integer, default=0)
+    cpl            = Column(Float, default=0.0)
+    visits         = Column(Integer, default=0)
+    likes          = Column(Integer, default=0)
+    status         = Column(String, default="ACTIVE")
+    
+    created_at     = Column(DateTime, default=datetime.utcnow)
 
 # 4. HELPERS
 def get_db():

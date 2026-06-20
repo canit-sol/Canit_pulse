@@ -364,4 +364,3 @@ Return ONLY the JSON structure as specified. No other text."""
                 coerced_data[key] = default_val
 
     return coerced_data
-

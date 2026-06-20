@@ -12,7 +12,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import BrandIntelligence from "@/components/BrandIntelligence";
 import PrintReportView from "../components/PrintReportView";
 import DeliverablesPanel from "@/components/DeliverablesPanel";
-import AdSpendsPanel from "@/components/AdSpendsPanel";
+import AdPerformanceView from "@/components/AdPerformanceView";
 import { Download, AlertCircle, Play } from "lucide-react";
 import { usePermissions } from "../hooks/usePermissions";
 
@@ -81,7 +81,7 @@ const SHOW_FACEBOOK_TAB = true;
 
 const PLATFORMS = [
   { id: "deliverables", label: "Deliverables", Icon: ClipboardList, color: "#7C3AED", bg: "bg-violet-50", active_bg: "bg-[#7C3AED]" },
-  { id: "ad-spends", label: "Ad Spends", Icon: DollarSign, color: "#059669", bg: "bg-emerald-50", active_bg: "bg-[#059669]" },
+  { id: "ad-performance", label: "Ad Performance", Icon: DollarSign, color: "#059669", bg: "bg-emerald-50", active_bg: "bg-[#059669]" },
   { id: "instagram", label: "Instagram",  Icon: InstagramIcon,     color: "#E1306C", bg: "bg-pink-50",   active_bg: "bg-gradient-to-r from-[#E1306C] to-[#833AB4]" },
   ...(SHOW_FACEBOOK_TAB
     ? [{ id: "facebook", label: "Facebook", Icon: FacebookIcon, color: "#1877F2", bg: "bg-blue-50", active_bg: "bg-[#1877F2]" }]
@@ -505,7 +505,7 @@ const platformThemes: Record<string, {
     accentBar: "bg-[#C4B5FD]",
     badge: "bg-[#7C3AED]",
   },
-  "ad-spends": {
+  "ad-performance": {
     gradient: "linear-gradient(135deg, #d1fae5, #34d399, #059669)",
     bg: "bg-gradient-to-br from-emerald-400 via-emerald-500 to-green-600",
     cardBg: "bg-gradient-to-br from-[#ECFDF5] to-[#D1FAE5]",
@@ -1553,9 +1553,9 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
               <div className="mt-8">
                 <DeliverablesPanel clientId={id!} month={active.month} year={active.year} />
               </div>
-            ) : activePlatform === "ad-spends" ? (
+            ) : activePlatform === "ad-performance" ? (
               <div className="mt-8">
-                <AdSpendsPanel clientId={id!} month={active.month} year={active.year} />
+                <AdPerformanceView theme={platformThemes["ad-performance"]} />
               </div>
             ) : (
             <>
@@ -2862,8 +2862,8 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
           </div>
           </>
           )}
-            {/* Industry Related News Section — hidden for deliverables and ad-spends */}
-            {activePlatform !== "deliverables" && activePlatform !== "ad-spends" && (
+            {/* Industry Related News Section — hidden for deliverables and ad-performance */}
+            {activePlatform !== "deliverables" && activePlatform !== "ad-performance" && (
               <IndustryNewsSection industry={industry} clientId={id} />
             )}
           </div>
@@ -3224,7 +3224,8 @@ function CompetitorSocialIntelligenceSection({
             const name = comp.name || comp.handle || "Competitor";
             const handle = `@${(comp.handle || "").replace("@", "")}`;
             const followers = Number(comp.followers) || 0;
-            const posts = Number(comp.posts) || 0;
+            const posts = Number(comp.posts_count) || Number(comp.posts) || 0;
+            const recentLikes = Number(comp.recent_likes) || 0;
             const engRaw = Number(comp.engagement_score) || 0;
             const style = comp.style_summary || "";
             const label = getGrowthLabel(followers, posts);
@@ -3262,19 +3263,25 @@ function CompetitorSocialIntelligenceSection({
                 {/* Metrics row — only show if > 0 */}
                 <div className="flex items-center gap-3 flex-wrap">
                   {followers > 0 && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" title="Total Followers">
                       <Users className="w-2.5 h-2.5 text-gray-300" />
                       <span className="text-[10px] font-bold text-gray-600">{fmtNum(followers)}</span>
                     </div>
                   )}
                   {posts > 0 && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" title="Total Posts">
                       <Globe className="w-2.5 h-2.5 text-gray-300" />
                       <span className="text-[10px] font-bold text-gray-600">{posts} posts</span>
                     </div>
                   )}
+                  {recentLikes > 0 && (
+                    <div className="flex items-center gap-1" title="Likes on Recent Posts">
+                      <Heart className="w-2.5 h-2.5 text-pink-400" />
+                      <span className="text-[10px] font-bold text-gray-600">{fmtNum(recentLikes)} likes</span>
+                    </div>
+                  )}
                   {engRaw > 0 && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" title="Engagement Rate">
                       <TrendingUp className="w-2.5 h-2.5 text-gray-300" />
                       <span className="text-[10px] font-bold text-gray-600">{engRaw.toFixed(1)}% eng.</span>
                     </div>

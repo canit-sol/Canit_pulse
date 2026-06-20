@@ -1469,6 +1469,8 @@ def get_competitors(client_id: str, current_user: AuthIdentity = Depends(require
                 "followers": c.revenue_est or 0,
                 "is_client": c.is_client or False,
                 "instagram_handle": c.instagram_handle or "",
+                "posts_count": getattr(c, "posts_count", 0) or 0,
+                "recent_likes": getattr(c, "recent_likes", 0) or 0,
             }
             for c in competitors
         ]
@@ -2234,6 +2236,8 @@ def discover_competitors(client_id: str, current_user: AuthIdentity = Depends(re
         name = s.get("name", handle)
 
         followers = 0
+        media_count = 0
+        recent_likes = 0
 
         if RAPIDAPI_KEY:
             try:
@@ -2254,8 +2258,18 @@ def discover_competitors(client_id: str, current_user: AuthIdentity = Depends(re
                     info.get("followers_count") or 
                     info.get("edge_followed_by", {}).get("count", 0)
                 )
-                media_count = info.get("media_count") or info.get("edge_owner_to_timeline_media", {}).get("count", 1)
+                media_count = info.get("media_count") or info.get("edge_owner_to_timeline_media", {}).get("count", 0)
                 
+                edges = info.get("edge_owner_to_timeline_media", {}).get("edges", [])
+                if not edges:
+                    edges = info.get("latest_posts", []) or []
+                for edge in edges:
+                    node = edge.get("node", edge)
+                    likes = node.get("edge_media_preview_like", {}).get("count")
+                    if likes is None:
+                        likes = node.get("like_count", 0)
+                    recent_likes += (likes or 0)
+                    
             except Exception as e:
                 print(f"RapidAPI failed for {handle}: {e}")
                 followers = 0
@@ -2271,6 +2285,11 @@ def discover_competitors(client_id: str, current_user: AuthIdentity = Depends(re
             followers = next((v for k, v in estimates.items() if k in industry), 5000)
 
         engagement_est = round(followers * 0.035)  # 3.5% industry average
+        
+        if media_count == 0:
+            media_count = max(10, int(followers / 100))
+        if recent_likes == 0:
+            recent_likes = engagement_est * min(media_count, 12)
 
         # Save to DB (skip if already exists for this client)
         existing = db.query(Competitor).filter(
@@ -2287,13 +2306,17 @@ def discover_competitors(client_id: str, current_user: AuthIdentity = Depends(re
                 revenue_est=followers,
                 is_client=False,
                 instagram_handle=handle,
+                posts_count=media_count,
+                recent_likes=recent_likes,
             )
             db.add(comp)
             saved.append({
                 "name": name, 
                 "handle": handle, 
                 "followers": followers, 
-                "engagement_est": engagement_est
+                "engagement_est": engagement_est,
+                "posts_count": media_count,
+                "recent_likes": recent_likes
             })
 
     db.commit()

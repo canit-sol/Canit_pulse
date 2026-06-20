@@ -9,6 +9,7 @@ import {
   Plus, Trash2, Edit
 } from "lucide-react";
 import { getApiUrl } from "@/config/api";
+import ApiStatusWidget from "@/components/ApiStatusWidget";
 
 const YoutubeIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -490,6 +491,9 @@ export default function SettingsPage() {
                   {healthLoading ? "Testing..." : "Test All Connections"}
                 </button>
               </div>
+
+              {/* API Status Overview Widget */}
+              <ApiStatusWidget />
 
               {/* Instagram Graph API */}
               <IntegrationCard

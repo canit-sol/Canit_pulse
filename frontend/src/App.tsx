@@ -13,6 +13,8 @@ import TermsOfUse from "./pages/settings/TermsOfUse";
 import PrivacyPolicy from "./pages/settings/PrivacyPolicy";
 import ContactSupport from "./pages/settings/ContactSupport";
 import PlatformInfo from "./pages/settings/PlatformInfo";
+import EmployeeDashboard from "./pages/EmployeeDashboard";
+
 
 // Dynamic Session Refresher & Token Rotation Engine
 function TokenRefresher() {
@@ -165,6 +167,9 @@ export default function App() {
           <Route path="/admin/settings" element={
             <ProtectedRoute role="admin" requirePermission="settings"><SettingsPage /></ProtectedRoute>
           } />
+
+          {/* ─── EMPLOYEE WORKSPACE ZONE ───────────────────────────────── */}
+          <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
 
           {/* ─── CLIENT ZONE ───────────────────────────────────────────── */}
           <Route path="/client/:id" element={

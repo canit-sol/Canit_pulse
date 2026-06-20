@@ -21,6 +21,17 @@ from services.platform_router import fetch_platform_data
 import routes
 import routes_v3
 
+from apscheduler.schedulers.background import BackgroundScheduler
+from services.meta_ads import sync_all_campaigns
+
+def scheduled_meta_ads_sync():
+    db = models.SessionLocal()
+    try:
+        sync_all_campaigns(db)
+    finally:
+        db.close()
+
+
 # --- 1. SETUP & CONFIGURATION ---
 load_dotenv(find_dotenv(), override=True)
 
@@ -113,6 +124,8 @@ def update_client(client_id: str, client_data: ClientCreate, current_user: AuthI
     db.commit()
     db.refresh(client)
     return client
+
+
 
 @app.delete("/api/clients/{client_id}")
 def delete_client(client_id: str, current_user: AuthIdentity = Depends(require_admin), db: Session = Depends(get_db)):
@@ -741,14 +754,18 @@ def get_industry_news_direct(industry: str, client_id: Optional[str] = None, db:
 # --- 10. STARTUP ---
 @app.on_event("startup")
 def startup_event():
+    from apscheduler.schedulers.background import BackgroundScheduler
+    create_tables()
+    seed_admin("report@canit.in", "canit#123", "Canit Team")
+    
+    # Start the background sync scheduler for Ad Performance
     try:
-        create_tables()
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(scheduled_meta_ads_sync, 'interval', hours=6)
+        scheduler.start()
+        print("Meta Ads Sync Scheduler started (every 6 hours).")
     except Exception as e:
-        print(f"[startup] create_tables skipped: {e}")
-    try:
-        seed_admin("report@canit.in", "canit#123", "Canit Team")
-    except Exception as e:
-        print(f"[startup] seed_admin skipped: {e}")
+        print("Failed to start scheduler:", e)
     
     # Auto-seed Client Access credentials for the 'canit' brand portal
     db = models.SessionLocal()

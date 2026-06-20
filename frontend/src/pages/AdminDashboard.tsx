@@ -557,7 +557,7 @@ export default function AdminDashboard() {
   const handleGenerateReport = async (clientId: string) => {
     setGenerating(clientId);
     try {
-      const res = await apiFetch(getApiUrl(`/clients/${clientId}/generate`), {
+      const res = await apiFetch(`/api/clients/${clientId}/generate`, {
         method: "POST",
       });
       if (res.ok) {
@@ -1215,6 +1215,8 @@ export default function AdminDashboard() {
                       </div>
                       <p className="text-[10px] text-gray-400 mt-0.5 font-semibold font-body">
                         Engagement: {c.engagement_est}% · Followers: {(c.revenue_est || 0).toLocaleString()}
+                        {c.posts_count ? ` · Posts: ${c.posts_count}` : ""}
+                        {c.recent_likes ? ` · Recent Likes: ${(c.recent_likes || 0).toLocaleString()}` : ""}
                       </p>
                     </div>
                     <button
