@@ -99,6 +99,13 @@ def validate_fb_page_access(page_id: str, token: str) -> dict:
 
 def get_client_facebook_stats(client_keys: dict, month=None, year=None) -> dict:
     now = datetime.now()
+    month_map = {
+        "January": 1, "February": 2, "March": 3, "April": 4,
+        "May": 5, "June": 6, "July": 7, "August": 8,
+        "September": 9, "October": 10, "November": 11, "December": 12
+    }
+    if isinstance(month, str) and month in month_map:
+        month = month_map[month]
     target_month = int(month) if month else now.month
     target_year  = int(year)  if year  else now.year
 
