@@ -1,5 +1,4 @@
 import requests
-import base64
 from datetime import datetime
 from calendar import monthrange
 # 🎯 Locked to v25.0 to ensure stability
@@ -140,15 +139,6 @@ def _fetch_real_data(ig_id, token, handle, month, year, ad_account_id) -> dict:
             else:
                 safe_image_url = post.get("media_url") or post.get("thumbnail_url", "")
 
-            media_base64 = ''
-            if safe_image_url:
-                try:
-                    img_resp = requests.get(safe_image_url, timeout=10)
-                    if img_resp.ok:
-                        media_base64 = f"data:image/jpeg;base64,{base64.b64encode(img_resp.content).decode()}"
-                except Exception:
-                    pass
-
             # 🎯 THE FIX: Extract shortcode from permalink, try shortcode first then caption prefix
             raw_link = post.get("permalink", "")
             shortcode = raw_link.split("?")[0].rstrip("/").split("/")[-1] if raw_link else ""
@@ -174,7 +164,6 @@ def _fetch_real_data(ig_id, token, handle, month, year, ad_account_id) -> dict:
                 "caption": post.get("caption", "")[:200],
                 "media_type": media_type,
                 "media_url": safe_image_url,
-                "media_base64": media_base64,
                 "permalink": post.get("permalink", ""),
                 "timestamp": ts,
                 "day": post_date.day,
@@ -261,7 +250,6 @@ def _fetch_real_data(ig_id, token, handle, month, year, ad_account_id) -> dict:
         "top_post": {
             "caption": top_post.get("caption", "")[:120] if top_post else "",
             "media_url": top_post.get("media_url", "") if top_post else "",
-            "media_base64": top_post.get("media_base64", "") if top_post else "",
             "permalink": top_post.get("permalink", "") if top_post else "",
             "impressions": _fmt(top_post.get("impressions", 0)) if top_post else "0",
             "likes": str(top_post.get("likes", 0)) if top_post else "0",

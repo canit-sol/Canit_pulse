@@ -224,16 +224,6 @@ def generate_full_report(client_id: str, current_user: AuthIdentity = Depends(re
         from instagram import get_client_instagram_stats
         instagram_data = get_client_instagram_stats(client_keys)
 
-    # Cache post thumbnails to avoid CORS/expiration issues
-    try:
-        from services.thumbnail_cache import cache_platform_thumbnails
-        if instagram_data:
-            cache_platform_thumbnails(client_id, instagram_data)
-        if facebook_data:
-            cache_platform_thumbnails(client_id, facebook_data)
-    except Exception as cache_err:
-        print("Failed to cache post thumbnails:", cache_err)
-
     full_stats = {
         "platforms": {
             "instagram": instagram_data,
@@ -375,16 +365,6 @@ def refresh_report_for_month(client_id: str, current_user: AuthIdentity = Depend
     elif client_rec.ig_user_id:
         from instagram import get_client_instagram_stats
         instagram_data = get_client_instagram_stats(client_keys, month=month_num, year=int(year))
-
-    # Cache post thumbnails to avoid CORS/expiration issues
-    try:
-        from services.thumbnail_cache import cache_platform_thumbnails
-        if instagram_data:
-            cache_platform_thumbnails(client_id, instagram_data)
-        if facebook_data:
-            cache_platform_thumbnails(client_id, facebook_data)
-    except Exception as cache_err:
-        print("Failed to cache post thumbnails:", cache_err)
 
     full_stats = {
         "platforms": {

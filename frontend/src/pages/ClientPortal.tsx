@@ -1194,7 +1194,7 @@ export default function ClientPortal() {
   const seoData = getSEOData();
 
   const getBestPost = () => {
-    if (currentData.top_post && (currentData.top_post.media_base64 || currentData.top_post.media_url)) {
+    if (currentData.top_post && (currentData.top_post.media_url)) {
       return currentData.top_post;
     }
     // Fallback: search posts array for one with highest engagement
@@ -1855,8 +1855,8 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
                             <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
                               {/* Left sub-column: Post media thumbnail */}
                               <div className="sm:col-span-4 aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-100 shrink-0 relative group/bestimg">
-                                {(bestPost.media_base64 || bestPost.media_url) ? (
-                                  <img src={bestPost.media_base64 || bestPost.media_url} alt="Best Post" className="w-full h-full object-cover transition-transform duration-500 group-hover/bestimg:scale-105" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                {(bestPost.media_url) ? (
+                                  <img src={bestPost.media_url} alt="Best Post" className="w-full h-full object-cover transition-transform duration-500 group-hover/bestimg:scale-105" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-300">
                                     <InstagramIcon className="w-6 h-6" />
@@ -2006,9 +2006,9 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
                                 rel="noreferrer"
                                 className="relative aspect-square rounded-2xl overflow-hidden bg-white block border border-slate-200/80 shadow-soft hover:border-slate-300 hover:shadow-glass transition duration-200"
                               >
-                                {(post.media_base64 || post.media_url) ? (
+                                {(post.media_url) ? (
                                   <img
-                                    src={post.media_base64 || post.media_url}
+                                    src={post.media_url}
                                     alt={post.caption || "Post"}
                                     className="w-full h-full object-cover"
                                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
@@ -2219,8 +2219,8 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
                             <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
                               {/* Left sub-column: Post media thumbnail */}
                               <div className="sm:col-span-4 aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-100 shrink-0 relative group/bestimg">
-                                {(bestPost.media_base64 || bestPost.media_url) ? (
-                                  <img src={bestPost.media_base64 || bestPost.media_url} alt="Best Post" className="w-full h-full object-cover transition-transform duration-500 group-hover/bestimg:scale-105" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                                {(bestPost.media_url) ? (
+                                  <img src={bestPost.media_url} alt="Best Post" className="w-full h-full object-cover transition-transform duration-500 group-hover/bestimg:scale-105" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-300">
                                     <svg className="w-6 h-6 text-gray-300" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
@@ -2370,9 +2370,9 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
                                 rel="noreferrer"
                                 className="relative aspect-square rounded-2xl overflow-hidden bg-white block border border-slate-200/80 shadow-soft hover:border-slate-300 hover:shadow-glass transition duration-200"
                               >
-                                {(post.media_base64 || post.media_url) ? (
+                                {(post.media_url) ? (
                                   <img
-                                    src={post.media_base64 || post.media_url}
+                                    src={post.media_url}
                                     alt={post.caption || "Post"}
                                     className="w-full h-full object-cover"
                                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
