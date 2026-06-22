@@ -371,7 +371,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
         </div>
         <div>
           <h2 className="text-lg font-extrabold font-heading text-slate-800 leading-tight">Deliverables</h2>
-          <p className="text-[10px] text-violet-500/80 font-bold tracking-wider uppercase mt-0.5">Things to achieve this month</p>
+          <p className="text-[10px] text-violet-500/80 font-bold tracking-wider uppercase mt-0.5">Monthly deliverables tracking</p>
         </div>
       </div>
 
@@ -390,8 +390,8 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
           </div>
           <p className="text-[10px] font-semibold text-slate-400/85 mt-2 px-0.5 italic flex items-center gap-1">
             {percentage === 100 
-              ? "All deliverables completed! Great work!" 
-              : `Keep going! You're ${percentage}% of the way there.`}
+              ? "All deliverables completed." 
+              : `${percentage}% of deliverables completed.`}
           </p>
         </div>
       )}
@@ -407,10 +407,10 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
         >
           {items.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center select-none pointer-events-none animate-fade-in">
-              <div className="w-16 h-16 rounded-full bg-violet-50/80 flex items-center justify-center text-lg mb-4 shadow-sm border border-violet-100/30 font-extrabold text-violet-500">
-                L
+              <div className="w-16 h-16 rounded-full bg-violet-50/80 flex items-center justify-center text-lg mb-4 shadow-sm border border-violet-100/30 text-violet-500">
+                <ClipboardList className="w-7 h-7" />
               </div>
-              <p className="text-slate-500 font-bold text-sm">Let's get started</p>
+              <p className="text-slate-500 font-bold text-sm">No deliverables yet</p>
               {canEdit ? (
                 <p className="text-slate-400 text-[11px] mt-1.5 font-medium">Click anywhere inside the box to start typing.</p>
               ) : (
@@ -490,7 +490,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
             </svg>
           </div>
           <div>
-            <h3 className="text-base font-extrabold font-heading text-slate-800 leading-tight">Any Further Changes</h3>
+            <h3 className="text-base font-extrabold font-heading text-slate-800 leading-tight">Additional Notes</h3>
           </div>
         </div>
         {notesLoading ? (
