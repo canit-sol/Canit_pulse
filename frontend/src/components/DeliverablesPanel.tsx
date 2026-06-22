@@ -491,6 +491,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
           </div>
           <div>
             <h3 className="text-base font-extrabold font-heading text-slate-800 leading-tight">Additional Notes</h3>
+            <p className="text-[10px] text-amber-600/80 font-bold tracking-wider uppercase mt-0.5">Submit change requests &amp; additional notes</p>
           </div>
         </div>
         {notesLoading ? (
@@ -501,7 +502,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
           <textarea
             value={notes}
             onChange={(e) => handleNotesChange(e.target.value)}
-            placeholder="Add any further changes or requests here..."
+            placeholder="Describe any changes, revisions, or requests for the team..."
             readOnly={!canEditNotes}
             rows={4}
             className={`w-full resize-none rounded-xl border text-sm font-medium p-4 transition-all duration-200 outline-none ${
