@@ -502,7 +502,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
           <textarea
             value={notes}
             onChange={(e) => handleNotesChange(e.target.value)}
-            placeholder="Describe any changes, revisions, or requests for the team..."
+            placeholder="Describe any changes, revisions, or requests..."
             readOnly={!canEditNotes}
             rows={4}
             className={`w-full resize-none rounded-xl border text-sm font-medium p-4 transition-all duration-200 outline-none ${
