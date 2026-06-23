@@ -17,8 +17,6 @@ export default function ReportsArchive() {
   const { collapsed } = useSidebar();
   const permissions = usePermissions();
   const [reports, setReports] = useState([]);
-  const [seoReports, setSeoReports] = useState([]);
-  const [activeTab, setActiveTab] = useState<"standard" | "seo">("standard");
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
@@ -31,7 +29,6 @@ export default function ReportsArchive() {
       .then((data) => {
         if (data.success) {
           setReports(data.reports || []);
-          setSeoReports(data.seo_reports || []);
         }
         setLoading(false);
       })
@@ -46,19 +43,13 @@ export default function ReportsArchive() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const isSeo = deleteTarget.filename !== undefined;
-      const url = isSeo ? `/api/reports/seo/${deleteTarget.id}` : `/api/reports/${deleteTarget.id}`;
-      const res = await fetch(url, {
+      const res = await fetch(`/api/reports/${deleteTarget.id}`, {
         method: "DELETE",
         headers: authHeaders(),
       });
       const data = await res.json();
       if (data.success) {
-        if (isSeo) {
-          setSeoReports((prev: any) => prev.filter((r: any) => r.id !== deleteTarget.id));
-        } else {
-          setReports((prev: any) => prev.filter((r: any) => r.id !== deleteTarget.id));
-        }
+        setReports((prev: any) => prev.filter((r: any) => r.id !== deleteTarget.id));
       }
     } catch (err) {
       console.error("Delete failed:", err);
@@ -83,156 +74,65 @@ export default function ReportsArchive() {
             </div>
           </div>
 
-          {/* Tab Switcher */}
-          <div className="flex items-center gap-2 mb-6 border-b border-slate-200/50 pb-px">
-            <button
-              onClick={() => setActiveTab("standard")}
-              className={`px-4 py-2 text-sm font-black transition-all border-b-2 -mb-px leading-none ${
-                activeTab === "standard"
-                  ? "border-[#113a87] text-[#113a87]"
-                  : "border-transparent text-gray-400 hover:text-gray-600"
-              }`}
-            >
-              Standard Reports ({reports.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("seo")}
-              className={`px-4 py-2 text-sm font-black transition-all border-b-2 -mb-px leading-none ${
-                activeTab === "seo"
-                  ? "border-[#113a87] text-[#113a87]"
-                  : "border-transparent text-gray-400 hover:text-gray-600"
-              }`}
-            >
-              Monthly SEO Reports ({seoReports.length})
-            </button>
-          </div>
-
           {loading ? (
             <div className="text-center py-20 text-gray-400 font-semibold animate-pulse">Loading vault...</div>
-          ) : activeTab === "standard" ? (
-            reports.length === 0 ? (
-              <div className="text-center py-20 glass-card">
-                <p className="text-gray-400 font-medium">No standard reports generated yet.</p>
-              </div>
-            ) : (
-              <div className="glass-panel overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-white/20 border-b border-white/40 text-sm text-gray-500">
-                      <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Client Name</th>
-                      <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Report Period</th>
-                      <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Report ID</th>
-                      <th className="p-4 font-bold uppercase tracking-wider text-[10px] text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reports.map((report: any) => (
-                      <tr key={report.id} className="border-b border-white/30 hover:bg-white/40 transition-colors group">
-                        <td className="p-4">
-                          <div className="flex items-center gap-2 font-bold text-gray-900">
-                            <Building2 size={16} className="text-gray-400" />
-                            {report.client_name}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2 text-gray-600 font-medium">
-                            <Calendar size={16} className="text-gray-400" />
-                            {report.month} {report.year}
-                          </div>
-                        </td>
-                        <td className="p-4 text-xs text-gray-400 font-mono">
-                          {report.id.substring(0, 8)}…
-                        </td>
-                        <td className="p-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => navigate(`/report/${report.id}`)}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 hover:bg-white border border-white/80 rounded-lg text-xs font-bold text-[#113a87] transition-all shadow-soft active:scale-95"
-                            >
-                              <Eye size={14} /> View
-                            </button>
-                            {permissions.canDeleteReport && (
-                              <button
-                                onClick={() => setDeleteTarget(report)}
-                                className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/40 hover:bg-red-500 hover:text-white border border-white/60 hover:border-red-500 rounded-lg text-xs font-bold text-red-500 transition-all shadow-soft opacity-0 group-hover:opacity-100"
-                                title="Delete report"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )
+          ) : reports.length === 0 ? (
+            <div className="text-center py-20 glass-card">
+              <p className="text-gray-400 font-medium">No reports generated yet.</p>
+            </div>
           ) : (
-            seoReports.length === 0 ? (
-              <div className="text-center py-20 glass-card">
-                <p className="text-gray-400 font-medium">No SEO reports uploaded yet.</p>
-              </div>
-            ) : (
-              <div className="glass-panel overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-white/20 border-b border-white/40 text-sm text-gray-500">
-                      <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Client Name</th>
-                      <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Month & Year</th>
-                      <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Filename</th>
-                      <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Uploaded At</th>
-                      <th className="p-4 font-bold uppercase tracking-wider text-[10px] text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {seoReports.map((report: any) => (
-                      <tr key={report.id} className="border-b border-white/30 hover:bg-white/40 transition-colors group">
-                        <td className="p-4">
-                          <div className="flex items-center gap-2 font-bold text-gray-900">
-                            <Building2 size={16} className="text-gray-400" />
-                            {report.client_name}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2 text-gray-600 font-medium">
-                            <Calendar size={16} className="text-gray-400" />
-                            {report.month} {report.year}
-                          </div>
-                        </td>
-                        <td className="p-4 text-xs font-semibold text-slate-500">
-                          {report.filename}
-                        </td>
-                        <td className="p-4 text-xs text-gray-400">
-                          {new Date(report.uploaded_at).toLocaleString()}
-                        </td>
-                        <td className="p-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <a
-                              href={report.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 hover:bg-white border border-white/80 rounded-lg text-xs font-bold text-[#113a87] transition-all shadow-soft active:scale-95"
+            <div className="glass-panel overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-white/20 border-b border-white/40 text-sm text-gray-500">
+                    <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Client Name</th>
+                    <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Report Period</th>
+                    <th className="p-4 font-bold uppercase tracking-wider text-[10px]">Report ID</th>
+                    <th className="p-4 font-bold uppercase tracking-wider text-[10px] text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reports.map((report: any) => (
+                    <tr key={report.id} className="border-b border-white/30 hover:bg-white/40 transition-colors group">
+                      <td className="p-4">
+                        <div className="flex items-center gap-2 font-bold text-gray-900">
+                          <Building2 size={16} className="text-gray-400" />
+                          {report.client_name}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2 text-gray-600 font-medium">
+                          <Calendar size={16} className="text-gray-400" />
+                          {report.month} {report.year}
+                        </div>
+                      </td>
+                      <td className="p-4 text-xs text-gray-400 font-mono">
+                        {report.id.substring(0, 8)}…
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => navigate(`/report/${report.id}`)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 hover:bg-white border border-white/80 rounded-lg text-xs font-bold text-[#113a87] transition-all shadow-soft active:scale-95"
+                          >
+                            <Eye size={14} /> View
+                          </button>
+                          {permissions.canDeleteReport && (
+                            <button
+                              onClick={() => setDeleteTarget(report)}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/40 hover:bg-red-500 hover:text-white border border-white/60 hover:border-red-500 rounded-lg text-xs font-bold text-red-500 transition-all shadow-soft opacity-0 group-hover:opacity-100"
+                              title="Delete report"
                             >
-                              <Eye size={14} /> Download / View
-                            </a>
-                            {permissions.canDeleteReport && (
-                              <button
-                                onClick={() => setDeleteTarget(report)}
-                                className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/40 hover:bg-red-500 hover:text-white border border-white/60 hover:border-red-500 rounded-lg text-xs font-bold text-red-500 transition-all shadow-soft opacity-0 group-hover:opacity-100"
-                                title="Delete SEO report"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </main>
@@ -254,10 +154,10 @@ export default function ReportsArchive() {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-black text-gray-900 leading-none">
-                  Delete {deleteTarget.filename !== undefined ? "SEO Report" : "Report"}
+                  Delete Report
                 </h3>
                 <p className="text-sm text-gray-500 mt-2 font-medium">
-                  Are you sure you want to permanently delete the {deleteTarget.filename !== undefined ? "SEO report" : "report"} for{" "}
+                  Are you sure you want to permanently delete the report for{" "}
                   <span className="font-semibold text-gray-700">{deleteTarget.client_name}</span>{" "}
                   ({deleteTarget.month} {deleteTarget.year})? This action cannot be undone.
                 </p>
@@ -290,7 +190,7 @@ export default function ReportsArchive() {
                   </>
                 ) : (
                   <>
-                    <Trash2 size={13} /> Delete {deleteTarget.filename !== undefined ? "SEO Report" : "Report"}
+                    <Trash2 size={13} /> Delete Report
                   </>
                 )}
               </button>

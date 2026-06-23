@@ -59,7 +59,7 @@ export default function PrintReportView({
 
   // Helper to extract top post for a platform
   const getPlatformTopPost = (platformData: any) => {
-    if (platformData?.top_post && (platformData.top_post.media_base64 || platformData.top_post.media_url)) {
+    if (platformData?.top_post && (platformData.top_post.media_url)) {
       return platformData.top_post;
     }
     const postsList = platformData?.posts || [];
@@ -586,8 +586,8 @@ export default function PrintReportView({
               <div className="border border-gray-100 rounded-2xl p-5 bg-gray-50/50 space-y-3">
                 <h3 className="text-xs font-black text-[#E1306C] uppercase tracking-wider">★ Top Performing Post</h3>
                 <div className="flex gap-4">
-                  {(igTopPost.media_base64 || igTopPost.media_url) && (
-                    <img src={igTopPost.media_base64 || igTopPost.media_url} alt="Top Post" className="w-20 h-20 rounded-xl object-cover border border-gray-200 shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  {(igTopPost.media_url) && (
+                    <img src={igTopPost.media_url} alt="Top Post" className="w-20 h-20 rounded-xl object-cover border border-gray-200 shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                   )}
                   <div className="space-y-2 flex-1">
                     <p className="text-xs text-gray-600 font-medium leading-relaxed line-clamp-2 italic">
@@ -733,8 +733,8 @@ export default function PrintReportView({
               <div className="border border-gray-100 rounded-2xl p-5 bg-gray-50/50 space-y-3">
                 <h3 className="text-xs font-black text-[#1877F2] uppercase tracking-wider">★ Top Performing Post</h3>
                 <div className="flex gap-4">
-                  {(fbTopPost.media_base64 || fbTopPost.media_url) && (
-                    <img src={fbTopPost.media_base64 || fbTopPost.media_url} alt="Top Post" className="w-20 h-20 rounded-xl object-cover border border-gray-200 shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  {(fbTopPost.media_url) && (
+                    <img src={fbTopPost.media_url} alt="Top Post" className="w-20 h-20 rounded-xl object-cover border border-gray-200 shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                   )}
                   <div className="space-y-2 flex-1">
                     <p className="text-xs text-gray-600 font-medium leading-relaxed line-clamp-2 italic">

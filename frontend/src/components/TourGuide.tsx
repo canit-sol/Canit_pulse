@@ -1,255 +1,241 @@
-import { useEffect, useState } from "react";
-import { Joyride, CallBackProps, STATUS, Step } from "react-joyride";
+import { useCallback, useMemo, useState } from "react";
+import { Joyride as ReactJoyride, STATUS, EVENTS, ACTIONS } from "react-joyride";
+import type { Step, CallBackProps } from "react-joyride";
 
 interface TourGuideProps {
-  clientId: string;
   run: boolean;
-  onFinish: () => void;
+  setRun: (run: boolean) => void;
+  brandName: string;
+  visiblePlatforms: Array<{ id: string; label: string }>;
+  activePlatform: string;
   setActivePlatform: (platform: string) => void;
-  showFacebook: boolean;
-  showYoutube: boolean;
+  onTourEnd?: () => void;
 }
 
-export default function TourGuide({
-  clientId,
-  run,
-  onFinish,
-  setActivePlatform,
-  showFacebook,
-  showYoutube,
-}: TourGuideProps) {
-  const [steps, setSteps] = useState<Step[]>([]);
+const TOUR_KEY = "canit-pulse-tour-completed";
 
-  useEffect(() => {
-    const tourSteps: Step[] = [
+const platformDescriptions: Record<string, string> = {
+  deliverables: "Track your monthly deliverables, milestones, and completed tasks.",
+  "ad-performance": "Monitor ad spend, ROI, and campaign performance metrics.",
+  instagram: "View Instagram analytics, engagement rates, follower growth, and top posts.",
+  facebook: "Analyze Facebook page performance, reach, comments, and audience engagement.",
+  youtube: "Track video views, subscriber counts, and channel performance.",
+  blogs: "Review blog performance, search traffic, keyword rankings, and SEO metrics.",
+};
+
+export default function TourGuide({
+  run,
+  setRun,
+  brandName,
+  visiblePlatforms,
+  activePlatform,
+  setActivePlatform,
+  onTourEnd,
+}: TourGuideProps) {
+  const [stepIndex, setStepIndex] = useState(0);
+
+  const steps: Step[] = useMemo(() => {
+    const s: Step[] = [
       {
-        target: ".tour-nav-logo",
-        title: "Welcome to CANIT Pulse! 👋",
-        content: "This interactive onboarding tour will guide you through the dashboard to show you how to extract maximum value for your brand.",
+        target: ".joyride-branding",
+        title: "Welcome to CANIT Pulse",
+        content: `Your brand intelligence dashboard for ${brandName}. This tour will walk you through the key features.`,
         placement: "bottom",
-        disableBeacon: true,
+        skipBeacon: true,
+        skipScroll: true,
+        closeButtonAction: "skip" as const,
       },
       {
-        target: ".tour-month-selector",
-        title: "Select Reporting Period 📅",
-        content: "Use this control to choose the month you want to review. Our team updates your deliverables and intelligence reports monthly.",
+        target: ".joyride-client-branding",
+        title: "Your Brand",
+        content: "Your brand name and logo are displayed here.",
         placement: "bottom",
+        skipBeacon: true,
+        skipScroll: true,
+        closeButtonAction: "skip" as const,
       },
       {
-        target: ".tour-tab-deliverables",
-        title: "Deliverables Overview 📋",
-        content: "Here you can see the content and marketing tasks we scheduled and achieved for you this month (e.g. reels, posts, articles, newsletters).",
+        target: ".joyride-month-selector",
+        title: "Month Selector",
+        content: "Browse reports from previous months using the arrows or click the month name to see a full list of available periods.",
         placement: "bottom",
-      },
-      {
-        target: ".tour-further-changes",
-        title: "Any Further Changes Request Box ✍️",
-        content: "Need revisions, updates, or have new requests? Enter them directly in this feedback box. It syncs live with our agency team so we can address your requirements immediately!",
-        placement: "top",
-      },
-      {
-        target: ".tour-tab-ad-performance",
-        title: "Ad Spends & Performance 💳",
-        content: "Track your advertising spends, ROI, total impressions, conversions, and campaign stats across paid acquisition channels.",
-        placement: "bottom",
-      },
-      {
-        target: ".tour-tab-instagram",
-        title: "Instagram Intelligence 📸",
-        content: "Deep dive into your Instagram organic performance: tracking reach, follower growth, content calendars, and top-performing posts.",
-        placement: "bottom",
+        skipBeacon: true,
+        skipScroll: true,
+        closeButtonAction: "skip" as const,
       },
     ];
 
-    if (showFacebook) {
-      tourSteps.push({
-        target: ".tour-tab-facebook",
-        title: "Facebook Intelligence 👥",
-        content: "Analyze Facebook page metrics, reach, page impressions, and active community engagement indicators.",
-        placement: "bottom",
+    for (const p of visiblePlatforms) {
+      s.push({
+        target: `.joyride-tab-${p.id}`,
+        title: `${p.label}`,
+        content: platformDescriptions[p.id] || `View ${p.label} analytics and insights.`,
+        placement: "bottom" as const,
+        skipBeacon: true,
+        skipScroll: true,
+        closeButtonAction: "skip" as const,
+        data: { platform: p.id },
       });
     }
 
-    if (showYoutube) {
-      tourSteps.push({
-        target: ".tour-tab-youtube",
-        title: "YouTube Intelligence 🎥",
-        content: "Track your video views, subscribers, watch time, and top video highlights.",
-        placement: "bottom",
-      });
-    }
-
-    tourSteps.push(
-      {
-        target: ".tour-tab-blogs",
-        title: "Blog & SEO Intelligence 🌐",
-        content: "Track your blog posts, organic search visibility, SEO keywords, traffic, and search engine trends.",
-        placement: "bottom",
-      },
-      {
-        target: ".tour-brand-intel",
-        title: "AI Brand Intelligence Workspace 🧠",
-        content: "This workspace consolidates multi-channel metrics to generate strategic performance summaries and advice for your brand.",
-        placement: "top",
-      },
-      {
-        target: ".tour-brand-health",
-        title: "Brand Health Score 🛡️",
-        content: "The Brand Health Score aggregates engagement, reach quality, consistency, and growth into a single rating, letting you evaluate performance at a glance.",
-        placement: "right",
-      },
-      {
-        target: ".tour-growth-momentum",
-        title: "Growth Momentum 📈",
-        content: "Growth Momentum displays comparison trends for Reach, Followers, and Engagement compared to your previous reporting period.",
-        placement: "top",
-      },
-      {
-        target: ".tour-audience-pulse",
-        title: "Audience Pulse 💓",
-        content: "Audience Pulse tracks your audience's sentiment, active engagement styles, and community loyalty signals across platforms.",
-        placement: "left",
-      },
-      {
-        target: ".tour-ai-recommendations",
-        title: "AI Recommendations & Insights 💡",
-        content: "Review AI Recommendations to see which formats (e.g. Reels vs. static posts) are driving the most value and what timings you should target next.",
-        placement: "right",
-      },
-      {
-        target: ".tour-industry-news",
-        title: "Industry Related News 📰",
-        content: "Stay ahead of your competitors with daily refreshed industry news, trend monitoring, and saved bookmarks relevant to your business area.",
-        placement: "top",
-      },
-      {
-        target: ".tour-ai-chat",
-        title: "AI Assistant Chatbot 🤖",
-        content: "Need help translating these insights? Click this button to chat with your AI assistant about any charts, metrics, or suggestions in your reports.",
-        placement: "left",
+    for (const p of visiblePlatforms) {
+      if (p.id === "deliverables") {
+        s.push({
+          target: ".joyride-deliverables-progress",
+          title: "Progress Tracker",
+          content: "See how much of your monthly deliverables are complete at a glance with the visual progress bar and completion percentage.",
+          placement: "top",
+          skipBeacon: true,
+          closeButtonAction: "skip" as const,
+          data: { platform: "deliverables" },
+        });
+        s.push({
+          target: ".joyride-deliverables-tasks",
+          title: "Task Management",
+          content: "Each deliverable has a checkbox to mark tasks as done, an editable title field with auto-save, and a delete button — all synced in real time.",
+          placement: "top",
+          skipBeacon: true,
+          closeButtonAction: "skip" as const,
+          data: { platform: "deliverables" },
+        });
+        s.push({
+          target: ".joyride-deliverables-notes",
+          title: "Change Requests & Notes",
+          content: "Submit change requests, revision notes, or any additional context for your team. Everything you write here is saved automatically.",
+          placement: "top",
+          skipBeacon: true,
+          closeButtonAction: "skip" as const,
+          data: { platform: "deliverables" },
+        });
       }
-    );
 
-    setSteps(tourSteps);
-  }, [showFacebook, showYoutube]);
+      if (p.id === "instagram") {
+        s.push({
+          target: ".joyride-instagram-posts",
+          title: "Instagram Posts",
+          content: "Browse all Instagram posts from this period with engagement metrics, media previews, and AI-powered performance insights for each post.",
+          placement: "top",
+          skipBeacon: true,
+          closeButtonAction: "skip" as const,
+          data: { platform: "instagram" },
+        });
+        s.push({
+          target: ".joyride-ai-snippet",
+          title: "AI Analytics",
+          content: "Each platform includes AI-generated analytics and recommendations based on your content performance — helping you optimize your strategy.",
+          placement: "top",
+          skipBeacon: true,
+          closeButtonAction: "skip" as const,
+          data: { platform: "instagram" },
+        });
+      }
+    }
 
-  const handleJoyrideCallback = (data: CallBackProps) => {
-    const { status, type, index } = data;
+    s.push({
+      target: ".joyride-ai-brand-intelligence",
+      title: "AI Brand Intelligence",
+      content: "Get a unified AI-powered analysis of your brand's performance across all platforms — combining Instagram, Facebook, and web metrics into actionable insights.",
+      placement: "top",
+      skipBeacon: true,
+      closeButtonAction: "skip" as const,
+    });
 
-    if (type === "step:before") {
-      const currentStep = steps[index];
-      if (currentStep && typeof currentStep.target === "string") {
-        const targetClass = currentStep.target;
-        if (targetClass.includes("tour-tab-deliverables") || targetClass.includes("tour-further-changes")) {
-          setActivePlatform("deliverables");
-        } else if (targetClass.includes("tour-tab-ad-performance")) {
-          setActivePlatform("ad-performance");
-        } else if (targetClass.includes("tour-tab-instagram")) {
-          setActivePlatform("instagram");
-        } else if (targetClass.includes("tour-tab-facebook")) {
-          setActivePlatform("facebook");
-        } else if (targetClass.includes("tour-tab-youtube")) {
-          setActivePlatform("youtube");
-        } else if (targetClass.includes("tour-tab-blogs")) {
-          setActivePlatform("blogs");
-        } else if (
-          targetClass.includes("tour-brand-intel") ||
-          targetClass.includes("tour-brand-health") ||
-          targetClass.includes("tour-growth-momentum") ||
-          targetClass.includes("tour-audience-pulse") ||
-          targetClass.includes("tour-ai-recommendations") ||
-          targetClass.includes("tour-industry-news")
-        ) {
-          setActivePlatform("instagram");
-        }
+    s.push({
+      target: ".joyride-industry-news",
+      title: "Industry News",
+      content: "Stay updated with relevant industry news and trends curated for your brand, powered by AI-driven content aggregation.",
+      placement: "top",
+      skipBeacon: true,
+      closeButtonAction: "skip" as const,
+    });
+
+    s.push({
+      target: ".joyride-ai-chat",
+      title: "AI Assistant",
+      content: "Ask our AI assistant anything about your stats, top posts, or performance trends. Get instant analytics and insights.",
+      placement: "left",
+      skipBeacon: true,
+      skipScroll: true,
+      closeButtonAction: "skip" as const,
+    });
+
+    return s;
+  }, [brandName, visiblePlatforms]);
+
+  const handleJoyrideCallback = useCallback((data: CallBackProps) => {
+    const { status, type, action, index } = data;
+
+    if (type === EVENTS.STEP_AFTER) {
+      let nextIndex: number;
+      if (action === ACTIONS.PREV) {
+        nextIndex = index - 1;
+      } else {
+        nextIndex = index + 1;
+      }
+
+      const nextStep = steps[nextIndex];
+      const nextPlatform = (nextStep as any)?.data?.platform as string | undefined;
+
+      if (nextPlatform && nextPlatform !== activePlatform) {
+        setActivePlatform(nextPlatform);
+        requestAnimationFrame(() => {
+          setStepIndex(nextIndex);
+        });
+      } else {
+        setStepIndex(nextIndex);
       }
     }
 
     if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
-      localStorage.setItem(`canit_pulse_tour_completed_${clientId}`, "true");
-      onFinish();
+      localStorage.setItem(TOUR_KEY, "true");
+      setStepIndex(0);
+      setRun(false);
+      onTourEnd?.();
     }
-  };
+  }, [activePlatform, setActivePlatform, setRun, onTourEnd, steps]);
 
   return (
-    <Joyride
-      key={run ? "active" : "inactive"}
+    <ReactJoyride
       steps={steps}
+      stepIndex={stepIndex}
       run={run}
+      onEvent={handleJoyrideCallback}
       continuous
       showProgress
       showSkipButton
-      scrollToFirstStep
-      scrollOffset={140}
-      spotlightPadding={8}
-      callback={handleJoyrideCallback}
-      floaterProps={{
-        options: {
-          modifiers: {
-            offset: {
-              offset: "0, 8px",
-            },
-            preventOverflow: {
-              padding: 15,
-            },
-            flip: {
-              behavior: ["top", "bottom", "right", "left"],
-            },
-          },
-        },
-      }}
+      scrollToFirstStep={false}
+      disableOverlayClose
+      spotlightClicks
       styles={{
         options: {
-          arrowColor: "#ffffff",
-          backgroundColor: "#ffffff",
-          overlayColor: "rgba(15, 23, 42, 0.65)",
-          primaryColor: "#2563EB",
-          textColor: "#1e293b",
           zIndex: 10000,
+          primaryColor: "#113a87",
+          textColor: "#1a1a1a",
+          backgroundColor: "#ffffff",
+          arrowColor: "#ffffff",
         },
-        spotlight: {
-          borderRadius: "16px",
+        tooltipContainer: { textAlign: "left" },
+        tooltipContent: { padding: "16px 20px", fontSize: "14px", lineHeight: "1.5" },
+        buttonNext: {
+          backgroundColor: "#113a87",
+          fontSize: "13px",
+          fontWeight: 700,
+          padding: "8px 20px",
+          borderRadius: "10px",
         },
+        buttonBack: { color: "#64748b", fontSize: "13px", fontWeight: 600 },
+        buttonSkip: { color: "#94a3b8", fontSize: "12px", fontWeight: 500 },
         tooltip: {
           borderRadius: "16px",
-          boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
-          fontFamily: "Outfit, Inter, sans-serif",
-          padding: "20px",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.08)",
         },
-        tooltipContainer: {
-          textAlign: "left",
-        },
-        tooltipTitle: {
-          fontSize: "16px",
-          fontWeight: "800",
-          color: "#0f172a",
-          marginBottom: "8px",
-        },
-        tooltipContent: {
-          fontSize: "13px",
-          color: "#475569",
-          lineHeight: "1.6",
-        },
-        buttonNext: {
-          backgroundColor: "#2563EB",
-          borderRadius: "9999px",
-          color: "#ffffff",
-          fontSize: "12px",
-          fontWeight: "700",
-          padding: "8px 16px",
-          outline: "none",
-        },
-        buttonBack: {
-          color: "#475569",
-          fontSize: "12px",
-          fontWeight: "700",
-          marginRight: "12px",
-        },
-        buttonSkip: {
-          color: "#94a3b8",
-          fontSize: "12px",
-          fontWeight: "600",
-        },
+        spotlight: { borderRadius: "12px" },
+      }}
+      locale={{
+        last: "Done",
+        skip: "Skip tour",
+        next: "Next",
+        back: "Back",
       }}
     />
   );

@@ -139,16 +139,6 @@ def generate_report(
                 )
             except Exception as e:
                 print("Failed to fetch combined metrics during report generation:", e)
-        # Cache post thumbnails to avoid CORS/expiration issues
-        try:
-            from services.thumbnail_cache import cache_platform_thumbnails
-            if instagram_data:
-                cache_platform_thumbnails(client.id, instagram_data)
-            if facebook_data:
-                cache_platform_thumbnails(client.id, facebook_data)
-        except Exception as cache_err:
-            print("Failed to cache post thumbnails:", cache_err)
-
         # Build report_data dict for synopsis + storage
         report_data = {
             "client_name": client.name,
