@@ -53,6 +53,7 @@ interface Props {
   };
   igMetrics?: any;
   seoMetrics?: any;
+  historicalSnapshots?: any[];
 }
 
 function authHeaders() {
@@ -724,7 +725,7 @@ const getPrevMonthName = (month?: string) => {
 };
 
 /* ── Dynamic Live Facebook Brand Intelligence Generator ── */
-const generateFacebookIntelligence = (brandName: string, fbMetrics: any, month?: string, year?: string): IntelligenceData => {
+const generateFacebookIntelligence = (brandName: string, fbMetrics: any, month?: string, year?: string, historicalSnapshots?: any[]): IntelligenceData => {
   const unpackValue = (val: any, fieldKey: string): any => {
     if (val === null || val === undefined) return 0;
     if (typeof val === "object") {
@@ -811,32 +812,44 @@ const generateFacebookIntelligence = (brandName: string, fbMetrics: any, month?:
     }
   ];
 
-  // Live historical + projected trends for chart
   const predictionsData = [];
-  const fullMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const selectedMonthIdx = month ? fullMonths.indexOf(month) : new Date().getMonth();
-  const baseMonth = selectedMonthIdx !== -1 ? selectedMonthIdx : new Date().getMonth();
-  const monthsList = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  
-  for (let i = 4; i >= 0; i--) {
-    const mIdx = (baseMonth - i + 12) % 12;
-    const factor = 1 - (i * 0.05) + (Math.sin(mIdx) * 0.02);
-    predictionsData.push({
-      month: monthsList[mIdx],
-      reach: Math.round(reachNum * factor),
-      followers: Math.round(followersNum * factor),
-      projected: i === 0
-    });
-  }
-  for (let i = 1; i <= 2; i++) {
-    const mIdx = (baseMonth + i + 12) % 12;
-    const factor = 1 + (i * 0.06) + (Math.sin(mIdx) * 0.03);
-    predictionsData.push({
-      month: monthsList[mIdx],
-      reach: Math.round(reachNum * factor),
-      followers: Math.round(followersNum * factor),
-      projected: true
-    });
+  if (historicalSnapshots && historicalSnapshots.length > 0) {
+    const platformSnaps = historicalSnapshots.filter(s => s.platform === "facebook").reverse(); // Oldest first
+    for (const snap of platformSnaps) {
+      predictionsData.push({
+        month: String(snap.month).substring(0, 3),
+        reach: snap.reach || 0,
+        followers: snap.followers || 0,
+        projected: false
+      });
+    }
+  } else {
+    // Live historical + projected trends for chart
+    const fullMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const selectedMonthIdx = month ? fullMonths.indexOf(month) : new Date().getMonth();
+    const baseMonth = selectedMonthIdx !== -1 ? selectedMonthIdx : new Date().getMonth();
+    const monthsList = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    for (let i = 4; i >= 0; i--) {
+      const mIdx = (baseMonth - i + 12) % 12;
+      const factor = 1 - (i * 0.05) + (Math.sin(mIdx) * 0.02);
+      predictionsData.push({
+        month: monthsList[mIdx],
+        reach: Math.round(reachNum * factor),
+        followers: Math.round(followersNum * factor),
+        projected: i === 0
+      });
+    }
+    for (let i = 1; i <= 2; i++) {
+      const mIdx = (baseMonth + i + 12) % 12;
+      const factor = 1 + (i * 0.06) + (Math.sin(mIdx) * 0.03);
+      predictionsData.push({
+        month: monthsList[mIdx],
+        reach: Math.round(reachNum * factor),
+        followers: Math.round(followersNum * factor),
+        projected: true
+      });
+    }
   }
 
   const bestFormatName = organicNum > paidNum ? "Vertical Video / Reels" : "Infographic Carousels";
@@ -914,7 +927,7 @@ const generateFacebookIntelligence = (brandName: string, fbMetrics: any, month?:
 };
 
 /* ── Dynamic Live Instagram Brand Intelligence Generator ── */
-const generateInstagramIntelligence = (brandName: string, igMetrics: any, month?: string, year?: string): IntelligenceData => {
+const generateInstagramIntelligence = (brandName: string, igMetrics: any, month?: string, year?: string, historicalSnapshots?: any[]): IntelligenceData => {
   const unpackValue = (val: any, fieldKey: string): any => {
     if (val === null || val === undefined) return 0;
     if (typeof val === "object") {
@@ -987,30 +1000,42 @@ const generateInstagramIntelligence = (brandName: string, igMetrics: any, month?
   ];
 
   const predictionsData = [];
-  const fullMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const selectedMonthIdx = month ? fullMonths.indexOf(month) : new Date().getMonth();
-  const baseMonth = selectedMonthIdx !== -1 ? selectedMonthIdx : new Date().getMonth();
-  const monthsList = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  
-  for (let i = 4; i >= 0; i--) {
-    const mIdx = (baseMonth - i + 12) % 12;
-    const factor = 1 - (i * 0.05) + (Math.sin(mIdx) * 0.02);
-    predictionsData.push({
-      month: monthsList[mIdx],
-      reach: Math.round((reachNum || 5000) * factor),
-      followers: Math.round((followersNum || 1000) * factor),
-      projected: i === 0
-    });
-  }
-  for (let i = 1; i <= 2; i++) {
-    const mIdx = (baseMonth + i + 12) % 12;
-    const factor = 1 + (i * 0.06) + (Math.sin(mIdx) * 0.03);
-    predictionsData.push({
-      month: monthsList[mIdx],
-      reach: Math.round((reachNum || 5000) * factor),
-      followers: Math.round((followersNum || 1000) * factor),
-      projected: true
-    });
+  if (historicalSnapshots && historicalSnapshots.length > 0) {
+    const platformSnaps = historicalSnapshots.filter(s => s.platform === "instagram").reverse(); // Oldest first
+    for (const snap of platformSnaps) {
+      predictionsData.push({
+        month: String(snap.month).substring(0, 3),
+        reach: snap.reach || 0,
+        followers: snap.followers || 0,
+        projected: false
+      });
+    }
+  } else {
+    const fullMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const selectedMonthIdx = month ? fullMonths.indexOf(month) : new Date().getMonth();
+    const baseMonth = selectedMonthIdx !== -1 ? selectedMonthIdx : new Date().getMonth();
+    const monthsList = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    for (let i = 4; i >= 0; i--) {
+      const mIdx = (baseMonth - i + 12) % 12;
+      const factor = 1 - (i * 0.05) + (Math.sin(mIdx) * 0.02);
+      predictionsData.push({
+        month: monthsList[mIdx],
+        reach: Math.round((reachNum || 5000) * factor),
+        followers: Math.round((followersNum || 1000) * factor),
+        projected: i === 0
+      });
+    }
+    for (let i = 1; i <= 2; i++) {
+      const mIdx = (baseMonth + i + 12) % 12;
+      const factor = 1 + (i * 0.06) + (Math.sin(mIdx) * 0.03);
+      predictionsData.push({
+        month: monthsList[mIdx],
+        reach: Math.round((reachNum || 5000) * factor),
+        followers: Math.round((followersNum || 1000) * factor),
+        projected: true
+      });
+    }
   }
 
   return {
@@ -1061,7 +1086,7 @@ const generateInstagramIntelligence = (brandName: string, igMetrics: any, month?
 };
 
 /* ── Dynamic Live Unified Brand Intelligence Generator ── */
-const generateUnifiedIntelligence = (brandName: string, igMetrics: any, fbMetrics: any, seoMetrics: any, month?: string, year?: string): IntelligenceData => {
+const generateUnifiedIntelligence = (brandName: string, igMetrics: any, fbMetrics: any, seoMetrics: any, month?: string, year?: string, historicalSnapshots?: any[]): IntelligenceData => {
   const parseVal = (v: any): number => {
     if (v === undefined || v === null) return 0;
     if (typeof v === "number") return v;
@@ -1133,33 +1158,54 @@ const generateUnifiedIntelligence = (brandName: string, igMetrics: any, fbMetric
   ];
 
   const predictionsData = [];
-  const fullMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const selectedMonthIdx = month ? fullMonths.indexOf(month) : new Date().getMonth();
-  const baseMonth = selectedMonthIdx !== -1 ? selectedMonthIdx : new Date().getMonth();
-  const monthsList = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  
   const combinedReach = combined?.total_reach !== undefined ? parseVal(combined.total_reach) : (fbMetrics?.combined_reach ? parseVal(fbMetrics.combined_reach) : ((igReach || 15000) + (fbReach || 12000)));
   const combinedFollowers = (igFollowers || 8000) + (fbFollowers || 6000);
 
-  for (let i = 4; i >= 0; i--) {
-    const mIdx = (baseMonth - i + 12) % 12;
-    const factor = 1 - (i * 0.04) + (Math.sin(mIdx) * 0.01);
-    predictionsData.push({
-      month: monthsList[mIdx],
-      reach: Math.round(combinedReach * factor),
-      followers: Math.round(combinedFollowers * factor),
-      projected: i === 0
-    });
-  }
-  for (let i = 1; i <= 2; i++) {
-    const mIdx = (baseMonth + i + 12) % 12;
-    const factor = 1 + (i * 0.05) + (Math.sin(mIdx) * 0.02);
-    predictionsData.push({
-      month: monthsList[mIdx],
-      reach: Math.round(combinedReach * factor),
-      followers: Math.round(combinedFollowers * factor),
-      projected: true
-    });
+  if (historicalSnapshots && historicalSnapshots.length > 0) {
+    // Group snapshots by month/year to unify instagram + facebook reach/followers
+    const grouped: Record<string, { reach: number; followers: number }> = {};
+    for (const snap of historicalSnapshots) {
+      const key = `${snap.month} ${snap.year}`;
+      if (!grouped[key]) grouped[key] = { reach: 0, followers: 0 };
+      grouped[key].reach += snap.reach || 0;
+      grouped[key].followers += snap.followers || 0;
+    }
+    const sortedKeys = Object.keys(grouped).reverse(); // Assuming they are returned newest first, we reverse to oldest first
+    for (const key of sortedKeys) {
+      const monthLabel = key.split(' ')[0].substring(0, 3);
+      predictionsData.push({
+        month: monthLabel,
+        reach: grouped[key].reach,
+        followers: grouped[key].followers,
+        projected: false
+      });
+    }
+  } else {
+    const fullMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const selectedMonthIdx = month ? fullMonths.indexOf(month) : new Date().getMonth();
+    const baseMonth = selectedMonthIdx !== -1 ? selectedMonthIdx : new Date().getMonth();
+    const monthsList = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    for (let i = 4; i >= 0; i--) {
+      const mIdx = (baseMonth - i + 12) % 12;
+      const factor = 1 - (i * 0.04) + (Math.sin(mIdx) * 0.01);
+      predictionsData.push({
+        month: monthsList[mIdx],
+        reach: Math.round(combinedReach * factor),
+        followers: Math.round(combinedFollowers * factor),
+        projected: i === 0
+      });
+    }
+    for (let i = 1; i <= 2; i++) {
+      const mIdx = (baseMonth + i + 12) % 12;
+      const factor = 1 + (i * 0.05) + (Math.sin(mIdx) * 0.02);
+      predictionsData.push({
+        month: monthsList[mIdx],
+        reach: Math.round(combinedReach * factor),
+        followers: Math.round(combinedFollowers * factor),
+        projected: true
+      });
+    }
   }
 
   return {
@@ -1236,7 +1282,7 @@ const generateUnifiedIntelligence = (brandName: string, igMetrics: any, fbMetric
 
 /* ── Main Component ────────────────────────────────── */
 
-export default function BrandIntelligence({ clientId, brandName, platform, month, year, competitorData, compLoading, onCompRefresh, fbMetrics, igMetrics, seoMetrics }: Props) {
+export default function BrandIntelligence({ clientId, brandName, platform, month, year, competitorData, compLoading, onCompRefresh, fbMetrics, igMetrics, seoMetrics, historicalSnapshots }: Props) {
   const [data, setData] = useState<IntelligenceData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -1245,7 +1291,7 @@ export default function BrandIntelligence({ clientId, brandName, platform, month
     setLoading(true);
 
     if (platform === "unified") {
-      setData(generateUnifiedIntelligence(brandName, igMetrics, fbMetrics, seoMetrics, month, year));
+      setData(generateUnifiedIntelligence(brandName, igMetrics, fbMetrics, seoMetrics, month, year, historicalSnapshots));
       setLoading(false);
       return;
     }
@@ -1260,9 +1306,9 @@ export default function BrandIntelligence({ clientId, brandName, platform, month
       .then(d => {
         if (!d || !d.has_data) {
           if (platform === "facebook" && fbMetrics && fbMetrics.connected) {
-            setData(generateFacebookIntelligence(brandName, fbMetrics, month, year));
+            setData(generateFacebookIntelligence(brandName, fbMetrics, month, year, historicalSnapshots));
           } else if (platform === "instagram" && igMetrics && Object.keys(igMetrics).length > 0) {
-            setData(generateInstagramIntelligence(brandName, igMetrics, month, year));
+            setData(generateInstagramIntelligence(brandName, igMetrics, month, year, historicalSnapshots));
           } else {
             setData(d);
           }
@@ -1325,14 +1371,14 @@ export default function BrandIntelligence({ clientId, brandName, platform, month
       {/* ── ROW 1: Brand Health + Growth Momentum + Audience Pulse ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Brand Health Score */}
-        <IntelCard icon={Shield} title="Brand Health Score">
+        <IntelCard icon={Shield} title="Brand Health Score" className="tour-brand-health">
           <div className="flex items-center justify-center py-1">
             <ScoreRing score={brand_health.score} label={brand_health.label} />
           </div>
         </IntelCard>
 
         {/* Growth Momentum */}
-        <IntelCard icon={TrendingUp} title="Growth Momentum">
+        <IntelCard icon={TrendingUp} title="Growth Momentum" className="tour-growth-momentum">
           <div className="flex-1 flex flex-col justify-between h-full">
             {growth.has_previous ? (
               <div className="space-y-2.5 pt-1">
@@ -1373,7 +1419,7 @@ export default function BrandIntelligence({ clientId, brandName, platform, month
         </IntelCard>
 
         {/* Audience Pulse */}
-        <IntelCard icon={Activity} title="Audience Pulse">
+        <IntelCard icon={Activity} title="Audience Pulse" className="tour-audience-pulse">
           <div className="flex-1 flex flex-col justify-between h-full">
             <AudiencePulseCard gauges={gauges} />
             {growth.is_paid_dominant && (
@@ -1435,7 +1481,7 @@ export default function BrandIntelligence({ clientId, brandName, platform, month
 
       {/* ── ROW 3: Content Intelligence (L) + Predictive Analysis (R) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <IntelCard icon={Shield} title="Content Intelligence">
+        <IntelCard icon={Shield} title="Content Intelligence" className="tour-ai-recommendations">
           <ContentIntelCard content_intel={content_intel} insights={insights} />
         </IntelCard>
 

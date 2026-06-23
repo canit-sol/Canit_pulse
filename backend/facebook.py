@@ -175,7 +175,6 @@ def _fetch_real_data(page_id: str, token: str, month: int, year: int, ad_account
         f",comments.summary(true)"
         f",shares"
         f",reactions.summary(true)"
-        f",insights.metric(post_impressions_unique,post_impressions_organic_unique){{name,values}}"
         f"&limit=100"
         f"&since={start_ts}&until={end_ts}"
         f"&access_token={token}"

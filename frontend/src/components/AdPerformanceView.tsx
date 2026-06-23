@@ -6,7 +6,12 @@ import { Calendar } from "@/components/ui/calendar";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { DateRange } from "react-day-picker";
 
-export default function AdPerformanceView({ theme }: { theme: any }) {
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
+export default function AdPerformanceView({ theme, month, year }: { theme: any, month?: string, year?: string }) {
   const { id } = useParams();
   const token = localStorage.getItem("bento_token");
   const [data, setData] = useState<any>(null);
@@ -18,6 +23,19 @@ export default function AdPerformanceView({ theme }: { theme: any }) {
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
+
+  useEffect(() => {
+    if (month && year) {
+      const monthIdx = MONTH_NAMES.indexOf(month);
+      if (monthIdx !== -1) {
+        const d = new Date(parseInt(year), monthIdx, 15);
+        setDateRange({
+          from: startOfMonth(d),
+          to: endOfMonth(d),
+        });
+      }
+    }
+  }, [month, year]);
 
   const fetchPerformance = async () => {
     try {
@@ -242,16 +260,33 @@ export default function AdPerformanceView({ theme }: { theme: any }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {data.campaigns.map((camp: any) => (
-              <div key={camp.campaign_id} className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition group">
+            {data.campaigns.map((camp: any) => {
+              const isBoosted = camp.campaign_name.startsWith("Post:") || 
+                                camp.campaign_name.startsWith("SM Boosting");
+
+              const statusStyle = isBoosted ? "bg-purple-100 text-purple-700" : ({
+                ACTIVE:      "bg-emerald-100 text-emerald-700",
+                PAUSED:      "bg-amber-100 text-amber-700",
+                ARCHIVED:    "bg-slate-100 text-slate-500",
+                DELETED:     "bg-red-100 text-red-500",
+                WITH_ISSUES: "bg-red-100 text-red-600",
+                IN_PROCESS:  "bg-blue-100 text-blue-600",
+              } as Record<string, string>)[camp.status] ?? "bg-slate-100 text-slate-400";
+
+              const statusLabel = isBoosted ? "Boosted" : camp.status;
+              const isLeadCampaign = camp.objective === "OUTCOME_LEADS";
+              const isAwareness = camp.objective === "OUTCOME_AWARENESS";
+
+              return (
+              <div key={camp.campaign_id} className={`bg-white rounded-xl border p-5 shadow-sm hover:shadow-md transition group ${
+                isBoosted ? 'border-purple-100' : 'border-slate-100'
+              }`}>
                 <div className="flex justify-between items-start mb-3">
                   <h5 className="font-bold text-slate-800 text-sm leading-tight pr-4 line-clamp-2" title={camp.campaign_name}>
                     {camp.campaign_name}
                   </h5>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${
-                    camp.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {camp.status}
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${statusStyle}`}>
+                    {statusLabel}
                   </span>
                 </div>
                 
@@ -261,12 +296,20 @@ export default function AdPerformanceView({ theme }: { theme: any }) {
 
                 <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-50">
                   <div className="text-center">
-                    <div className="text-xs font-black text-slate-700">{camp.leads}</div>
-                    <div className="text-[9px] font-bold text-slate-400 uppercase">Leads</div>
+                    <div className="text-xs font-black text-slate-700">
+                      {isLeadCampaign ? camp.leads : isAwareness ? camp.reach?.toLocaleString() : camp.clicks?.toLocaleString()}
+                    </div>
+                    <div className="text-[9px] font-bold text-slate-400 uppercase">
+                      {isLeadCampaign ? "Leads" : isAwareness ? "Reach" : "Clicks"}
+                    </div>
                   </div>
                   <div className="text-center border-l border-slate-100">
-                    <div className="text-xs font-black text-slate-700">₹{camp.cpl}</div>
-                    <div className="text-[9px] font-bold text-slate-400 uppercase">CPL</div>
+                    <div className="text-xs font-black text-slate-700">
+                      {isLeadCampaign ? `₹${camp.cpl}` : `₹${camp.cpc}`}
+                    </div>
+                    <div className="text-[9px] font-bold text-slate-400 uppercase">
+                      {isLeadCampaign ? "CPL" : "CPC"}
+                    </div>
                   </div>
                   <div className="text-center border-l border-slate-100">
                     <div className="text-xs font-black text-slate-700">{camp.ctr}%</div>
@@ -274,7 +317,8 @@ export default function AdPerformanceView({ theme }: { theme: any }) {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

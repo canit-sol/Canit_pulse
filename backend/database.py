@@ -460,6 +460,7 @@ class CampaignMetric(Base):
     visits         = Column(Integer, default=0)
     likes          = Column(Integer, default=0)
     status         = Column(String, default="ACTIVE")
+    objective      = Column(String, default="")
     
     created_at     = Column(DateTime, default=datetime.utcnow)
 

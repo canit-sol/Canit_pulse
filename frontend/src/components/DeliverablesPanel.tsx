@@ -482,7 +482,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
       )}
 
       {/* Any Further Changes */}
-      <div className="bg-white/60 backdrop-blur-md rounded-3xl p-6 lg:p-8 border border-white/80 shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_16px_36px_-8px_rgba(17,58,135,0.05)] transition-all duration-300 animate-fade-in flex flex-col">
+      <div className="tour-further-changes bg-white/60 backdrop-blur-md rounded-3xl p-6 lg:p-8 border border-white/80 shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_16px_36px_-8px_rgba(17,58,135,0.05)] transition-all duration-300 animate-fade-in flex flex-col">
         <div className="flex items-center gap-3 mb-4 select-none">
           <div className="w-10 h-10 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 shadow-sm border border-amber-100/50">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

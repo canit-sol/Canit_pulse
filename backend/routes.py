@@ -1011,7 +1011,13 @@ def get_client_reports(client_id: str, current_user: AuthIdentity = Depends(requ
 
     try:
         from database import Report
-        stored_reports = db.query(Report).filter(
+        import time
+        from services.egress_logger import log_egress
+        start_time = time.time()
+
+        stored_reports = db.query(
+            Report.id, Report.month, Report.year, Report.ig_data, Report.ai_insight
+        ).filter(
             Report.client_id == client_id
         ).order_by(Report.created_at.desc()).all()
 
@@ -1024,6 +1030,8 @@ def get_client_reports(client_id: str, current_user: AuthIdentity = Depends(requ
                 "ig_data": r.ig_data or {},
                 "ai_insight": r.ai_insight or "",
             })
+            
+        log_egress(f"GET /api/clients/{client_id}/reports", start_time, len(reports_list), reports_list)
 
         # Fetch competitor data for the benchmark chart
         competitors_raw = db.query(Competitor).filter(Competitor.client_id == client_id).all()
@@ -1762,17 +1770,18 @@ def get_brand_intelligence(
     growth["is_paid_dominant"] = (paid_reach_val > organic_reach_val)
 
     # ── 3. INDUSTRY PERCENTILE ──
-    all_clients = db.query(Client).all()
+    all_clients = db.query(Client.id).all()
     all_eng_rates = []
-    for c in all_clients:
-        c_report = db.query(Report).filter(Report.client_id == c.id).order_by(Report.created_at.desc()).first()
-        if c_report and c_report.ig_data:
-            c_raw = c_report.ig_data
+    for (c_id,) in all_clients:
+        # Fetch ONLY the ig_data column from the latest report to avoid massive egress
+        c_ig_data = db.query(Report.ig_data).filter(Report.client_id == c_id).order_by(Report.created_at.desc()).first()
+        if c_ig_data and c_ig_data[0]:
+            c_raw = c_ig_data[0]
             if isinstance(c_raw, str):
                 c_raw = json_mod.loads(c_raw)
             c_ig = c_raw.get("platforms", {}).get("instagram", {}) if "platforms" in c_raw else c_raw.get("instagram", c_raw)
             c_eng = _safe_float(c_ig.get("engagement_rate", 0))
-            all_eng_rates.append({"client_id": c.id, "engagement": c_eng})
+            all_eng_rates.append({"client_id": c_id, "engagement": c_eng})
 
     percentile = 50
     percentile_confidence = "high"

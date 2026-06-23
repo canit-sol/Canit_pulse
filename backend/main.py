@@ -485,22 +485,28 @@ Respond ONLY with valid JSON, no markdown:
 
 @app.get("/api/reports")
 def get_all_reports(current_user: AuthIdentity = Depends(require_admin), db: Session = Depends(get_db)):
+    import time
+    from services.egress_logger import log_egress
+    start_time = time.time()
+    
     from database import MonthlySEOReport
     if current_user.role == "employee":
         if not current_user.client_id:
             return {"success": True, "reports": [], "seo_reports": []}
-        reports = db.query(Report).filter(Report.client_id == current_user.client_id).order_by(Report.created_at.desc()).all()
+        reports = db.query(Report.id, Report.month, Report.year, Report.client_id).filter(Report.client_id == current_user.client_id).order_by(Report.created_at.desc()).all()
         seo_reports = db.query(MonthlySEOReport).filter(MonthlySEOReport.client_id == current_user.client_id).order_by(MonthlySEOReport.uploaded_at.desc()).all()
     else:
-        reports = db.query(Report).order_by(Report.created_at.desc()).all()
+        reports = db.query(Report.id, Report.month, Report.year, Report.client_id).order_by(Report.created_at.desc()).all()
         seo_reports = db.query(MonthlySEOReport).order_by(MonthlySEOReport.uploaded_at.desc()).all()
+        
+    clients = db.query(Client.id, Client.name).all()
+    client_name_map = {c.id: c.name for c in clients}
         
     result = []
     for r in reports:
-        client_rec = db.query(Client).filter(Client.id == r.client_id).first()
         result.append({
             "id": r.id,
-            "client_name": client_rec.name if client_rec else "Unknown",
+            "client_name": client_name_map.get(r.client_id, "Unknown"),
             "month": r.month,
             "year": r.year,
             "client_id": r.client_id,
@@ -508,23 +514,20 @@ def get_all_reports(current_user: AuthIdentity = Depends(require_admin), db: Ses
         
     seo_result = []
     for sr in seo_reports:
-        client_rec = db.query(Client).filter(Client.id == sr.client_id).first()
         seo_result.append({
             "id": sr.id,
-            "client_name": client_rec.name if client_rec else "Unknown",
+            "client_name": client_name_map.get(sr.client_id, "Unknown"),
             "month": sr.month,
             "year": sr.year,
             "client_id": sr.client_id,
             "filename": sr.filename,
             "url": sr.url,
-            "uploaded_at": sr.uploaded_at.isoformat()
+            "uploaded_at": sr.uploaded_at.isoformat() if sr.uploaded_at else None
         })
         
-    return {
-        "success": True,
-        "reports": result,
-        "seo_reports": seo_result
-    }
+    payload = {"success": True, "reports": result, "seo_reports": seo_result}
+    log_egress("GET /api/reports (Dashboard)", start_time, len(result) + len(seo_result), payload)
+    return payload
 
 @app.delete("/api/reports/seo/{report_id}")
 def delete_seo_report(report_id: str, current_user: AuthIdentity = Depends(require_admin), db: Session = Depends(get_db)):
@@ -758,12 +761,17 @@ def startup_event():
     create_tables()
     seed_admin("report@canit.in", "canit#123", "Canit Team")
     
-    # Start the background sync scheduler for Ad Performance
+    # Start the background sync scheduler for Ad Performance and Organic Snapshots
     try:
+        from services.snapshot_service import scheduled_organic_snapshot_sync
         scheduler = BackgroundScheduler()
+        # Meta Ads: every 6 hours
         scheduler.add_job(scheduled_meta_ads_sync, 'interval', hours=6)
+        # Organic Analytics: once a week (every 7 days)
+        scheduler.add_job(scheduled_organic_snapshot_sync, 'interval', days=7)
         scheduler.start()
         print("Meta Ads Sync Scheduler started (every 6 hours).")
+        print("Organic Analytics Snapshot Scheduler started (every 7 days).")
     except Exception as e:
         print("Failed to start scheduler:", e)
     

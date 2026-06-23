@@ -15,6 +15,7 @@ import DeliverablesPanel from "@/components/DeliverablesPanel";
 import AdPerformanceView from "@/components/AdPerformanceView";
 import { Download, AlertCircle, Play } from "lucide-react";
 import { usePermissions } from "../hooks/usePermissions";
+import TourGuide from "../components/TourGuide";
 
 /* ── Animated Counter Hook ── */
 function useAnimatedValue(target: number | string | undefined, duration = 800) {
@@ -617,6 +618,24 @@ export default function ClientPortal() {
   const [clientBlogs, setClientBlogs] = useState<any[]>([]);
   const [brandIntelData, setBrandIntelData] = useState<any>(null);
   const [brandIntelLoading, setBrandIntelLoading] = useState(false);
+  const [runTour, setRunTour] = useState(false);
+
+  // Prevent scrolling when chatbot is open
+  useEffect(() => {
+    if (chatOpen) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "unset";
+    return () => { document.body.style.overflow = "unset"; };
+  }, [chatOpen]);
+
+
+  const togglePrintMode = () => {
+    const printView = document.getElementById("print-report-view");
+    if (printView) {
+      printView.classList.remove("hidden");
+      window.print();
+      printView.classList.add("hidden");
+    }
+  };
 
   const MONTH_TO_NUM: Record<string, string> = {
     January: "1", February: "2", March: "3", April: "4",
@@ -1352,6 +1371,15 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
 
   return (
     <div className="min-h-screen bg-transparent pb-28">
+      <TourGuide
+        clientId={id || "unknown"}
+        run={runTour}
+        onFinish={() => setRunTour(false)}
+        setActivePlatform={setActivePlatform}
+        showFacebook={SHOW_FACEBOOK_TAB}
+        showYoutube={!!youtubeChannelId}
+      />
+
       {/* Nav — glassmorphic */}
       <nav className="nav-glass px-3 md:px-8 py-3 md:py-4 flex justify-between items-center sticky top-0 z-50 shadow-bento">
         <div className="flex items-center gap-2 md:gap-4 min-w-0">
@@ -1362,7 +1390,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
                 navigate("/admin/dashboard");
               }
             }}
-            className={`flex items-center gap-2 md:gap-3 shrink-0 ${isInternalStaff ? "cursor-pointer" : ""}`}
+            className={`tour-nav-logo flex items-center gap-2 md:gap-3 shrink-0 ${isInternalStaff ? "cursor-pointer" : ""}`}
           >
             <img
               src="/cai.png"
@@ -1404,8 +1432,17 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
           </div>
         </div>
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
+          <button
+            onClick={() => setRunTour(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#2563EB]/20 bg-[#2563EB]/5 text-[#2563EB] hover:bg-[#2563EB]/10 active:scale-95 transition-all text-xs font-bold shadow-sm"
+            title="Take Guided Onboarding Tour"
+          >
+            <span className="hidden sm:inline">Take Tour</span>
+            <span className="sm:hidden">Tour</span>
+          </button>
+
           {reports.length > 0 && (
-            <div className="relative flex items-center bg-slate-50 border border-[#E7EDF5] rounded-xl p-0.5 shadow-sm select-none">
+            <div className="tour-month-selector relative flex items-center bg-slate-50 border border-[#E7EDF5] rounded-xl p-0.5 shadow-sm select-none">
               <button 
                 onClick={() => activeIndex < reports.length - 1 && setActive(reports[activeIndex + 1])}
                 disabled={activeIndex >= reports.length - 1}
@@ -1516,7 +1553,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
                       <button
                         key={pid}
                         onClick={() => setActivePlatform(pid)}
-                        className={`flex items-center gap-0 md:gap-2 px-1.5 md:px-6 py-2.5 md:py-4 text-[10px] md:text-sm font-bold whitespace-nowrap transition-all border-t-2 relative ${
+                        className={`tour-tab-${pid} flex items-center gap-0 md:gap-2 px-1.5 md:px-6 py-2.5 md:py-4 text-[10px] md:text-sm font-bold whitespace-nowrap transition-all border-t-2 relative ${
                           isActive
                             ? `${platformTheme.valueColor} bg-white border-t-current`
                             : "border-transparent text-gray-400 hover:text-gray-600 hover:bg-slate-50/30"
@@ -1555,12 +1592,12 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
               </div>
             ) : activePlatform === "ad-performance" ? (
               <div className="mt-8">
-                <AdPerformanceView theme={platformThemes["ad-performance"]} />
+                <AdPerformanceView theme={platformThemes["ad-performance"]} month={active?.month} year={active?.year ? String(active.year) : undefined} />
               </div>
             ) : (
             <>
             {/* ── Global Overview Stats (Dynamic to the active tab!) ── */}
-            <div className={`grid gap-4 mb-10 stagger-children transition-all duration-500 ${
+            <div className={`tour-metrics-overview grid gap-4 mb-10 stagger-children transition-all duration-500 ${
               activePlatform === "youtube" ? "grid-cols-1 md:grid-cols-3" : "grid-cols-2 lg:grid-cols-4"
             }`}>
               {[
@@ -1665,7 +1702,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
             </div>
 
             {/* ── AI Brand Intelligence (unified workspace) ── */}
-            <div className="mt-6">
+            <div className="tour-brand-intel mt-6">
               <BrandIntelligence
                 clientId={id}
                 brandName={brandName}
@@ -2864,7 +2901,9 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
           )}
             {/* Industry Related News Section — hidden for deliverables and ad-performance */}
             {activePlatform !== "deliverables" && activePlatform !== "ad-performance" && (
-              <IndustryNewsSection industry={industry} clientId={id} />
+              <div className="tour-industry-news">
+                <IndustryNewsSection industry={industry} clientId={id} />
+              </div>
             )}
           </div>
         </>
@@ -2975,7 +3014,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
 
       {permissions.canUseAi && (
         <button onClick={() => setChatOpen(!chatOpen)}
-          className="fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-br from-[#113a87] to-[#1e56b8] text-white rounded-full shadow-float flex items-center justify-center transition-all hover:scale-105 hover:shadow-glow z-50 group">
+          className="tour-ai-chat fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-br from-[#113a87] to-[#1e56b8] text-white rounded-full shadow-float flex items-center justify-center transition-all hover:scale-105 hover:shadow-glow z-50 group">
           <Bot className="w-6 h-6" />
           <span className="absolute right-16 bg-[#1a1a1a] text-white text-xs font-bold px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg">
             Chat with your data

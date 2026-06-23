@@ -97,17 +97,19 @@ def generate_report(
             "x_token": client.x_token,
             "client_id": client.id,
         }
-        instagram_data = get_client_instagram_stats(client_keys, month=data.month, year=data.year)
+        month_map = {
+            "January": 1, "February": 2, "March": 3, "April": 4,
+            "May": 5, "June": 6, "July": 7, "August": 8,
+            "September": 9, "October": 10, "November": 11, "December": 12
+        }
+        month_num = month_map.get(data.month, 1)
+        year_num = int(data.year)
+
+        instagram_data = get_client_instagram_stats(client_keys, month=month_num, year=year_num)
         
         facebook_data = {}
         if client.fb_page_id and client.fb_page_token:
-            month_map = {
-                "January": 1, "February": 2, "March": 3, "April": 4,
-                "May": 5, "June": 6, "July": 7, "August": 8,
-                "September": 9, "October": 10, "November": 11, "December": 12
-            }
-            month_num = month_map.get(data.month, 1)
-            facebook_data = get_client_facebook_stats(client_keys, month=month_num, year=data.year)
+            facebook_data = get_client_facebook_stats(client_keys, month=month_num, year=year_num)
 
 
         youtube_data = {}
@@ -131,15 +133,9 @@ def generate_report(
         }
         if client.ad_account_id and (client.fb_page_token or client.ig_access_token):
             try:
-                month_map = {
-                    "January": 1, "February": 2, "March": 3, "April": 4,
-                    "May": 5, "June": 6, "July": 7, "August": 8,
-                    "September": 9, "October": 10, "November": 11, "December": 12
-                }
-                month_num = month_map.get(data.month, 1)
                 from facebook import fetch_combined_deduplicated_metrics
                 combined_metrics = fetch_combined_deduplicated_metrics(
-                    client.ad_account_id, client.fb_page_token or client.ig_access_token, month_num, int(data.year)
+                    client.ad_account_id, client.fb_page_token or client.ig_access_token, month_num, year_num
                 )
             except Exception as e:
                 print("Failed to fetch combined metrics during report generation:", e)
@@ -406,23 +402,33 @@ def get_facebook_insights_tab(
 @router_v3.get("/reports")
 def get_all_reports(db: Session = Depends(get_db)):
     """Fetches a list of all generated reports from the database vault."""
+    import time
+    from services.egress_logger import log_egress
+    start_time = time.time()
+    
     try:
-        # Fetch all reports and grab the client name for the UI
-        reports = db.query(Report).all()
+        # Fetch only required fields from Report to avoid pulling HTML blobs
+        reports = db.query(Report.id, Report.client_id, Report.month, Report.year).all()
+        
+        # Pre-fetch client names mapping to avoid N+1 queries
+        clients = db.query(Client.id, Client.name).all()
+        client_name_map = {c.id: c.name for c in clients}
         
         archive_list = []
         for r in reports:
-            client = db.query(Client).filter(Client.id == r.client_id).first()
             archive_list.append({
                 "id": r.id,
                 "client_id": r.client_id,
-                "client_name": client.name if client else "Unknown Client",
+                "client_name": client_name_map.get(r.client_id, "Unknown Client"),
                 "month": r.month,
                 "year": r.year,
             })
             
         # Reverse the list so the newest reports are at the top!
-        return {"success": True, "reports": archive_list[::-1]}
+        result = {"success": True, "reports": archive_list[::-1]}
+        
+        log_egress("GET /api/v3/reports", start_time, len(reports), result)
+        return result
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch archive: {str(e)}")
@@ -482,13 +488,27 @@ def get_client_analytics(client_id: str, month: str = None, year: str = None, db
     }
     combined_info.update(combined_metrics)
 
+    from database import AnalyticsSnapshot
+    snapshots = db.query(AnalyticsSnapshot).filter(AnalyticsSnapshot.client_id == client_id).order_by(AnalyticsSnapshot.created_at.desc()).all()
+    historical = []
+    for s in snapshots:
+        historical.append({
+            "month": s.month,
+            "year": s.year,
+            "platform": s.platform,
+            "followers": s.followers,
+            "reach": s.total_reach,
+            "engagement_rate": s.engagement_rate,
+        })
+
     return {
         "client_name": client.name,
         "month": target_month,
         "year": target_year,
         "instagram": ig_data,
         "facebook": fb_data,
-        "combined": combined_info
+        "combined": combined_info,
+        "historical_snapshots": historical
     }
 
 
@@ -529,35 +549,117 @@ from services.meta_ads import sync_campaign_metrics_for_client
 from database import CampaignMetric
 
 @router_v3.get("/clients/{client_id}/ad-performance")
-def get_ad_performance(client_id: str, db: Session = Depends(get_db)):
+def get_ad_performance(
+    client_id: str,
+    start: str = None,
+    end: str = None,
+    db: Session = Depends(get_db)
+):
+    import time
+    from datetime import datetime, timedelta
+    from services.egress_logger import log_egress
+    from database import AdBudget
+    start_time = time.time()
+    
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="Client not found.")
 
-    # Get the latest daily snapshot for each campaign
-    # (By querying for today's date, or the most recent date available)
-    metrics = db.query(CampaignMetric).filter(CampaignMetric.client_id == client_id).all()
-    
-    # We want the LATEST snapshot per campaign
-    latest_metrics = {}
-    for m in metrics:
-        c_id = m.campaign_id
-        if c_id not in latest_metrics or m.date > latest_metrics[c_id].date:
-            latest_metrics[c_id] = m
-            
-    campaigns = list(latest_metrics.values())
+    MONTH_NAMES = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ]
+
+    def _parse_month_year_local(m: str):
+        parts = m.strip().split()
+        if len(parts) != 2:
+            return None, None
+        MONTH_NAMES_SHORT = {
+            "jan": "January", "feb": "February", "mar": "March", "apr": "April",
+            "may": "May", "jun": "June", "jul": "July", "aug": "August",
+            "sep": "September", "oct": "October", "nov": "November", "dec": "December",
+        }
+        raw = parts[0]
+        year = parts[1]
+        if raw in MONTH_NAMES:
+            return raw, year
+        return MONTH_NAMES_SHORT.get(raw.lower(), raw), year
+
+    start_date = None
+    end_date = None
+    month_param = None
+    year_param = None
+
+    if start:
+        try:
+            start_date = datetime.strptime(start, "%Y-%m-%d").date()
+            month_param = MONTH_NAMES[start_date.month - 1]
+            year_param = str(start_date.year)
+        except Exception as e:
+            print("Failed to parse start date:", e)
+
+    if end:
+        try:
+            end_date = datetime.strptime(end, "%Y-%m-%d").date()
+        except Exception as e:
+            print("Failed to parse end date:", e)
+
+    # Filter campaign snapshots by the requested date range
+    if start_date and end_date:
+        metrics = db.query(CampaignMetric).filter(
+            CampaignMetric.client_id == client_id,
+            CampaignMetric.date >= start_date,
+            CampaignMetric.date <= end_date
+        ).all()
+    else:
+        today = datetime.utcnow().date()
+        start_date = today.replace(day=1)
+        end_date = today
+        metrics = db.query(CampaignMetric).filter(
+            CampaignMetric.client_id == client_id,
+            CampaignMetric.date >= start_date,
+            CampaignMetric.date <= end_date
+        ).all()
+        
+    # Keep only the latest snapshot per campaign_id within the range
+    seen = {}
+    for m in sorted(metrics, key=lambda x: x.date):
+        seen[m.campaign_id] = m
+    campaigns = list(seen.values())
+
     
     total_spend = sum(c.spend for c in campaigns)
     total_reach = sum(c.reach for c in campaigns)
     total_clicks = sum(c.clicks for c in campaigns)
-    total_leads = sum(c.leads for c in campaigns)
+    # Only sum leads from actual lead-objective campaigns
+    # For awareness/engagement/traffic, the leads_val holds reach/engagement — don't aggregate those
+    LEAD_OBJECTIVES = {"OUTCOME_LEADS", "OUTCOME_CONVERSIONS", ""}
+    total_leads = sum(
+        c.leads for c in campaigns
+        if getattr(c, "objective", "") in LEAD_OBJECTIVES
+    )
     total_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
     total_cpl = (total_spend / total_leads) if total_leads > 0 else 0
     
-    budget = client.monthly_ad_budget or 0.0
-    remaining_budget = max(0, budget - total_spend)
+    # Query budget from ad_budgets for target month, fallback to client.monthly_ad_budget
+    budget = 0.0
+    if month_param and year_param:
+        budget_rows = db.query(AdBudget).filter(AdBudget.client_id == client_id).all()
+        month_budgets = []
+        for b in budget_rows:
+            bm, by = _parse_month_year_local(b.month)
+            if bm == month_param and by == year_param:
+                month_budgets.append(b)
+        if month_budgets:
+            budget = sum(b.budget or 0.0 for b in month_budgets)
+        else:
+            budget = client.monthly_ad_budget or 0.0
+    else:
+        budget = client.monthly_ad_budget or 0.0
 
-    return {
+    remaining_budget = max(0.0, budget - total_spend)
+
+    result = {
         "success": True,
         "budget": budget,
         "total_spend": total_spend,
@@ -585,10 +687,13 @@ def get_ad_performance(client_id: str, db: Session = Depends(get_db)):
                 "visits": c.visits,
                 "likes": c.likes,
                 "status": c.status,
-                "date": str(c.date)
+                "date": str(c.date),
+                "objective": c.objective or ""
             } for c in campaigns
         ]
     }
+    log_egress(f"GET /api/v3/clients/{client_id}/ad-performance", start_time, len(campaigns), result)
+    return result
 
 class AdBudgetRequest(BaseModel):
     budget: float

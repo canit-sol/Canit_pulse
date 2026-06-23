@@ -308,6 +308,9 @@ def _get_post_insights(post_id: str, token: str, media_type: str) -> dict:
 def _fetch_all_paid_data(ad_account_id: str, token: str, month: int, year: int) -> dict:
     if not ad_account_id:
         return {"global": {"reach": 0, "impressions": 0, "likes": 0}, "mapped": {}}
+        
+    if ad_account_id.startswith("act_"):
+        ad_account_id = ad_account_id[4:]
 
     global_stats = {"reach": 0, "impressions": 0, "likes": 0}
     mapped_stats = {}
@@ -378,11 +381,16 @@ def _fetch_all_paid_data(ad_account_id: str, token: str, month: int, year: int) 
             )
             body_text = creative.get("body", "")
 
+            import re
+            
             match_key = ""
             if permalink:
                 match_key = permalink.split("?")[0].rstrip("/").split("/")[-1]
             elif body_text:
-                match_key = body_text[:30].strip().lower()
+                # Strip prefixes like "IG | June 4 | " or "FB | June 4 | "
+                clean_body = re.sub(r'^(ig|fb|post|instagram post)[\s|:-]+', '', body_text, flags=re.IGNORECASE)
+                clean_body = re.sub(r'^[a-z]+\s+\d+\s*\|\s*', '', clean_body, flags=re.IGNORECASE)
+                match_key = clean_body[:30].strip().lower()
 
             if not match_key:
                 continue
