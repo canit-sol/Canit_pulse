@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, LogOut, Bot, X, Send, Loader2,
@@ -13,6 +13,7 @@ import BrandIntelligence from "@/components/BrandIntelligence";
 import PrintReportView from "../components/PrintReportView";
 import DeliverablesPanel from "@/components/DeliverablesPanel";
 import AdPerformanceView from "@/components/AdPerformanceView";
+import TourGuide from "@/components/TourGuide";
 import { Download, AlertCircle, Play } from "lucide-react";
 import { usePermissions } from "../hooks/usePermissions";
 
@@ -595,6 +596,18 @@ export default function ClientPortal() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [runTour, setRunTour] = useState(false);
+  const [tourKey, setTourKey] = useState(0);
+  const tourOriginRef = useRef(activePlatform);
+
+  const visiblePlatforms = useMemo(
+    () => PLATFORMS.filter((p) => {
+      if (p.id === "facebook" && !SHOW_FACEBOOK_TAB) return false;
+      if (p.id === "youtube" && !youtubeChannelId) return false;
+      return true;
+    }),
+    [youtubeChannelId]
+  );
   
   // Voice UI
   const [isListening, setIsListening] = useState(false);
@@ -1362,7 +1375,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
                 navigate("/admin/dashboard");
               }
             }}
-            className={`flex items-center gap-2 md:gap-3 shrink-0 ${isInternalStaff ? "cursor-pointer" : ""}`}
+            className={`joyride-branding flex items-center gap-2 md:gap-3 shrink-0 ${isInternalStaff ? "cursor-pointer" : ""}`}
           >
             <img
               src="/cai.png"
@@ -1382,7 +1395,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
           <div className="h-6 md:h-8 w-px bg-slate-200 mx-0.5 md:mx-1 shrink-0" />
           
           {/* Dynamic Client Branding */}
-          <div className="flex items-center gap-2 md:gap-3 animate-fade-in min-w-0">
+          <div className="joyride-client-branding flex items-center gap-2 md:gap-3 animate-fade-in min-w-0">
             {clientLogoUrl && !logoError && (clientLogoUrl.startsWith('http') || clientLogoUrl.startsWith('/')) ? (
               <img
                 src={clientLogoUrl}
@@ -1405,7 +1418,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
         </div>
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
           {reports.length > 0 && (
-            <div className="relative flex items-center bg-slate-50 border border-[#E7EDF5] rounded-xl p-0.5 shadow-sm select-none">
+            <div className="joyride-month-selector relative flex items-center bg-slate-50 border border-[#E7EDF5] rounded-xl p-0.5 shadow-sm select-none">
               <button 
                 onClick={() => activeIndex < reports.length - 1 && setActive(reports[activeIndex + 1])}
                 disabled={activeIndex >= reports.length - 1}
@@ -1469,6 +1482,17 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
+            onClick={() => {
+              tourOriginRef.current = activePlatform;
+              setTourKey(k => k + 1);
+              setRunTour(true);
+            }}
+            className="flex items-center gap-1.5 px-2 md:px-3 py-2 rounded-xl text-xs md:text-sm text-gray-400 hover:text-[#113a87] hover:bg-[#113a87]/5 transition-all font-semibold"
+            title="Take a tour"
+          >
+            <Play className="w-3.5 h-3.5" /> <span className="hidden md:inline">Tour</span>
+          </button>
+          <button
             onClick={handleSignOut}
             className="flex items-center gap-1.5 px-2 md:px-3 py-2 rounded-xl text-sm text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all font-medium"
             title="Sign Out"
@@ -1516,7 +1540,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
                       <button
                         key={pid}
                         onClick={() => setActivePlatform(pid)}
-                        className={`flex items-center gap-0 md:gap-2 px-1.5 md:px-6 py-2.5 md:py-4 text-[10px] md:text-sm font-bold whitespace-nowrap transition-all border-t-2 relative ${
+                        className={`joyride-tab-${pid} flex items-center gap-0 md:gap-2 px-1.5 md:px-6 py-2.5 md:py-4 text-[10px] md:text-sm font-bold whitespace-nowrap transition-all border-t-2 relative ${
                           isActive
                             ? `${platformTheme.valueColor} bg-white border-t-current`
                             : "border-transparent text-gray-400 hover:text-gray-600 hover:bg-slate-50/30"
@@ -1550,7 +1574,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
             </div>
 
             {activePlatform === "deliverables" ? (
-              <div className="mt-8">
+              <div className="joyride-deliverables-panel mt-8">
                 <DeliverablesPanel clientId={id!} month={active.month} year={active.year} />
               </div>
             ) : activePlatform === "ad-performance" ? (
@@ -1665,7 +1689,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
             </div>
 
             {/* ── AI Brand Intelligence (unified workspace) ── */}
-            <div className="mt-6">
+            <div className="joyride-ai-brand-intelligence mt-6">
               <BrandIntelligence
                 clientId={id}
                 brandName={brandName}
@@ -1815,7 +1839,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
                         </div>
 
                         {/* Bottom: AI recommendation snippet */}
-                        <div className="mt-4 p-3 bg-gradient-to-r from-pink-500/5 to-purple-500/10 border border-pink-500/20 rounded-xl flex items-start gap-2.5">
+                        <div className="joyride-ai-snippet mt-4 p-3 bg-gradient-to-r from-pink-500/5 to-purple-500/10 border border-pink-500/20 rounded-xl flex items-start gap-2.5">
                           <Bot className="w-4 h-4 text-pink-600 shrink-0 mt-0.5" />
                           <p className="text-[10px] text-pink-800 font-medium leading-relaxed">
                             <span className="font-extrabold">AI Platform Advice:</span> Reels and Multi-Image Carousels are driving 84% of brand saves this period. Focus on carousel infographics to maximize audience bookmarking rates.
@@ -1978,7 +2002,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
                     </div>
 
                     {/* Posts grid */}
-                    <div>
+                    <div className="joyride-instagram-posts">
                       <h4 className="font-black text-[#1a1a1a] text-sm mb-3">
                         Instagram Posts this period
                         <span className="text-gray-400 font-normal ml-2">({posts.length} total)</span>
@@ -2179,7 +2203,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
                         </div>
 
                         {/* Bottom: AI recommendation snippet */}
-                        <div className="mt-4 p-3 bg-gradient-to-r from-blue-500/5 to-indigo-500/10 border border-blue-500/20 rounded-xl flex items-start gap-2.5">
+                        <div className="joyride-ai-snippet mt-4 p-3 bg-gradient-to-r from-blue-500/5 to-indigo-500/10 border border-blue-500/20 rounded-xl flex items-start gap-2.5">
                           <Bot className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                           <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
                             <span className="font-extrabold">AI Platform Advice:</span> Link updates redirecting to published articles perform 2.4x better than text-only updates. Align blogs calendar releases with Facebook posts.
@@ -2864,7 +2888,9 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
           )}
             {/* Industry Related News Section — hidden for deliverables and ad-performance */}
             {activePlatform !== "deliverables" && activePlatform !== "ad-performance" && (
-              <IndustryNewsSection industry={industry} clientId={id} />
+              <div className="joyride-industry-news">
+                <IndustryNewsSection industry={industry} clientId={id} />
+              </div>
             )}
           </div>
         </>
@@ -2975,13 +3001,26 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
 
       {permissions.canUseAi && (
         <button onClick={() => setChatOpen(!chatOpen)}
-          className="fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-br from-[#113a87] to-[#1e56b8] text-white rounded-full shadow-float flex items-center justify-center transition-all hover:scale-105 hover:shadow-glow z-50 group">
+          className="joyride-ai-chat fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-br from-[#113a87] to-[#1e56b8] text-white rounded-full shadow-float flex items-center justify-center transition-all hover:scale-105 hover:shadow-glow z-50 group">
           <Bot className="w-6 h-6" />
           <span className="absolute right-16 bg-[#1a1a1a] text-white text-xs font-bold px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg">
             Chat with your data
           </span>
         </button>
       )}
+
+<TourGuide
+        key={tourKey}
+        run={runTour}
+        setRun={setRunTour}
+        brandName={brandName}
+        visiblePlatforms={visiblePlatforms}
+        activePlatform={activePlatform}
+        setActivePlatform={setActivePlatform}
+        onTourEnd={() => {
+          setActivePlatform(tourOriginRef.current);
+        }}
+      />
 
       {/* Hidden PDF Container */}
       <div className="absolute top-0 left-0 w-0 h-0 overflow-hidden -z-50">

@@ -377,7 +377,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
 
       {/* Progress Bar */}
       {totalCount > 0 && (
-        <div className="mb-5 bg-slate-50/50 border border-slate-100/60 rounded-2xl p-3.5 animate-fade-in select-none">
+        <div className="joyride-deliverables-progress mb-5 bg-slate-50/50 border border-slate-100/60 rounded-2xl p-3.5 animate-fade-in select-none">
           <div className="flex justify-between items-center text-[10px] font-bold tracking-wide uppercase text-slate-400 mb-1.5 px-0.5">
             <span>Completion Progress</span>
             <span className="text-violet-500 font-extrabold">{doneCount}/{totalCount} Completed</span>
@@ -419,7 +419,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
             </div>
           )}
 
-          <div className="space-y-1">
+          <div className="joyride-deliverables-tasks space-y-1">
             {items.map((item, index) => (
               <div
                 key={item.localKey || item.id}
@@ -482,7 +482,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
       )}
 
       {/* Any Further Changes */}
-      <div className="bg-white/60 backdrop-blur-md rounded-3xl p-6 lg:p-8 border border-white/80 shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_16px_36px_-8px_rgba(17,58,135,0.05)] transition-all duration-300 animate-fade-in flex flex-col">
+      <div className="joyride-deliverables-notes bg-white/60 backdrop-blur-md rounded-3xl p-6 lg:p-8 border border-white/80 shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_16px_36px_-8px_rgba(17,58,135,0.05)] transition-all duration-300 animate-fade-in flex flex-col">
         <div className="flex items-center gap-3 mb-4 select-none">
           <div className="w-10 h-10 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 shadow-sm border border-amber-100/50">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
