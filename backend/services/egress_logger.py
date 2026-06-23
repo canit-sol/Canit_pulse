@@ -17,17 +17,21 @@ def log_egress(endpoint_name: str, start_time: float, num_records: int, payload_
     """
     execution_time_ms = (time.time() - start_time) * 1000
     try:
-        # Estimate size by dumping to JSON and getting length
-        payload_json = json.dumps(payload_data, default=str)
-        size_bytes = len(payload_json.encode('utf-8'))
-        
-        # Convert to KB or MB for readability
-        if size_bytes > 1024 * 1024:
-            size_str = f"{size_bytes / (1024 * 1024):.2f} MB"
-        elif size_bytes > 1024:
-            size_str = f"{size_bytes / 1024:.2f} KB"
+        # Skip stringifying large reports payloads to prevent OOM on 512MB RAM
+        if "reports" in endpoint_name.lower():
+            size_str = "Skipped (Large reports payload)"
         else:
-            size_str = f"{size_bytes} Bytes"
+            # Estimate size by dumping to JSON and getting length
+            payload_json = json.dumps(payload_data, default=str)
+            size_bytes = len(payload_json)
+            
+            # Convert to KB or MB for readability
+            if size_bytes > 1024 * 1024:
+                size_str = f"{size_bytes / (1024 * 1024):.2f} MB"
+            elif size_bytes > 1024:
+                size_str = f"{size_bytes / 1024:.2f} KB"
+            else:
+                size_str = f"{size_bytes} Bytes"
             
         logger.info(
             f"Endpoint: {endpoint_name} | "
