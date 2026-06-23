@@ -2533,9 +2533,9 @@ def get_industry_news(industry: str, client_id: Optional[str] = None, db: Sessio
         try:
             client = db.query(Client).filter(Client.id == client_id).first()
             if client:
-                # 1. Niche + Category combining Industry & Name
-                if client.industry and client.name:
-                    queries.append(f"{client.industry} {client.name}")
+                # 1. Localized industry query (India-based)
+                if client.industry:
+                    queries.append(f"{client.industry} India")
                 if client.industry:
                     queries.append(client.industry)
                 
@@ -2572,10 +2572,10 @@ def get_industry_news(industry: str, client_id: Optional[str] = None, db: Sessio
     # Standard fallback queries
     queries.extend(["wellness trends", "business strategy"])
     
-    # Deduplicate and sanitize query strings (remove terms like India for global news hits)
+    # Deduplicate and sanitize query strings
     clean_queries = []
     for q in queries:
-        cleaned = q.replace("India", "").replace("india", "").strip()
+        cleaned = q.strip()
         if cleaned and len(cleaned) > 2 and cleaned not in clean_queries:
             clean_queries.append(cleaned)
             
