@@ -2,6 +2,25 @@ import { useCallback, useMemo, useState } from "react";
 import { Joyride as ReactJoyride, STATUS, EVENTS, ACTIONS } from "react-joyride";
 import type { Step, CallBackProps } from "react-joyride";
 
+const waitForElement = (selector: string, timeout = 5000): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const check = () => {
+      const el = document.querySelector(selector);
+      if (el && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0) {
+        resolve();
+        return;
+      }
+      if (Date.now() - start > timeout) {
+        reject(new Error(`Timeout waiting for ${selector}`));
+        return;
+      }
+      requestAnimationFrame(check);
+    };
+    check();
+  });
+};
+
 interface TourGuideProps {
   run: boolean;
   setRun: (run: boolean) => void;
@@ -82,6 +101,7 @@ export default function TourGuide({
       if (p.id === "deliverables") {
         s.push({
           target: ".joyride-deliverables-progress",
+          before: async () => { await waitForElement(".joyride-deliverables-progress"); },
           title: "Progress Tracker",
           content: "See how much of your monthly deliverables are complete at a glance with the visual progress bar and completion percentage.",
           placement: "top",
@@ -91,6 +111,7 @@ export default function TourGuide({
         });
         s.push({
           target: ".joyride-deliverables-tasks",
+          before: async () => { await waitForElement(".joyride-deliverables-tasks"); },
           title: "Task Management",
           content: "Each deliverable has a checkbox to mark tasks as done, an editable title field with auto-save, and a delete button — all synced in real time.",
           placement: "top",
@@ -100,6 +121,7 @@ export default function TourGuide({
         });
         s.push({
           target: ".joyride-deliverables-notes",
+          before: async () => { await waitForElement(".joyride-deliverables-notes"); },
           title: "Change Requests & Notes",
           content: "Submit change requests, revision notes, or any additional context for your team. Everything you write here is saved automatically.",
           placement: "top",
@@ -112,6 +134,7 @@ export default function TourGuide({
       if (p.id === "instagram") {
         s.push({
           target: ".joyride-instagram-posts",
+          before: async () => { await waitForElement(".joyride-instagram-posts"); },
           title: "Instagram Posts",
           content: "Browse all Instagram posts from this period with engagement metrics, media previews, and AI-powered performance insights for each post.",
           placement: "top",
@@ -121,6 +144,7 @@ export default function TourGuide({
         });
         s.push({
           target: ".joyride-ai-snippet",
+          before: async () => { await waitForElement(".joyride-ai-snippet"); },
           title: "AI Analytics",
           content: "Each platform includes AI-generated analytics and recommendations based on your content performance — helping you optimize your strategy.",
           placement: "top",
@@ -166,24 +190,12 @@ export default function TourGuide({
     const { status, type, action, index } = data;
 
     if (type === EVENTS.STEP_AFTER) {
-      let nextIndex: number;
-      if (action === ACTIONS.PREV) {
-        nextIndex = index - 1;
-      } else {
-        nextIndex = index + 1;
-      }
-
-      const nextStep = steps[nextIndex];
-      const nextPlatform = (nextStep as any)?.data?.platform as string | undefined;
-
+      const nextIndex = action === ACTIONS.PREV ? index - 1 : index + 1;
+      const nextPlatform = (steps[nextIndex] as any)?.data?.platform as string | undefined;
       if (nextPlatform && nextPlatform !== activePlatform) {
         setActivePlatform(nextPlatform);
-        requestAnimationFrame(() => {
-          setStepIndex(nextIndex);
-        });
-      } else {
-        setStepIndex(nextIndex);
       }
+      setStepIndex(nextIndex);
     }
 
     if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
