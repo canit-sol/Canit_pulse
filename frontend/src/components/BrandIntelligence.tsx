@@ -54,6 +54,8 @@ interface Props {
   igMetrics?: any;
   seoMetrics?: any;
   historicalSnapshots?: any[];
+  intelligenceData?: IntelligenceData | null;
+  intelligenceLoading?: boolean;
 }
 
 function authHeaders() {
@@ -1282,17 +1284,21 @@ const generateUnifiedIntelligence = (brandName: string, igMetrics: any, fbMetric
 
 /* ── Main Component ────────────────────────────────── */
 
-export default function BrandIntelligence({ clientId, brandName, platform, month, year, competitorData, compLoading, onCompRefresh, fbMetrics, igMetrics, seoMetrics, historicalSnapshots }: Props) {
-  const [data, setData] = useState<IntelligenceData | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function BrandIntelligence({ clientId, brandName, platform, month, year, competitorData, compLoading, onCompRefresh, fbMetrics, igMetrics, seoMetrics, historicalSnapshots, intelligenceData, intelligenceLoading }: Props) {
+  const [localData, setLocalData] = useState<IntelligenceData | null>(null);
+  const [localLoading, setLocalLoading] = useState(true);
+
+  const data = intelligenceData !== undefined ? intelligenceData : localData;
+  const loading = intelligenceLoading !== undefined ? intelligenceLoading : localLoading;
 
   useEffect(() => {
-    if (!clientId) { setLoading(false); return; }
-    setLoading(true);
+    if (intelligenceData !== undefined) return;
+    if (!clientId) { setLocalLoading(false); return; }
+    setLocalLoading(true);
 
     if (platform === "unified") {
-      setData(generateUnifiedIntelligence(brandName, igMetrics, fbMetrics, seoMetrics, month, year, historicalSnapshots));
-      setLoading(false);
+      setLocalData(generateUnifiedIntelligence(brandName, igMetrics, fbMetrics, seoMetrics, month, year, historicalSnapshots));
+      setLocalLoading(false);
       return;
     }
 
@@ -1306,28 +1312,28 @@ export default function BrandIntelligence({ clientId, brandName, platform, month
       .then(d => {
         if (!d || !d.has_data) {
           if (platform === "facebook" && fbMetrics && fbMetrics.connected) {
-            setData(generateFacebookIntelligence(brandName, fbMetrics, month, year, historicalSnapshots));
+            setLocalData(generateFacebookIntelligence(brandName, fbMetrics, month, year, historicalSnapshots));
           } else if (platform === "instagram" && igMetrics && Object.keys(igMetrics).length > 0) {
-            setData(generateInstagramIntelligence(brandName, igMetrics, month, year, historicalSnapshots));
+            setLocalData(generateInstagramIntelligence(brandName, igMetrics, month, year, historicalSnapshots));
           } else {
-            setData(d);
+            setLocalData(d);
           }
         } else {
-          setData(d);
+          setLocalData(d);
         }
       })
       .catch((err) => {
         console.error(err);
         if (platform === "facebook" && fbMetrics && fbMetrics.connected) {
-          setData(generateFacebookIntelligence(brandName, fbMetrics, month, year));
+          setLocalData(generateFacebookIntelligence(brandName, fbMetrics, month, year));
         } else if (platform === "instagram" && igMetrics && Object.keys(igMetrics).length > 0) {
-          setData(generateInstagramIntelligence(brandName, igMetrics, month, year));
+          setLocalData(generateInstagramIntelligence(brandName, igMetrics, month, year));
         } else {
-          setData(null);
+          setLocalData(null);
         }
       })
-      .finally(() => setLoading(false));
-  }, [clientId, platform, month, year, brandName, fbMetrics, igMetrics, seoMetrics]);
+      .finally(() => setLocalLoading(false));
+  }, [clientId, platform, month, year, brandName]);
 
   /* ── No data ── */
   if (!data || !data.has_data) {

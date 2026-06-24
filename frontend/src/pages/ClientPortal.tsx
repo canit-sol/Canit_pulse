@@ -1070,6 +1070,18 @@ export default function ClientPortal() {
     return v != null && v !== "" ? v : undefined;
   };
   
+  const stableFbMetrics = useMemo(() => ({
+    total_reach: fbMetric("total_reach") ?? fb?.total_reach ?? fb?.reach,
+    organic_reach: fb?.organic?.total_reach ?? fb?.organic_reach ?? fb?.reach_organic,
+    paid_reach: fb?.paid?.total_reach ?? fb?.paid_reach ?? fb?.reach_paid,
+    impressions: fbMetric("total_impressions") ?? fb?.total_impressions ?? fb?.impressions,
+    engagement_rate: fb?.engagement_rate,
+    followers: fbMetric("followers") ?? fb?.followers ?? fb?.fan_count ?? fb?.followers_count,
+    connected: fbConnected,
+    combined_reach: liveFBData?.combined?.total_reach ?? rawData.combined?.total_reach,
+    combined: liveFBData?.combined ?? rawData.combined
+  }), [fb, fbConnected, liveFBData, rawData]);
+
   const xData = rawData.x || {};
 
   // Dynamically swap the data object based on the tab!
@@ -1740,17 +1752,7 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
                 competitorData={automaticCompetitors}
                 compLoading={compLoading}
                 onCompRefresh={() => { if (id) fetchAutomaticCompetitorsData(id); }}
-                fbMetrics={{
-                  total_reach: fbMetric("total_reach") ?? fb?.total_reach ?? fb?.reach,
-                  organic_reach: fb?.organic?.total_reach ?? fb?.organic_reach ?? fb?.reach_organic,
-                  paid_reach: fb?.paid?.total_reach ?? fb?.paid_reach ?? fb?.reach_paid,
-                  impressions: fbMetric("total_impressions") ?? fb?.total_impressions ?? fb?.impressions,
-                  engagement_rate: fb?.engagement_rate,
-                  followers: fbMetric("followers") ?? fb?.followers ?? fb?.fan_count ?? fb?.followers_count,
-                  connected: fbConnected,
-                  combined_reach: liveFBData?.combined?.total_reach ?? rawData.combined?.total_reach,
-                  combined: liveFBData?.combined ?? rawData.combined
-                }}
+                fbMetrics={stableFbMetrics}
                 igMetrics={ig}
                 seoMetrics={seoData}
               />
