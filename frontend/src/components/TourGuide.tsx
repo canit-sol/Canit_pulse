@@ -100,11 +100,11 @@ export default function TourGuide({
     for (const p of visiblePlatforms) {
       if (p.id === "deliverables") {
         s.push({
-          target: ".joyride-deliverables-progress",
-          before: async () => { await waitForElement(".joyride-deliverables-progress"); },
-          title: "Progress Tracker",
-          content: "See how much of your monthly deliverables are complete at a glance with the visual progress bar and completion percentage.",
-          placement: "top",
+          target: ".joyride-deliverables-header",
+          before: async () => { await waitForElement(".joyride-deliverables-header"); },
+          title: "Deliverables Panel",
+          content: "Manage your monthly deliverables here. Track progress, manage tasks, and submit change requests — all in one place.",
+          placement: "bottom",
           skipBeacon: true,
           closeButtonAction: "skip" as const,
           data: { platform: "deliverables" },
