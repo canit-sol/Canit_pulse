@@ -709,11 +709,18 @@ export default function ClientPortal() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
-      .then(data => {
-        if (data.detail) return;
-        setBrandName(data.brand_name);
-        const reportsList = data.reports || [];
-        let finalReports = [...reportsList];
+        .then(data => {
+          if (data.detail) return;
+          setBrandName(data.brand_name);
+          const reportsList = data.reports || [];
+
+          const seen = new Map<string, Report>();
+          for (const r of reportsList) {
+            seen.set(`${r.month}-${r.year}`, r);
+          }
+          const dedupedReports = Array.from(seen.values());
+
+          let finalReports = [...dedupedReports];
         let defaultActive = reportsList[0] || null;
 
         if (reportsList.length > 0) {
