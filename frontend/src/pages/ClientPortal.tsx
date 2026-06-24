@@ -3108,7 +3108,7 @@ INSTRUCTIONS:
               </div>
             )}
             {chatMessages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div key={i} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
                 <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                   msg.role === "user" ? "bg-[#113a87] text-white rounded-br-sm" : "bg-gray-100 text-gray-700 rounded-bl-sm"
                 }`}>
@@ -3124,21 +3124,21 @@ INSTRUCTIONS:
                       </button>
                     )}
                   </div>
-                  {msg.role === "assistant" && msg.suggestions && msg.suggestions.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {msg.suggestions.map((s, si) => (
-                        <button
-                          key={si}
-                          onClick={() => sendChat(s)}
-                          disabled={chatLoading}
-                          className="text-xs px-2.5 py-1 bg-[#113a87]/5 border border-[#113a87]/20 rounded-full text-[#113a87] hover:bg-[#113a87]/10 hover:border-[#113a87]/30 transition-all disabled:opacity-40"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
+                {msg.role === "assistant" && msg.suggestions && msg.suggestions.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5 max-w-[80%]">
+                    {msg.suggestions.map((s, si) => (
+                      <button
+                        key={si}
+                        onClick={() => sendChat(s)}
+                        disabled={chatLoading}
+                        className="text-xs px-3 py-1.5 bg-white border border-[#113a87]/20 rounded-full text-[#113a87] hover:bg-[#113a87]/10 hover:border-[#113a87]/40 transition-all disabled:opacity-40 shadow-sm font-medium"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             {chatLoading && (
