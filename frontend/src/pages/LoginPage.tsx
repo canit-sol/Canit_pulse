@@ -53,7 +53,7 @@ export default function LoginPage() {
       }
       
     } catch (err) {
-      setError("Cannot reach server. Ensure backend is running on port 8000.");
+      setError("Refresh and try again within 20 seconds");
     } finally {
       setLoading(false);
     }
