@@ -6,7 +6,7 @@ import {
   Heart, MessageCircle, Bookmark, Users, Eye,
   ChevronLeft, ChevronRight, RefreshCw, Calendar,
   Globe, ShieldAlert, Activity, Flame, Mic, MicOff,
-  ClipboardList, Plus, Trash2, ChevronDown
+  ClipboardList, Plus, Trash2, ChevronDown, Volume2
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, AreaChart, Area } from "recharts";
 import BrandIntelligence from "@/components/BrandIntelligence";
@@ -48,7 +48,7 @@ interface Report {
   ig_data: any;
   ai_insight: string;
 }
-interface ChatMessage { role: "user" | "assistant"; content: string; }
+interface ChatMessage { role: "user" | "assistant"; content: string; suggestions?: string[]; }
 
 // ── Platform icons ───────
 const InstagramIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -596,6 +596,7 @@ export default function ClientPortal() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
   
   // Voice UI
   const [isListening, setIsListening] = useState(false);
@@ -603,6 +604,58 @@ export default function ClientPortal() {
   const recognitionRef = useRef<any>(null);
   const transcriptRef = useRef<string>("");
   const [chatMode, setChatMode] = useState<"text" | "voice">("text");
+
+  const formatMessage = (text: string): string => {
+    let html = text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    const lines = html.split('\n');
+    const processedLines: string[] = [];
+    let inList = false;
+    
+    for (const line of lines) {
+      const listMatch = line.match(/^[-*]\s+(.+)$/) || line.match(/^\d+\.\s+(.+)$/);
+      if (listMatch) {
+        if (!inList) {
+          processedLines.push('<ul class="list-disc list-inside space-y-1 mt-1 mb-1">');
+          inList = true;
+        }
+        processedLines.push(`<li>${listMatch[1]}</li>`);
+      } else {
+        if (inList) {
+          processedLines.push('</ul>');
+          inList = false;
+        }
+        processedLines.push(line);
+      }
+    }
+    
+    if (inList) processedLines.push('</ul>');
+    
+    return processedLines.join('\n');
+  };
+
+  const speakResponse = (text: string, index: number) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+        const preferredVoice = englishVoices.find(v => v.name.includes("Google US English") || v.name.includes("Samantha") || v.name.includes("Natural")) || englishVoices[0] || voices[0];
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+          utterance.lang = preferredVoice.lang;
+        }
+      } else {
+        utterance.lang = "en";
+      }
+      utterance.onend = () => setSpeakingIndex(null);
+      utterance.onerror = () => setSpeakingIndex(null);
+      setSpeakingIndex(index);
+      window.speechSynthesis.speak(utterance);
+    }
+  };
 
   const [competitors, setCompetitors] = useState<any[]>([]);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
@@ -637,6 +690,14 @@ export default function ClientPortal() {
     if (chatOpen) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "unset";
     return () => { document.body.style.overflow = "unset"; };
+  }, [chatOpen]);
+
+  // Cancel speech when chat closes
+  useEffect(() => {
+    if (!chatOpen) {
+      window.speechSynthesis.cancel();
+      setSpeakingIndex(null);
+    }
   }, [chatOpen]);
 
   // Back to top button visibility
@@ -1267,19 +1328,91 @@ export default function ClientPortal() {
   };
   const bestPost = getBestPost();
 
+  const buildSuggestedQuestions = () => {
+    const qs: string[] = [];
+    const platform = activePlatform;
+    const reach = currentData.total_reach || 0;
+    const engRate = currentData.engagement_rate || 0;
+    const followers = currentData.followers || 0;
+    const likes = currentData.total_likes || 0;
+    const comments = currentData.total_comments || 0;
+    const reachChange = currentData.reach_change;
+    const engChange = currentData.engagement_change;
+    const followersChange = currentData.followers_change;
+
+    if (reach > 0) {
+      if (reachChange && parseFloat(reachChange) > 0) qs.push(`What drove the ${reachChange}% reach increase?`);
+      else qs.push(`What can we do to grow reach further?`);
+    }
+    if (engRate > 0 && parseFloat(String(engRate)) < 3) {
+      qs.push(`Why is engagement at ${engRate}% and how do we improve it?`);
+    } else if (engRate > 0) {
+      qs.push(`What content types are driving the highest engagement?`);
+    }
+    if (followers > 0 && followersChange) {
+      qs.push(`What's behind the ${followersChange}% follower change?`);
+    }
+    if (bestPost) {
+      qs.push(`Can you analyze our top post performance?`);
+    }
+    const comps = automaticCompetitors?.competitors;
+    if (comps && comps.length > 0) {
+      qs.push(`How does our ${platform} performance compare to competitors?`);
+    }
+    if (likes > 0 || comments > 0) {
+      qs.push(`Break down our likes and comments performance.`);
+    }
+    qs.push(`Give me a full ${platform} performance synopsis.`);
+
+    const unique: string[] = [];
+    for (const q of qs) {
+      if (!unique.includes(q)) unique.push(q);
+    }
+    return unique.slice(0, 4);
+  };
+
   const sendChat = async (voiceQuery?: string | React.MouseEvent | React.KeyboardEvent) => {
     const queryText = typeof voiceQuery === 'string' ? voiceQuery : chatInput;
     if (!queryText.trim() || chatLoading || !active) return;
     const q = queryText.trim();
     
-    // Construct active context
-    const reach = activePlatform === "facebook" && liveFBLoading ? "Loading" : fbMetric("total_reach") ?? currentData.total_reach;
-    const impressions = activePlatform === "facebook" && liveFBLoading ? "Loading" : fbMetric("total_impressions") ?? currentData.total_impressions;
+    const reach = activePlatform === "facebook" && liveFBLoading ? "Loading" : (fbMetric("total_reach") ?? currentData.total_reach);
+    const impressions = activePlatform === "facebook" && liveFBLoading ? "Loading" : (fbMetric("total_impressions") ?? currentData.total_impressions);
     const engagement = currentData.engagement_rate;
-    
+    const followers = (fbMetric("followers") ?? currentData.followers) || 0;
     const compNames = automaticCompetitors?.competitors?.map((c: any) => c.name || c.handle).join(", ") || "None listed";
-    const contextStr = `System: You are analyzing live dashboard data for the client '${brandName}' for ${active.month} ${active.year}. Active Platform Metrics: Monthly Reach: ${reach}, Impressions: ${impressions}, Engagement Rate: ${engagement}%. Competitors: ${compNames}.
-IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for a synopsis or general update, provide a comprehensive reply summarizing their performance and briefly touching on their position vs competitors. Make it interactive by ending with a thoughtful question.`;
+    
+    const topPost = bestPost;
+    const topPostInfo = topPost ? `Top Post: "${topPost.caption?.substring(0, 80) || 'No caption'}" — Likes: ${topPost.likes || topPost.total_likes || 0}, Comments: ${topPost.comments || topPost.total_comments || 0}, Engagement: ${topPost.engagement_rate || 0}%` : "No top post data";
+    
+    const contentBreakdown = currentData.content_type_breakdown ? 
+      Object.entries(currentData.content_type_breakdown).map(([type, val]: [string, any]) => `${type}: Reach ${val.reach || 0}, Engagement ${val.engagement || 0}`).join("; ") 
+      : "No content breakdown";
+
+    const recentPosts = (posts?.slice(0, 5) || []).map((p: any) => 
+      `"${(p.caption || '').substring(0, 40)}" — ${p.likes || p.total_likes || 0} likes, ${p.comments || p.total_comments || 0} comments`
+    ).join(" | ");
+
+    const contextStr = `You are a senior social media strategist. Analyze the client '${brandName}' for ${active.month} ${active.year}.
+
+CURRENT METRICS (${activePlatform}):
+- Reach: ${reach} | Impressions: ${impressions} | Engagement: ${engagement}%
+- Followers: ${followers} | Likes: ${currentData.total_likes || 0} | Comments: ${currentData.total_comments || 0} | Saves: ${currentData.total_saves || 0}
+- Reach Change: ${currentData.reach_change || "N/A"}% | Engagement Change: ${currentData.engagement_change || "N/A"}% | Followers Change: ${currentData.followers_change || "N/A"}%
+- Content Breakdown: ${contentBreakdown}
+- Top Post: ${topPostInfo}
+- Recent Posts: ${recentPosts}
+- Competitors: ${compNames}
+- Platform: ${activePlatform}
+
+INSTRUCTIONS:
+- Tone: Data-driven, professional, sales-oriented consultant
+- Structure: Bold headers with bullet points. Each bullet MUST reference a specific number from data above
+- Be specific and detailed — cite exact values
+- Do NOT use markdown headers (#, ##)
+- Do NOT include question suggestions in your response
+- Keep responses focused on ${activePlatform} data
+- If asked for synopsis, cover reach, engagement, content performance, competition, and recommendations with numbers`;
 
     setChatInput("");
     setChatMessages(p => [...p, { role: "user", content: q }]);
@@ -1297,33 +1430,11 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
       });
       const data = await res.json();
       const answer = data.answer || "No response.";
-      setChatMessages(p => [...p, { role: "assistant", content: answer }]);
-      
-      speakResponse(answer);
+      const suggestions = buildSuggestedQuestions();
+      setChatMessages(p => [...p, { role: "assistant", content: answer, suggestions }]);
     } catch {
       setChatMessages(p => [...p, { role: "assistant", content: "Connection error." }]);
     } finally { setChatLoading(false); }
-  };
-
-  const speakResponse = (text: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        const englishVoices = voices.filter(v => v.lang.startsWith('en'));
-        const preferredVoice = englishVoices.find(v => v.name.includes("Google US English") || v.name.includes("Samantha") || v.name.includes("Natural")) || englishVoices[0] || voices[0];
-        if (preferredVoice) {
-          utterance.voice = preferredVoice;
-          utterance.lang = preferredVoice.lang;
-        }
-      } else {
-        utterance.lang = "en";
-      }
-      
-      window.speechSynthesis.speak(utterance);
-    }
   };
 
   const startListening = () => {
@@ -3001,7 +3112,32 @@ IMPORTANT INSTRUCTION: Be conversational and professional. If the user asks for 
                 <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                   msg.role === "user" ? "bg-[#113a87] text-white rounded-br-sm" : "bg-gray-100 text-gray-700 rounded-bl-sm"
                 }`}>
-                  {msg.content}
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1" dangerouslySetInnerHTML={{ __html: msg.role === "assistant" ? formatMessage(msg.content) : msg.content }} />
+                    {msg.role === "assistant" && (
+                      <button
+                        onClick={() => speakingIndex === i ? window.speechSynthesis.cancel() : speakResponse(msg.content.replace(/<[^>]*>/g, ''), i)}
+                        className={`flex-shrink-0 p-1 rounded transition-colors ${speakingIndex === i ? "bg-[#113a87]/20 text-[#113a87]" : "text-gray-400 hover:text-[#113a87] hover:bg-gray-200"}`}
+                        title={speakingIndex === i ? "Stop reading" : "Read aloud"}
+                      >
+                        <Volume2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {msg.role === "assistant" && msg.suggestions && msg.suggestions.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {msg.suggestions.map((s, si) => (
+                        <button
+                          key={si}
+                          onClick={() => sendChat(s)}
+                          disabled={chatLoading}
+                          className="text-xs px-2.5 py-1 bg-[#113a87]/5 border border-[#113a87]/20 rounded-full text-[#113a87] hover:bg-[#113a87]/10 hover:border-[#113a87]/30 transition-all disabled:opacity-40"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
