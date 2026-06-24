@@ -1412,7 +1412,14 @@ INSTRUCTIONS:
 - Do NOT use markdown headers (#, ##)
 - Do NOT include question suggestions in your response
 - Keep responses focused on ${activePlatform} data
-- If asked for synopsis, cover reach, engagement, content performance, competition, and recommendations with numbers`;
+
+REQUIRED ANALYSIS FRAMEWORK (apply to every response):
+1. **WHAT WORKED** — Identify top-performing metrics/content with numbers. Explain WHY it worked (format, timing, audience match, algorithm signals)
+2. **WHAT DIDN'T WORK** — Identify underperforming areas with numbers. Explain root causes (low reach, weak hooks, wrong format, audience mismatch, saturation)
+3. **COMPETITIVE POSITION** — Compare against listed competitors using available data. Where are we winning/losing?
+4. **ACTIONABLE RECOMMENDATIONS** — Specific, prioritized next steps with expected impact. Format: "Do X to achieve Y because Z"
+
+Every response must include all 4 sections. If asked for synopsis, lead with an executive summary then detail each section covering reach, engagement, content performance, competition, and recommendations with numbers.`;
 
     setChatInput("");
     setChatMessages(p => [...p, { role: "user", content: q }]);
