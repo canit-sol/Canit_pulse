@@ -1239,6 +1239,32 @@ export default function ClientPortal() {
       publishingStats: "Active"
     };
   };
+
+  const getBlogsOverviewStats = () => {
+    if (activeMonthlySeoReport && activeMonthlySeoReport.seo_metrics) {
+      const m = activeMonthlySeoReport.seo_metrics;
+      return {
+        source: "pdf",
+        isEstimated: false,
+        organicShare: typeof m.impressions === 'number' && m.clicks > 0 ? Math.round((m.clicks / m.impressions) * 100) : 0,
+        visits: typeof m.sessions === 'number' ? m.sessions : 0,
+        trafficGrowth: 0,
+        blogReadTime: typeof m.avg_session_duration === 'number' ? Math.round(m.avg_session_duration / 60) : 0,
+        engagement: typeof m.ctr === 'number' ? Math.round(m.ctr * 10) / 10 : 0,
+        seoScore: seoData?.seoScore || 0,
+        blogs: clientBlogs?.length || 0
+      };
+    }
+    const fake = getWebsiteData();
+    return {
+      ...fake,
+      source: "website",
+      isEstimated: true,
+      seoScore: 0
+    };
+  };
+
+  const blogsStats = getBlogsOverviewStats();
   const websiteData = getWebsiteData();
 
   // B) Explicit Mapping: SEO Data (Uploaded PDF Analytics)
@@ -1762,6 +1788,7 @@ Every response must include all 4 sections. If asked for synopsis, lead with an 
             ) : (
             <>
             {/* ── Global Overview Stats (Dynamic to the active tab!) ── */}
+            {activePlatform !== "blogs" && (
             <div className={`tour-metrics-overview grid gap-4 mb-10 stagger-children transition-all duration-500 ${
               activePlatform === "youtube" ? "grid-cols-1 md:grid-cols-3" : "grid-cols-2 lg:grid-cols-4"
             }`}>
@@ -1771,18 +1798,20 @@ Every response must include all 4 sections. If asked for synopsis, lead with an 
                   icon: Eye,
                   label: activePlatform === "youtube" ? "Total Views" : "Monthly Reach",
                   value: activePlatform === "blogs"
-                    ? `${websiteData?.organicShare || 0}%`
+                    ? `${blogsStats?.organicShare || 0}%`
                     : activePlatform === "youtube"
                       ? (currentData.total_views ?? 0).toLocaleString()
                       : (activePlatform === "facebook"
                           ? (liveFBLoading ? undefined : fbMetric("total_reach") ?? currentData.total_reach)
                           : currentData.total_reach),
                   sub: activePlatform === "blogs"
-                    ? "Share of search voice"
+                    ? (blogsStats?.isEstimated ? "Share of search voice (Estimated)" : "Share of search voice")
                     : activePlatform === "youtube"
                       ? "All time views"
                       : (activePlatform === "facebook" ? "Facebook" : "Active platform"),
-                  extra: activePlatform === "instagram" && ig.bifurcation_available && ig.organic ? (
+                  extra: activePlatform === "blogs" && blogsStats?.isEstimated ? (
+                    <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold">Estimated</span>
+                  ) : activePlatform === "instagram" && ig.bifurcation_available && ig.organic ? (
                     <p className={`text-[10px] mt-1 px-0.5 font-semibold ${theme.valueColor} opacity-80`}>
                       {ig.organic.total_reach} organic · {ig.paid?.total_reach ?? "0"} paid
                     </p>
@@ -1797,12 +1826,14 @@ Every response must include all 4 sections. If asked for synopsis, lead with an 
                   icon: TrendingUp,
                   label: activePlatform === "blogs" ? "Search Traffic" : "Impressions",
                   value: activePlatform === "blogs"
-                    ? websiteData?.visits
+                    ? (blogsStats?.visits || 0).toLocaleString()
                     : (activePlatform === "facebook"
                         ? (liveFBLoading ? undefined : fbMetric("total_impressions") ?? currentData.total_impressions)
                         : currentData.total_impressions),
                   sub: activePlatform === "blogs"
-                    ? `visits (+${websiteData?.trafficGrowth || 0}% growth)`
+                    ? blogsStats?.isEstimated
+                      ? `visits (Estimated)`
+                      : `sessions`
                     : "This month"
                 },
                 activePlatform !== "youtube" && {
@@ -1810,12 +1841,16 @@ Every response must include all 4 sections. If asked for synopsis, lead with an 
                   icon: BarChart3,
                   label: activePlatform === "blogs" ? "Blog Engagement" : "Engagement Rate",
                   value: activePlatform === "blogs"
-                    ? `${websiteData?.engagement || 0}%`
+                    ? `${blogsStats?.engagement || 0}%`
                     : (activePlatform === "facebook" && liveFBLoading ? undefined : currentData.engagement_rate),
                   sub: activePlatform === "blogs"
-                    ? `${websiteData?.blogReadTime || 0}m avg read time`
+                    ? blogsStats?.isEstimated
+                      ? `${blogsStats?.blogReadTime || 0}m avg read (Estimated)`
+                      : `${blogsStats?.blogReadTime || 0}m avg session`
                     : "Avg. rate",
-                  extra: activePlatform === "instagram" && ig.organic ? (
+                  extra: activePlatform === "blogs" && blogsStats?.isEstimated ? (
+                    <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold">Estimated</span>
+                  ) : activePlatform === "instagram" && ig.organic ? (
                     <p className={`text-[10px] mt-1 px-0.5 font-semibold ${theme.valueColor} opacity-80`}>
                       {ig.organic.engagement_rate || "0%"} organic · {ig.engagement_rate} total
                     </p>
@@ -1837,7 +1872,7 @@ Every response must include all 4 sections. If asked for synopsis, lead with an 
                   icon: Users,
                   label: activePlatform === "blogs" ? "Monthly SEO Score" : activePlatform === "youtube" ? "Subscribers" : (activePlatform === "facebook" ? "Page Followers" : "Followers"),
                   value: activePlatform === "blogs"
-                    ? `${seoData?.seoScore || 0}/100`
+                    ? `${blogsStats?.seoScore || 0}/100`
                     : activePlatform === "youtube"
                       ? (currentData.subscribers ?? 0).toLocaleString()
                       : (activePlatform === "facebook" && liveFBLoading
@@ -1848,10 +1883,17 @@ Every response must include all 4 sections. If asked for synopsis, lead with an 
                             ).toLocaleString()
                         ),
                   sub: activePlatform === "blogs"
-                    ? (!activeMonthlySeoReport ? "Awaiting Report" : "Audit ranking scale")
+                    ? (blogsStats?.isEstimated
+                        ? "Estimated score"
+                        : !activeMonthlySeoReport
+                          ? "Awaiting Report"
+                          : "Audit ranking scale")
                     : activePlatform === "youtube"
                       ? "Total subscribers"
-                      : (activePlatform === "facebook" && fb.fan_count ? `${Number(fb.fan_count).toLocaleString()} fans` : undefined)
+                      : (activePlatform === "facebook" && fb.fan_count ? `${Number(fb.fan_count).toLocaleString()} fans` : undefined),
+                  extra: activePlatform === "blogs" && blogsStats?.isEstimated ? (
+                    <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold">Estimated</span>
+                  ) : null
                 }
               ].filter(Boolean).map(({ id, icon: Icon, label, value, sub, extra }) => (
                 <ThemedStatCard
@@ -1865,6 +1907,7 @@ Every response must include all 4 sections. If asked for synopsis, lead with an 
                 />
               ))}
             </div>
+            )}
 
             {/* ── AI Brand Intelligence (unified workspace) ── */}
             <div className="tour-brand-intel joyride-ai-brand-intelligence mt-6">
