@@ -23,15 +23,6 @@ def get_groq_client():
         return None
 
 def fetch_automatic_competitors(client_handle: str, industry: str) -> dict:
-    """
-    Automatic Competitor Intelligence Engine.
-    Flow:
-    1. Analyze client niche/content ecosystem.
-    2. Discover exactly 3 similar public real-world competitor handles and brand names using LLM.
-    3. Standardize and fetch public Instagram metrics (followers, following, post counts) using public_fetcher.
-    4. Generate comparative, social-content behavior metrics and AI insights.
-    5. Cache the results for fast subsequent loading.
-    """
     now = time.time()
     sanitized_handle = client_handle.strip().lstrip("@")
     sanitized_industry = industry.strip()
@@ -264,27 +255,18 @@ Output ONLY valid JSON according to the specified structure.
             {
                 "handle": comp_profiles[0].get("handle"),
                 "name": comp_profiles[0].get("name"),
-                "followers": comp_profiles[0].get("followers", 0),
-                "posts": comp_profiles[0].get("post_count", 0),
-                "engagement_score": comp_profiles[0].get("engagement_score", 0),
                 "style_summary": comp_profiles[0].get("style_summary"),
                 "key": "competitor1"
             },
             {
                 "handle": comp_profiles[1].get("handle"),
                 "name": comp_profiles[1].get("name"),
-                "followers": comp_profiles[1].get("followers", 0),
-                "posts": comp_profiles[1].get("post_count", 0),
-                "engagement_score": comp_profiles[1].get("engagement_score", 0),
                 "style_summary": comp_profiles[1].get("style_summary"),
                 "key": "competitor2"
             },
             {
                 "handle": comp_profiles[2].get("handle"),
                 "name": comp_profiles[2].get("name"),
-                "followers": comp_profiles[2].get("followers", 0),
-                "posts": comp_profiles[2].get("post_count", 0),
-                "engagement_score": comp_profiles[2].get("engagement_score", 0),
                 "style_summary": comp_profiles[2].get("style_summary"),
                 "key": "competitor3"
             }
@@ -353,27 +335,18 @@ def generate_mock_competitor_intelligence(client_handle: str, industry: str, cli
             {
                 "handle": comp_profiles[0].get("handle"),
                 "name": comp_profiles[0].get("name"),
-                "followers": comp_profiles[0].get("followers") or 450000,
-                "posts": comp_profiles[0].get("post_count") or 1240,
-                "engagement_score": comp_profiles[0].get("engagement_score") or 1.8,
                 "style_summary": comp_profiles[0].get("style_summary"),
                 "key": "competitor1"
             },
             {
                 "handle": comp_profiles[1].get("handle"),
                 "name": comp_profiles[1].get("name"),
-                "followers": comp_profiles[1].get("followers") or 1250000,
-                "posts": comp_profiles[1].get("post_count") or 4890,
-                "engagement_score": comp_profiles[1].get("engagement_score") or 2.1,
                 "style_summary": comp_profiles[1].get("style_summary"),
                 "key": "competitor2"
             },
             {
                 "handle": comp_profiles[2].get("handle"),
                 "name": comp_profiles[2].get("name"),
-                "followers": comp_profiles[2].get("followers") or 28000,
-                "posts": comp_profiles[2].get("post_count") or 345,
-                "engagement_score": comp_profiles[2].get("engagement_score") or 5.6,
                 "style_summary": comp_profiles[2].get("style_summary"),
                 "key": "competitor3"
             }

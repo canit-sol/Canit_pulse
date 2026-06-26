@@ -256,12 +256,7 @@ function CompetitorIntelCard({ competitorData, compLoading, onCompRefresh }: {
         {competitors.map((comp: any, idx: number) => {
           const name = comp.name || comp.handle || "Competitor";
           const handle = `@${(comp.handle || "").replace("@", "")}`;
-          const followers = Number(comp.followers) || 0;
-          const posts = Number(comp.posts) || 0;
-          const engRaw = Number(comp.engagement_score) || 0;
           const style = comp.style_summary || comp.niche || "";
-          const label = getGrowthLabel(followers, posts);
-          const gs = GROWTH_STYLES[label];
 
           return (
             <div
@@ -273,7 +268,7 @@ function CompetitorIntelCard({ competitorData, compLoading, onCompRefresh }: {
                 <span className="text-[10px] font-black text-white">{name.charAt(0).toUpperCase()}</span>
               </div>
 
-              {/* Name + handle */}
+              {/* Name + handle + style */}
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-black text-gray-800 truncate leading-none">{name}</p>
                 <div className="flex items-center gap-2 mt-0.5">
@@ -289,26 +284,6 @@ function CompetitorIntelCard({ competitorData, compLoading, onCompRefresh }: {
                     <span className="text-[9px] text-gray-400 truncate hidden sm:block">· {style.slice(0, 30)}{style.length > 30 ? "…" : ""}</span>
                   )}
                 </div>
-              </div>
-
-              {/* Metrics — only if > 0 */}
-              <div className="flex items-center gap-2 shrink-0">
-                {followers > 0 && (
-                  <div className="text-right hidden lg:block">
-                    <p className="text-[10px] font-black text-gray-700">{fmtNum(followers)}</p>
-                    <p className="text-[8px] text-gray-400">followers</p>
-                  </div>
-                )}
-                {engRaw > 0 && (
-                  <div className="text-right hidden lg:block">
-                    <p className="text-[10px] font-black text-[#113a87]">{engRaw.toFixed(1)}%</p>
-                    <p className="text-[8px] text-gray-400">eng.</p>
-                  </div>
-                )}
-                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-0.5 ${gs.bg} ${gs.text}`}>
-                  <span className={`w-1 h-1 rounded-full ${gs.dot}`} />
-                  {label}
-                </span>
               </div>
             </div>
           );

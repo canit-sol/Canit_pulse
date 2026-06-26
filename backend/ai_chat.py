@@ -1,18 +1,27 @@
 """
 AI Synopsis generator + AI chat interface for report data.
-Uses Groq (free) — swap to Anthropic when key arrives.
+Uses Groq for synopsis, Gemini for chat.
 """
 import os
 import json
+from typing import Optional
 from groq import Groq
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=True)
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-MODEL  = "llama-3.3-70b-versatile"
+groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+GROQ_MODEL  = "llama-3.3-70b-versatile"
+
+gemini_client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+GEMINI_MODEL = "gemini-2.5-flash"
+
+# Simple counter for Gemini chat API calls (resets on server restart)
+gemini_chat_calls = 0
 
 
-def generate_synopsis(report_data: dict, instagram_data: dict, facebook_data: dict = None) -> str:
+def generate_synopsis(report_data: dict, instagram_data: dict, facebook_data: Optional[dict] = None) -> str:
     """
     Generate a 3-4 sentence AI written synopsis of the month's performance.
     Honest, insightful, written like a real marketing analyst.
@@ -58,20 +67,22 @@ Instagram Data:
 Write a 3-4 sentence professional synopsis covering all connected platforms. Be specific with numbers. Mention what worked well, what the posting consistency was like, and one forward-looking insight. 
 Do NOT use bullet points. Write in flowing prose. Keep it under 80 words. Sound like a real analyst, not an AI."""
 
-    res = client.chat.completions.create(
-        model=MODEL,
+    res = groq_client.chat.completions.create(
+        model=GROQ_MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.7,
         max_tokens=200,
     )
-    return res.choices[0].message.content.strip()
+    return res.choices[0].message.content.strip() if res.choices[0].message.content else ""
 
 
-def chat_with_report(question: str, report_data: dict, platform_data: dict, history: list, context_str: str = None) -> str:
+def chat_with_report(question: str, report_data: dict, platform_data: dict, history: list, context_str: Optional[str] = None) -> str:
     """
     Answer questions about the report data.
     history = list of {"role": "user"/"assistant", "content": "..."}
     """
+    global gemini_chat_calls
+    gemini_chat_calls += 1
     client_name = report_data.get("client_name", "the client")
     month = report_data.get("month", "")
     year  = report_data.get("year", "")
@@ -100,15 +111,19 @@ If asked for strategy, give real actionable advice based on what the numbers sho
 Keep answers under 60 words unless a detailed breakdown is asked for."""
 
     messages = [{"role": "system", "content": system}]
-    # Add conversation history (last 6 messages)
-    for h in history[-6:]:
+    # Add conversation history (last 2 messages = 1 full turn)
+    for h in history[-2:]:
         messages.append(h)
     messages.append({"role": "user", "content": question})
 
-    res = client.chat.completions.create(
-        model=MODEL,
-        messages=messages,
-        temperature=0.6,
-        max_tokens=300,
+    # Convert to Gemini format
+    prompt = "\n".join([f"{m['role']}: {m['content']}" for m in messages])
+
+    res = gemini_client.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0.6,
+        ),
     )
-    return res.choices[0].message.content.strip()
+    return res.text.strip() if res.text else ""

@@ -2,6 +2,7 @@ import os
 import uuid
 import json
 import re
+import time
 import requests  # <--- Added the missing requests library
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from groq import Groq
+from google import genai
+from google.genai import types
 # Internal Imports
 import database as models
 from database import get_db, Client, User, Report, SystemConfig, ContentCalendar, create_tables, seed_admin, supabase, get_config, set_config
@@ -20,6 +23,7 @@ from auth import hash_password, verify_password, create_token, get_current_user,
 from services.platform_router import fetch_platform_data
 import routes
 import routes_v3
+import ai_chat
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from services.meta_ads import sync_all_campaigns
@@ -65,6 +69,12 @@ app.include_router(routes.router, prefix="/api")
 app.include_router(routes_v3.router_v3, prefix="/api")
 
 client_ai = Groq(api_key=os.getenv("GROQ_API_KEY"))
+gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+# Simple object to hold cached health check results
+class HealthCache:
+    pass
+health_cache = HealthCache()
 
 from typing import Optional
 
@@ -593,8 +603,7 @@ def check_api_health(current_user: AuthIdentity = Depends(require_admin)):
     from services.permissions import can_access_settings
     if not can_access_settings(current_user.role):
         raise HTTPException(status_code=403, detail="Not authorized to access settings.")
-    """Ping Meta Graph API and Groq to return live connection status."""
-    import time
+    """Ping Meta Graph API, Groq, and Gemini to return live connection status."""
 
     # --- Meta Graph API Check ---
     meta_status = {"status": "offline", "latency_ms": 0}
@@ -627,7 +636,46 @@ def check_api_health(current_user: AuthIdentity = Depends(require_admin)):
     except Exception:
         groq_status = {"status": "offline", "latency_ms": 0}
 
-    return {"meta": meta_status, "groq": groq_status}
+    # --- Groq GPT-OSS-120B API Check ---
+    groq_gpt_status = {"status": "offline", "latency_ms": 0}
+    try:
+        start = time.time()
+        gpt_res = client_ai.chat.completions.create(
+            messages=[{"role": "user", "content": "ping"}],
+            model="openai/gpt-oss-120b",
+            max_tokens=1,
+        )
+        latency = round((time.time() - start) * 1000)
+        if gpt_res.choices:
+            groq_gpt_status = {"status": "connected", "latency_ms": latency}
+    except Exception:
+        groq_gpt_status = {"status": "offline", "latency_ms": 0}
+
+    # --- Gemini API Check (cached for 60s) ---
+    gemini_status = {"status": "offline", "latency_ms": 0}
+    now = time.time()
+    if hasattr(health_cache, "gemini") and now - health_cache.gemini["time"] < 60:
+        gemini_status = health_cache.gemini["status"]
+    else:
+        try:
+            start = time.time()
+            gemini_res = gemini_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents="Say OK",
+                config=types.GenerateContentConfig(max_output_tokens=10),
+            )
+            latency = round((time.time() - start) * 1000)
+            if gemini_res.candidates and gemini_res.candidates[0].finish_reason == 1:
+                gemini_status = {"status": "connected", "latency_ms": latency}
+        except Exception as e:
+            print(f"[Health] Gemini check failed: {e}")
+            gemini_status = {"status": "offline", "latency_ms": 0}
+        if not hasattr(health_cache, "gemini"):
+            health_cache.gemini = {}
+        health_cache.gemini["time"] = now
+        health_cache.gemini["status"] = gemini_status
+
+    return {"meta": meta_status, "groq": groq_status, "groq_gpt": groq_gpt_status, "gemini": gemini_status}
 
 
 @app.get("/api/settings/quota")
@@ -654,6 +702,11 @@ def get_monthly_quota(current_user: AuthIdentity = Depends(require_admin), db: S
         "monthly_cap": monthly_cap,
         "month": current_month,
         "year": current_year,
+        "gemini_chat_calls": ai_chat.gemini_chat_calls,
+        "gemini_model": "gemini-2.5-flash",
+        "gemini_rpm_limit": 10,
+        "gemini_tpm_limit": 250000,
+        "gemini_rpd_limit": 1500,
     }
 
 

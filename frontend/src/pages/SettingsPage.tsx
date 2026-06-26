@@ -525,6 +525,61 @@ export default function SettingsPage() {
                 ]}
               />
 
+              {/* Gemini AI Card */}
+              <IntegrationCard
+                title="Gemini AI Engine"
+                subtitle="Gemini-2.5 flash powered chatbot"
+                iconBg="bg-purple-50"
+                iconColor="text-purple-600"
+                status={health?.gemini?.status}
+                latency={health?.gemini?.latency_ms}
+                loading={healthLoading}
+                details={[
+                  { label: "Model", value: "gemini-2.5-flash" },
+                  { label: "Provider", value: "Google AI" },
+                ]}
+              />
+
+              {/* Gemini Usage Quota Card */}
+              <div className="glass-panel p-6 shadow-soft animate-in fade-in duration-300">
+                <div className="flex items-center gap-3 mb-5 border-b border-white/40 pb-4">
+                  <div className="p-2.5 bg-purple-500/10 rounded-xl text-purple-600">
+                    <Zap size={20} />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-lg font-bold text-[#1a1a1a] font-heading">Gemini API Usage</h2>
+                    <p className="text-xs text-gray-400 font-medium mt-0.5">Free tier rate limits (per project)</p>
+                  </div>
+                  <div className={`flex items-center gap-2 px-3 py-1.5 border rounded-full ${
+                    health?.gemini?.status === "connected"
+                      ? "bg-green-500/10 border-green-500/20 text-green-700"
+                      : "bg-red-500/10 border-red-500/20 text-red-700"
+                  }`}>
+                    <span className={`w-2 h-2 rounded-full ${health?.gemini?.status === "connected" ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
+                    <span className="text-xs font-bold font-heading">
+                      {health?.gemini?.status === "connected" ? "Connected" : health?.gemini?.status ? "Offline" : "Not tested"}
+                    </span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { label: "Rate Limit", value: "10 RPM", desc: "Requests per minute" },
+                    { label: "Token Limit", value: "250K TPM", desc: "Tokens per minute" },
+                    { label: "Daily Limit", value: "1,500 RPD", desc: "Requests per day" },
+                    { label: "Chat Calls", value: quota?.gemini_chat_calls ?? 0, desc: "This session" },
+                  ].map((s) => (
+                    <div key={s.label} className="glass-card p-4 text-center bg-white/40 border-white/50 hover:border-white/70">
+                      <div className="text-xs font-black text-[#1a1a1a] font-heading mb-1">{s.value}</div>
+                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{s.label}</div>
+                      <div className="text-[9px] text-gray-400 mt-1">{s.desc}</div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-gray-400 mt-3 text-center">
+                  Upgrade to paid tier for 2,000 RPM and 4M TPM. Enable billing in Google AI Studio.
+                </p>
+              </div>
+
               {/* YouTube API Key Card */}
               <div className="glass-panel p-6 shadow-soft animate-in fade-in duration-300">
                 <div className="flex items-center gap-3 mb-6 border-b border-white/40 pb-4">

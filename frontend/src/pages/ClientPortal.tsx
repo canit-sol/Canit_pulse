@@ -1430,7 +1430,7 @@ Every response must include all 4 sections. If asked for synopsis, lead with an 
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ 
           question: q, 
-          history: chatMessages.slice(-6), 
+          history: chatMessages.slice(-2), 
           context: contextStr,
           platform_data: currentData
         }),
