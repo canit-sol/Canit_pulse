@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Loader2, ClipboardList, Check, Star } from "lucide-react";
+import { Loader2, ClipboardList, Check, Star, X } from "lucide-react";
 import { usePermissions } from "../hooks/usePermissions";
 
 interface Deliverable {
