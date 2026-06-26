@@ -2948,6 +2948,73 @@ def update_client_note(
     db.commit()
     return {"content": note.content}
 
+# ── REPORT FEEDBACK (Client edits, Client/CSM/Super Admin views) ────────────────────────
+
+@router.get("/report-feedback")
+def get_report_feedback(
+    clientId: str,
+    month: str,
+    year: str,
+    current_user: AuthIdentity = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Clients can only view their own, CSM/Super Admin can view any
+    if current_user.role == "client" and current_user.client_id != clientId:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+    if current_user.role not in ("client", "csm", "super_admin", "admin"):
+        raise HTTPException(status_code=403, detail="Forbidden.")
+    from database import ReportFeedback
+    feedback = db.query(ReportFeedback).filter(
+        ReportFeedback.client_id == clientId,
+        ReportFeedback.month == month,
+        ReportFeedback.year == year,
+    ).first()
+    return {
+        "rating": feedback.rating if feedback else None,
+        "content": feedback.content if feedback else ""
+    }
+
+@router.put("/report-feedback")
+def update_report_feedback(
+    req: dict,
+    current_user: AuthIdentity = Depends(require_client),
+    db: Session = Depends(get_db)
+):
+    # Only clients can edit report feedback
+    if current_user.role != "client":
+        raise HTTPException(status_code=403, detail="Only clients can submit report feedback.")
+    clientId = req["clientId"]
+    if current_user.client_id != clientId:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+    from database import ReportFeedback
+    feedback = db.query(ReportFeedback).filter(
+        ReportFeedback.client_id == clientId,
+        ReportFeedback.month == req["month"],
+        ReportFeedback.year == req["year"],
+    ).first()
+    if feedback:
+        if "rating" in req:
+            feedback.rating = req.get("rating")
+        if "content" in req:
+            feedback.content = req.get("content", "")
+        from datetime import datetime
+        feedback.updated_at = datetime.utcnow()
+    else:
+        feedback = ReportFeedback(
+            id=str(uuid.uuid4()),
+            client_id=clientId,
+            month=req["month"],
+            year=req["year"],
+            rating=req.get("rating"),
+            content=req.get("content", ""),
+        )
+        db.add(feedback)
+    db.commit()
+    return {
+        "rating": feedback.rating,
+        "content": feedback.content
+    }
+
 # ── AD SPENDS ──────────────────────────────────────────────
 
 def _parse_month_year(m: str):

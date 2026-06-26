@@ -232,6 +232,7 @@ class Client(Base):
     ad_spends   = relationship("AdSpend", back_populates="client", cascade="all, delete-orphan")
     ad_budgets  = relationship("AdBudget", back_populates="client", cascade="all, delete-orphan")
     client_notes = relationship("ClientNote", back_populates="client", cascade="all, delete-orphan")
+    report_feedbacks = relationship("ReportFeedback", back_populates="client", cascade="all, delete-orphan")
 
 class Competitor(Base):
     __tablename__ = "competitors"
@@ -438,6 +439,19 @@ class ClientNote(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     client = relationship("Client", back_populates="client_notes")
+
+class ReportFeedback(Base):
+    __tablename__ = "report_feedback"
+    id        = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    client_id = Column(String, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False)
+    month     = Column(String, nullable=False)
+    year      = Column(String, nullable=False)
+    rating    = Column(Integer, nullable=True)  # 1-5 stars
+    content   = Column(String, default="")       # optional text
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    client = relationship("Client", back_populates="report_feedbacks")
 
 class CampaignMetric(Base):
     """Daily snapshots of Meta Ads campaign performance."""

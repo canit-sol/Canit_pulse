@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Loader2, ClipboardList, Check, X } from "lucide-react";
+import { Loader2, ClipboardList, Check, Star } from "lucide-react";
 import { usePermissions } from "../hooks/usePermissions";
 
 interface Deliverable {
@@ -30,13 +30,19 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
   const permissions = usePermissions();
   const canEdit = permissions.role === "super_admin" || permissions.role === "csm" || permissions.role === "admin";
   const canEditNotes = permissions.role === "super_admin" || permissions.role === "admin" || permissions.role === "client";
+  const isClient = permissions.role === "client";
+  const canViewFeedback = permissions.role === "client" || permissions.role === "csm" || permissions.role === "super_admin" || permissions.role === "admin";
 
   const [items, setItems] = useState<Deliverable[]>([]);
   const [loading, setLoading] = useState(true);
   const [focusItemId, setFocusItemId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [notesLoading, setNotesLoading] = useState(true);
+  const [feedback, setFeedback] = useState("");
+  const [feedbackRating, setFeedbackRating] = useState<number | null>(null);
+  const [feedbackLoading, setFeedbackLoading] = useState(true);
   const notesSaveTimer = useRef<NodeJS.Timeout | null>(null);
+  const feedbackSaveTimer = useRef<NodeJS.Timeout | null>(null);
 
   const saveTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
 
@@ -85,6 +91,26 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
     fetchNotes();
   }, [clientId, month, year]);
 
+  useEffect(() => {
+    const fetchFeedback = async () => {
+      try {
+        const res = await fetch(`/api/report-feedback?clientId=${clientId}&month=${month}&year=${year}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("bento_token")}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setFeedback(data.content || "");
+          setFeedbackRating(data.rating);
+        }
+      } catch (err) {
+        console.error("Failed to fetch report feedback", err);
+      } finally {
+        setFeedbackLoading(false);
+      }
+    };
+    fetchFeedback();
+  }, [clientId, month, year]);
+
   const handleNotesChange = (val: string) => {
     setNotes(val);
     if (notesSaveTimer.current) clearTimeout(notesSaveTimer.current);
@@ -101,6 +127,38 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
     }, 800);
   };
 
+  const handleFeedbackChange = (val: string) => {
+    setFeedback(val);
+    if (feedbackSaveTimer.current) clearTimeout(feedbackSaveTimer.current);
+    feedbackSaveTimer.current = setTimeout(async () => {
+      try {
+        await fetch(`/api/report-feedback`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("bento_token")}` },
+          body: JSON.stringify({ clientId, month, year, content: val, rating: feedbackRating }),
+        });
+      } catch (err) {
+        console.error("Failed to save report feedback", err);
+      }
+    }, 800);
+  };
+
+  const handleRatingChange = (rating: number) => {
+    setFeedbackRating(rating);
+    if (feedbackSaveTimer.current) clearTimeout(feedbackSaveTimer.current);
+    feedbackSaveTimer.current = setTimeout(async () => {
+      try {
+        await fetch(`/api/report-feedback`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("bento_token")}` },
+          body: JSON.stringify({ clientId, month, year, rating: rating === 0 ? null : rating }),
+        });
+      } catch (err) {
+        console.error("Failed to save rating", err);
+      }
+    }, 300);
+  };
+
   // Clean up timeouts on unmount
   useEffect(() => {
     return () => {
@@ -108,6 +166,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
         clearTimeout(saveTimeoutsRef.current[id]);
       });
       if (notesSaveTimer.current) clearTimeout(notesSaveTimer.current);
+      if (feedbackSaveTimer.current) clearTimeout(feedbackSaveTimer.current);
     };
   }, []);
 
@@ -383,14 +442,14 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
             <span className="text-violet-500 font-extrabold">{doneCount}/{totalCount} Completed</span>
           </div>
           <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-violet-500 transition-all duration-500 ease-out"
               style={{ width: `${percentage}%` }}
             />
           </div>
           <p className="text-[10px] font-semibold text-slate-400/85 mt-2 px-0.5 italic flex items-center gap-1">
-            {percentage === 100 
-              ? "All deliverables completed." 
+            {percentage === 100
+              ? "All deliverables completed."
               : `${percentage}% of deliverables completed.`}
           </p>
         </div>
@@ -429,11 +488,10 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
                 <button
                   onClick={() => handleToggle(item)}
                   disabled={!canEdit}
-                  className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all duration-300 shrink-0 ${
-                    item.status === "done"
-                      ? "bg-emerald-400 border-emerald-400 text-white scale-95 shadow-[0_2px_10px_rgba(52,211,153,0.4)]"
-                      : "border-slate-300 hover:border-violet-400 bg-white hover:scale-105 active:scale-95"
-                  } ${!canEdit ? "cursor-default" : "cursor-pointer"}`}
+                  className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all duration-300 shrink-0 ${item.status === "done"
+                    ? "bg-emerald-400 border-emerald-400 text-white scale-95 shadow-[0_2px_10px_rgba(52,211,153,0.4)]"
+                    : "border-slate-300 hover:border-violet-400 bg-white hover:scale-105 active:scale-95"
+                    } ${!canEdit ? "cursor-default" : "cursor-pointer"}`}
                 >
                   {item.status === "done" && <Check className="w-3.5 h-3.5 stroke-[3.5px]" />}
                 </button>
@@ -448,15 +506,13 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
                     onKeyDown={(e) => handleKeyDown(e, item, index)}
                     onBlur={() => handleBlur(item)}
                     placeholder={CUTE_PLACEHOLDERS[index % CUTE_PLACEHOLDERS.length]}
-                    className={`deliverable-input flex-1 bg-transparent border-none outline-none font-medium text-sm py-0.5 text-slate-700 placeholder-slate-300/80 transition-all duration-200 ${
-                      item.status === "done" ? "line-through text-slate-400/80 font-normal" : ""
-                    }`}
+                    className={`deliverable-input flex-1 bg-transparent border-none outline-none font-medium text-sm py-0.5 text-slate-700 placeholder-slate-300/80 transition-all duration-200 ${item.status === "done" ? "line-through text-slate-400/80 font-normal" : ""
+                      }`}
                   />
                 ) : (
                   <span
-                    className={`flex-1 py-0.5 font-medium text-sm text-slate-700 select-none ${
-                      item.status === "done" ? "line-through text-slate-400/80 font-normal" : ""
-                    }`}
+                    className={`flex-1 py-0.5 font-medium text-sm text-slate-700 select-none ${item.status === "done" ? "line-through text-slate-400/80 font-normal" : ""
+                      }`}
                   >
                     {item.title || "Untitled deliverable"}
                   </span>
@@ -480,7 +536,6 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
           </div>
         </div>
       )}
-
       {/* Any Further Changes */}
       <div className="joyride-deliverables-notes tour-further-changes bg-white/60 backdrop-blur-md rounded-3xl p-6 lg:p-8 border border-white/80 shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_16px_36px_-8px_rgba(17,58,135,0.05)] transition-all duration-300 animate-fade-in flex flex-col">
         <div className="flex items-center gap-3 mb-4 select-none">
@@ -505,14 +560,96 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
             placeholder="Add any further changes or requests here..."
             readOnly={!canEditNotes}
             rows={4}
-            className={`w-full resize-none rounded-xl border text-sm font-medium p-4 transition-all duration-200 outline-none ${
-              canEditNotes
-                ? "bg-white border-slate-200/80 text-slate-700 focus:border-amber-400 focus:ring-4 focus:ring-amber-100 placeholder:text-slate-300"
-                : "bg-slate-50/50 border-slate-100/60 text-slate-500 cursor-default select-none"
-            }`}
+            className={`w-full resize-none rounded-xl border text-sm font-medium p-4 transition-all duration-200 outline-none ${canEditNotes
+              ? "bg-white border-slate-200/80 text-slate-700 focus:border-amber-400 focus:ring-4 focus:ring-amber-100 placeholder:text-slate-300"
+              : "bg-slate-50/50 border-slate-100/60 text-slate-500 cursor-default select-none"
+              }`}
           />
         )}
       </div>
+
+      {/* Report Feedback (Client edits, Client/CSM/Super Admin views) */}
+      {canViewFeedback && (
+        <div className="bg-white/60 backdrop-blur-md rounded-3xl p-6 lg:p-8 border border-white/80 shadow-[0_8px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_16px_36px_-8px_rgba(17,58,135,0.05)] transition-all duration-300 animate-fade-in flex flex-col">
+          <div className="flex items-center gap-3 mb-4 select-none">
+            <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600 shadow-sm border border-rose-100/50">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-lg font-extrabold font-heading text-slate-800 leading-tight flex items-center gap-2">
+                Report Feedback
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wider ${
+                  isClient ? "bg-rose-100 text-rose-600" : "bg-amber-100 text-amber-600"
+                }`}>
+                  {isClient ? "Required" : "View Only"}
+                </span>
+              </h2>
+              <p className="text-[10px] text-rose-500/80 font-bold tracking-wider uppercase mt-0.5">
+                {isClient ? "Share your thoughts on this month's report" : "Client feedback on this month's report"}
+              </p>
+            </div>
+          </div>
+          {feedbackLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-rose-600/60" />
+            </div>
+          ) : (
+            <>
+              {/* Star Rating */}
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Your Rating</label>
+                <div className="flex items-center gap-2">
+                  {[1,2,3,4,5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => handleRatingChange(star)}
+                      disabled={!isClient}
+                      className={`p-1 transition-colors ${star <= (feedbackRating || 0) ? "text-yellow-400" : "text-gray-300"} hover:text-yellow-400 focus:outline-none`}
+                      aria-label={`${star} star${star > 1 ? 's' : ''}`}
+                    >
+                      <Star className="w-6 h-6 fill-current" />
+                    </button>
+                  ))}
+                  {isClient && feedbackRating && (
+                    <button
+                      type="button"
+                      onClick={() => handleRatingChange(0)}
+                      className="ml-2 text-sm text-gray-500 underline hover:text-rose-500 hover:underline-offset-2 transition-colors"
+                      aria-label="Clear rating"
+                    >
+                      Clear rating
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Text Feedback */}
+              <textarea
+                value={feedback}
+                onChange={(e) => handleFeedbackChange(e.target.value)}
+                placeholder="How was this month's report? What did you find most valuable? What could be improved? (Optional)"
+                rows={4}
+                readOnly={!isClient}
+                className={`w-full resize-none rounded-xl border text-sm font-medium p-4 transition-all duration-200 outline-none ${
+                  isClient
+                    ? "bg-white border-slate-200/80 text-slate-700 focus:border-rose-400 focus:ring-4 focus:ring-rose-100 placeholder:text-slate-300"
+                    : "bg-slate-50/50 border-slate-100/60 text-slate-500 cursor-default select-none"
+                }`}
+              />
+            </>
+          )}
+          <p className={`text-[10px] font-medium mt-2 flex items-center gap-1.5 ${isClient ? "text-rose-500/80" : "text-amber-500/80"}`}>
+            <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isClient ? "bg-rose-500" : "bg-amber-500"}`} />
+            {isClient
+              ? "Rating required. Text feedback optional."
+              : "Client feedback (view only)"}
+          </p>
+        </div>
+      )}
+
     </div>
   );
 }
