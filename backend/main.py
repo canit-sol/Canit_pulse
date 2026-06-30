@@ -274,7 +274,7 @@ Be direct. No fluff. Max 120 words total."""
 
         ai_response = client_ai.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="llama-3.3-70b-versatile",
+            model="qwen/qwen3.6-27b",
         )
         ai_text = ai_response.choices[0].message.content
     except Exception as e:
@@ -461,7 +461,7 @@ Respond ONLY with valid JSON, no markdown:
 }}"""
 
         res = client_ai.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="qwen/qwen3.6-27b",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=600,
             temperature=0.3,

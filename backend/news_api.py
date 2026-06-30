@@ -267,7 +267,7 @@ Each object must have the following keys:
 """
         completion = groq_client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="llama-3.3-70b-versatile",
+            model="qwen/qwen3.6-27b",
         )
         raw_content = completion.choices[0].message.content.strip()
         

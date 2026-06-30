@@ -8,7 +8,7 @@ load_dotenv()
 try:
     from groq import Groq
     groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-    GROQ_MODEL = "llama-3.3-70b-versatile"
+    GROQ_MODEL = "qwen/qwen3.6-27b"
     GROQ_AVAILABLE = True
 except Exception:
     groq_client = None

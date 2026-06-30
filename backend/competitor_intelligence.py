@@ -83,7 +83,7 @@ Analyze the client's niche and output exactly 3 relevant competitor profiles in 
     
     try:
         res = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="qwen/qwen3.6-27b",
             messages=[
                 {"role": "system", "content": discovery_system_prompt},
                 {"role": "user", "content": discovery_user_prompt}
@@ -215,7 +215,7 @@ Output ONLY valid JSON according to the specified structure.
 
     try:
         res = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="qwen/qwen3.6-27b",
             messages=[
                 {"role": "system", "content": comparison_system_prompt},
                 {"role": "user", "content": comparison_user_prompt}
