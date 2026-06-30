@@ -1383,32 +1383,42 @@ async def upload_client_logo(client_id: str, file: UploadFile = File(...), curre
     }
     content_type = content_types.get(ext, "image/png")
     
-    # Save the file strictly to Supabase Storage (verified bucket configuration)
-    supabase_url_path = None
-    bucket_name = "client-logos"
-    file_path = f"{client_id}/{file.filename}"
-    
+    # Compress the logo using PIL and convert to a base64 data URL
     try:
-        # Attempt to upload to Supabase Storage
-        try:
-            supabase.storage.create_bucket(bucket_name, options={"public": True})
-        except Exception:
-            pass
-            
-        supabase.storage.from_(bucket_name).upload(
-            path=file_path,
-            file=contents,
-            file_options={"content-type": content_type, "x-upsert": "true"}
-        )
-        supabase_url_path = supabase.storage.from_(bucket_name).get_public_url(file_path)
-        print(f"Successfully uploaded logo {file_path} to Supabase storage.")
-    except Exception as storage_err:
-        print(f"Supabase Storage failed for logo: {storage_err}")
-        raise HTTPException(status_code=500, detail=f"Failed to upload logo to Supabase Storage: {str(storage_err)}")
-            
-    # Store logo URL client-wise
+        from PIL import Image
+        import io
+        import base64
+        
+        img = Image.open(io.BytesIO(contents))
+        # Keep transparency if PNG/GIF/WebP, otherwise convert to RGB
+        if img.mode in ("RGBA", "P") and ext in [".png", ".gif", ".webp", ".svg"]:
+            format_to_save = "PNG"
+            mime_type = "image/png"
+        else:
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            format_to_save = "JPEG"
+            mime_type = "image/jpeg"
+        
+        # Resize logo to reasonable dimensions (max 400x400) to keep base64 string small
+        img.thumbnail((400, 400))
+        
+        out_bytes = io.BytesIO()
+        img.save(out_bytes, format=format_to_save, optimize=True)
+        compressed_bytes = out_bytes.getvalue()
+        
+        encoded = base64.b64encode(compressed_bytes).decode("utf-8")
+        logo_data_url = f"data:{mime_type};base64,{encoded}"
+        print(f"Compressed client logo to {len(logo_data_url)/1024:.1f} KB")
+    except Exception as img_err:
+        print(f"PIL compression failed: {img_err}. Storing raw base64.")
+        import base64
+        encoded = base64.b64encode(contents).decode("utf-8")
+        logo_data_url = f"data:{content_type};base64,{encoded}"
+
+    # Store logo URL (base64 data URL) client-wise in the database
     try:
-        client_rec.client_logo_url = supabase_url_path
+        client_rec.client_logo_url = logo_data_url
         db.commit()
         db.refresh(client_rec)
     except Exception as db_err:
@@ -1418,8 +1428,9 @@ async def upload_client_logo(client_id: str, file: UploadFile = File(...), curre
     return {
         "success": True,
         "filename": file.filename,
-        "client_logo_url": supabase_url_path
+        "client_logo_url": logo_data_url
     }
+
 
 
 @router.get("/clients/{client_id}/logo/{filename}")

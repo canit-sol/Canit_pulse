@@ -1612,7 +1612,7 @@ INSTRUCTIONS:
           
           {/* Dynamic Client Branding */}
           <div className="flex items-center gap-2 md:gap-3 animate-fade-in min-w-0 joyride-client-branding">
-            {clientLogoUrl && !logoError && (clientLogoUrl.startsWith('http') || clientLogoUrl.startsWith('/')) ? (
+            {clientLogoUrl && !logoError && (clientLogoUrl.startsWith('http') || clientLogoUrl.startsWith('/') || clientLogoUrl.startsWith('data:')) ? (
               <img
                 src={clientLogoUrl}
                 alt={`${brandName} Logo`}
