@@ -489,13 +489,15 @@ def _get_page_insights(page_id: str, token: str, month: int, year: int) -> tuple
     organic_impressions = 0
     total_impressions = 0
 
-    # 1. Fetch monthly unique reach page_impressions_unique (period=month)
+    # 1. Fetch monthly unique reach via page_impressions_unique (period=days_28)
+    # NOTE: period=month is NOT supported for page_impressions_unique in v22.0;
+    # days_28 gives genuine 28-day unique reach, close to monthly.
     try:
         res_reach = requests.get(
             f"{BASE_URL}/{page_id}/insights",
             params={
                 "metric": "page_impressions_unique",
-                "period": "month",
+                "period": "days_28",
                 "since": start_date,
                 "until": end_date,
                 "access_token": token,
@@ -508,7 +510,6 @@ def _get_page_insights(page_id: str, token: str, month: int, year: int) -> tuple
         if "error" not in res_reach and "data" in res_reach and res_reach["data"]:
             vals = res_reach["data"][0].get("values", [])
             if vals:
-                # Use the last value in the list representing the end of the month
                 page_reach = _si(vals[-1].get("value", 0))
         else:
             if "error" in res_reach:
@@ -516,12 +517,12 @@ def _get_page_insights(page_id: str, token: str, month: int, year: int) -> tuple
     except Exception as exc:
         print(f"[PAGE REACH INSIGHTS] Failed: {exc}")
 
-    # 2. Fetch daily page impressions page_posts_impressions and page_posts_impressions_organic (period=day)
+    # 2. Fetch daily page impressions (page-level, replaces deprecated page_posts_impressions)
     try:
         res_imp = requests.get(
             f"{BASE_URL}/{page_id}/insights",
             params={
-                "metric": "page_posts_impressions,page_posts_impressions_organic",
+                "metric": "page_impressions,page_impressions_organic",
                 "period": "day",
                 "since": start_date,
                 "until": end_date,
@@ -535,9 +536,9 @@ def _get_page_insights(page_id: str, token: str, month: int, year: int) -> tuple
                 name = item.get("name", "")
                 for val_obj in item.get("values", []):
                     v = _si(val_obj.get("value", 0))
-                    if name == "page_posts_impressions":
+                    if name == "page_impressions":
                         total_impressions += v
-                    elif name == "page_posts_impressions_organic":
+                    elif name == "page_impressions_organic":
                         organic_impressions += v
         else:
             if "error" in res_imp:
