@@ -592,7 +592,7 @@ def chat_with_report(report_id: str, req: ChatRequest, current_user: AuthIdentit
     system_msg = f"You are a CMO assistant analyzing this data: {report.ig_data}"
     messages = [{"role": "system", "content": system_msg}] + req.history + [{"role": "user", "content": req.question}]
     
-    res = client_ai.chat.completions.create(messages=messages, model="llama-3.1-8b-instant")
+    res = client_ai.chat.completions.create(messages=messages, model="openai/gpt-oss-20b")
     return {"answer": res.choices[0].message.content}
 
 
@@ -627,7 +627,7 @@ def check_api_health(current_user: AuthIdentity = Depends(require_admin)):
         start = time.time()
         groq_res = client_ai.chat.completions.create(
             messages=[{"role": "user", "content": "ping"}],
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             max_tokens=1,
         )
         latency = round((time.time() - start) * 1000)

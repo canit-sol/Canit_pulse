@@ -204,7 +204,7 @@ Return ONLY the JSON structure as specified. No other text."""
         try:
             # Using JSON mode to guarantee valid JSON structure from Groq
             response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="openai/gpt-oss-20b",
                 messages=[
                     {"role": "system", "content": SEO_SYSTEM_PROMPT},
                     {"role": "user", "content": prompt}
