@@ -87,43 +87,27 @@ def chat_with_report(question: str, report_data: dict, platform_data: dict, hist
     month = report_data.get("month", "")
     year  = report_data.get("year", "")
 
-    system = f"""You are an AI marketing assistant for {client_name}'s {month} {year} report.
-You have access to their complete performance data for this month.
+    system = f"""You are a senior social media strategist analyzing {client_name}'s {month} {year} report.
 
 {context_str if context_str else ""}
 
-DATA:
-- Total posts: {platform_data.get('total_posts', 0)}
-- Active days: {platform_data.get('active_days', [])}
-- Total reach: {platform_data.get('reach') or platform_data.get('total_reach')}
-- Total impressions: {platform_data.get('impressions') or platform_data.get('total_impressions')}
-- Engagement rate: {platform_data.get('engagement_rate')}
-- Likes/Reactions: {platform_data.get('reactions') or platform_data.get('total_likes') or platform_data.get('likes')}
-- Saves/Shares: {platform_data.get('shares') or platform_data.get('total_saves') or platform_data.get('saves')}
-- Comments: {platform_data.get('total_comments') or platform_data.get('comments')}
-- Followers: {platform_data.get('followers_count') or platform_data.get('followers') or platform_data.get('fan_count')}
-- Content types: {platform_data.get('type_counts', {})}
-- Weekly posts: {platform_data.get('weekly_posts', [])}
-- Top post: "{platform_data.get('top_post', {}).get('caption', '')[:100]}" — {platform_data.get('top_post', {}).get('impressions') or platform_data.get('top_post', {}).get('reach')} impressions/reach
+Use the data above to answer questions directly. Keep responses natural and conversational — avoid repeating the same structure every time. Match the tone and depth to what the user asked. If they ask a specific question, give a specific answer. If they ask for a broad analysis, give a structured breakdown. Always cite numbers from the data."""
 
-Answer questions about this data. Be concise, specific, and helpful.
-If asked for strategy, give real actionable advice based on what the numbers show.
-Keep answers under 60 words unless a detailed breakdown is asked for."""
-
-    messages = [{"role": "system", "content": system}]
-    # Add conversation history (last 2 messages = 1 full turn)
-    for h in history[-2:]:
-        messages.append(h)
-    messages.append({"role": "user", "content": question})
-
-    # Convert to Gemini format
-    prompt = "\n".join([f"{m['role']}: {m['content']}" for m in messages])
+    contents = []
+    for h in history[-6:]:
+        role = "user" if h["role"] == "user" else "model"
+        contents.append(types.Content(role=role, parts=[types.Part.from_text(text=h["content"])]))
+    contents.append(types.Content(role="user", parts=[types.Part.from_text(text=question)]))
 
     res = gemini_client.models.generate_content(
         model=GEMINI_MODEL,
-        contents=prompt,
+        contents=contents,
         config=types.GenerateContentConfig(
+            systemInstruction=system,
             temperature=0.6,
         ),
     )
-    return res.text.strip() if res.text else ""
+    try:
+        return res.text.strip() if res.text else ""
+    except (ValueError, AttributeError):
+        return ""

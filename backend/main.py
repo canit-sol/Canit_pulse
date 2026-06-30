@@ -575,28 +575,7 @@ def delete_report(report_id: str, current_user: AuthIdentity = Depends(require_a
         raise HTTPException(status_code=500, detail=f"Failed to delete report: {str(e)}")
 
 
-# --- 8. AI CHAT & RESEARCH ---
-@app.post("/api/reports/{report_id}/chat")
-def chat_with_report(report_id: str, req: ChatRequest, current_user: AuthIdentity = Depends(get_current_user), db: Session = Depends(get_db)):
-    from services.permissions import can_use_ai
-    if not can_use_ai(current_user.role):
-        raise HTTPException(status_code=403, detail="Not authorized to use AI chatbot.")
-        
-    report = db.query(Report).filter(Report.id == report_id).first()
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
-        
-    if current_user.role in ("employee", "client") and current_user.client_id != report.client_id:
-        raise HTTPException(status_code=403, detail="Forbidden: Access to another tenant's report is denied.")
-    
-    system_msg = f"You are a CMO assistant analyzing this data: {report.ig_data}"
-    messages = [{"role": "system", "content": system_msg}] + req.history + [{"role": "user", "content": req.question}]
-    
-    res = client_ai.chat.completions.create(messages=messages, model="openai/gpt-oss-20b")
-    return {"answer": res.choices[0].message.content}
-
-
-# --- 9. SETTINGS COMMAND CENTER ---
+# --- 8. SETTINGS COMMAND CENTER ---
 
 @app.get("/api/settings/health")
 def check_api_health(current_user: AuthIdentity = Depends(require_admin)):

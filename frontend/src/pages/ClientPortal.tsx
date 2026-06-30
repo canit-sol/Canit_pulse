@@ -1328,7 +1328,7 @@ export default function ClientPortal() {
   };
   const bestPost = getBestPost();
 
-  const buildSuggestedQuestions = () => {
+  const buildSuggestedQuestions = (lastQuery?: string) => {
     const qs: string[] = [];
     const platform = activePlatform;
     const reach = currentData.total_reach || 0;
@@ -1339,30 +1339,60 @@ export default function ClientPortal() {
     const reachChange = currentData.reach_change;
     const engChange = currentData.engagement_change;
     const followersChange = currentData.followers_change;
-
-    if (reach > 0) {
-      if (reachChange && parseFloat(reachChange) > 0) qs.push(`What drove the ${reachChange}% reach increase?`);
-      else qs.push(`What can we do to grow reach further?`);
-    }
-    if (engRate > 0 && parseFloat(String(engRate)) < 3) {
-      qs.push(`Why is engagement at ${engRate}% and how do we improve it?`);
-    } else if (engRate > 0) {
-      qs.push(`What content types are driving the highest engagement?`);
-    }
-    if (followers > 0 && followersChange) {
-      qs.push(`What's behind the ${followersChange}% follower change?`);
-    }
-    if (bestPost) {
-      qs.push(`Can you analyze our top post performance?`);
-    }
     const comps = automaticCompetitors?.competitors;
-    if (comps && comps.length > 0) {
-      qs.push(`How does our ${platform} performance compare to competitors?`);
+    const lq = (lastQuery || "").toLowerCase();
+
+    if (lq.includes("reach") || lq.includes("impression")) {
+      if (reachChange && parseFloat(reachChange) > 0) qs.push(`Which content format contributed most to the reach gain?`);
+      qs.push(`How can we sustain or improve reach next month?`);
+      qs.push(`What's our reach benchmark vs industry averages?`);
+    } else if (lq.includes("engagement") || lq.includes("like") || lq.includes("comment") || lq.includes("save")) {
+      if (engRate > 0) qs.push(`Which post type gets the highest engagement rate?`);
+      qs.push(`What's the ideal posting frequency to maximize engagement?`);
+      qs.push(`How does our engagement compare to last month?`);
+    } else if (lq.includes("follower") || lq.includes("growth") || lq.includes("audience")) {
+      qs.push(`Which content drove the most new followers?`);
+      qs.push(`What's our follower demographic breakdown?`);
+      qs.push(`How can we accelerate follower growth?`);
+    } else if (lq.includes("competitor") || lq.includes("compare") || lq.includes("competitive")) {
+      if (comps && comps.length > 0) qs.push(`What are our competitors doing that we aren't?`);
+      qs.push(`Which platform gives us the best competitive edge?`);
+      qs.push(`How can we differentiate our brand voice?`);
+    } else if (lq.includes("synopsis") || lq.includes("performance") || lq.includes("overview") || lq.includes("summary")) {
+      if (reach > 0) {
+        if (reachChange && parseFloat(reachChange) > 0) qs.push(`What drove the ${reachChange}% reach shift?`);
+        else qs.push(`What can we do to grow reach further?`);
+      }
+      if (engRate > 0) qs.push(`What's behind our ${engRate}% engagement rate?`);
+      if (followers > 0 && followersChange) qs.push(`What's driving the ${followersChange}% follower change?`);
+    } else if (lq.includes("content") || lq.includes("post") || lq.includes("strategy")) {
+      if (bestPost) qs.push(`What made our top post perform so well?`);
+      qs.push(`Which content format should we double down on?`);
+      qs.push(`How can we improve our content mix?`);
+    } else {
+      if (reach > 0) {
+        if (reachChange && parseFloat(reachChange) > 0) qs.push(`What drove the ${reachChange}% reach increase?`);
+        else qs.push(`What can we do to grow reach further?`);
+      }
+      if (engRate > 0 && parseFloat(String(engRate)) < 3) {
+        qs.push(`Why is engagement at ${engRate}% and how do we improve it?`);
+      } else if (engRate > 0) {
+        qs.push(`What content types are driving the highest engagement?`);
+      }
+      if (followers > 0 && followersChange) {
+        qs.push(`What's behind the ${followersChange}% follower change?`);
+      }
+      if (bestPost) qs.push(`Can you analyze our top post performance?`);
+      if (comps && comps.length > 0) qs.push(`How does our ${platform} performance compare to competitors?`);
+      if (likes > 0 || comments > 0) qs.push(`Break down our likes and comments performance.`);
+      qs.push(`Give me a full ${platform} performance synopsis.`);
     }
-    if (likes > 0 || comments > 0) {
-      qs.push(`Break down our likes and comments performance.`);
+
+    if (qs.length < 3) {
+      if (comps && comps.length > 0) qs.push(`How does our ${platform} performance compare to competitors?`);
+      if (bestPost) qs.push(`Can you analyze our top post performance?`);
+      qs.push(`Give me a full ${platform} performance synopsis.`);
     }
-    qs.push(`Give me a full ${platform} performance synopsis.`);
 
     const unique: string[] = [];
     for (const q of qs) {
@@ -1393,33 +1423,43 @@ export default function ClientPortal() {
       `"${(p.caption || '').substring(0, 40)}" — ${p.likes || p.total_likes || 0} likes, ${p.comments || p.total_comments || 0} comments`
     ).join(" | ");
 
-    const contextStr = `You are a senior social media strategist. Analyze the client '${brandName}' for ${active.month} ${active.year}.
+    const fmt = (v: any) => v ?? "N/A";
 
-CURRENT METRICS (${activePlatform}):
-- Reach: ${reach} | Impressions: ${impressions} | Engagement: ${engagement}%
-- Followers: ${followers} | Likes: ${currentData.total_likes || 0} | Comments: ${currentData.total_comments || 0} | Saves: ${currentData.total_saves || 0}
-- Reach Change: ${currentData.reach_change || "N/A"}% | Engagement Change: ${currentData.engagement_change || "N/A"}% | Followers Change: ${currentData.followers_change || "N/A"}%
-- Content Breakdown: ${contentBreakdown}
-- Top Post: ${topPostInfo}
-- Recent Posts: ${recentPosts}
-- Competitors: ${compNames}
-- Platform: ${activePlatform}
+    const igSection = ig?.total_reach || ig?.total_likes
+      ? `\nINSTAGRAM:\n- Reach: ${fmt(ig?.total_reach)} | Engagement: ${fmt(ig?.engagement_rate)}% | Followers: ${fmt(ig?.followers)}\n- Likes: ${fmt(ig?.total_likes)} | Comments: ${fmt(ig?.total_comments)} | Saves: ${fmt(ig?.total_saves)}\n- Reach Change: ${fmt(ig?.reach_change)}% | Engagement Change: ${fmt(ig?.engagement_change)}% | Followers Change: ${fmt(ig?.followers_change)}%\n- Content Types: ${ig?.content_type_breakdown ? Object.entries(ig.content_type_breakdown).map(([t, v]: any) => `${t}: Reach ${v.reach || 0}, Eng ${v.engagement || 0}`).join("; ") : "N/A"}`
+      : "";
+
+    const fbSection = fb?.total_reach || fb?.total_impressions
+      ? `\nFACEBOOK:\n- Reach: ${fmt(fbMetric("total_reach"))} | Impressions: ${fmt(fbMetric("total_impressions"))} | Engagement: ${fmt(fb?.engagement_rate)}%\n- Followers: ${fmt(fbMetric("followers"))} | Reactions: ${fmt(fbMetric("total_reactions"))} | Comments: ${fmt(fbMetric("total_comments"))} | Shares: ${fmt(fbMetric("total_shares"))}`
+      : "";
+
+    const ytSection = youtube?.total_views || youtube?.subscribers
+      ? `\nYOUTUBE:\n- Views: ${fmt(youtube?.total_views)} | Subscribers: ${fmt(youtube?.subscribers)} | Videos: ${fmt(youtube?.total_videos)}\n- Avg Views/Video: ${fmt(youtube?.avg_views)} | Engagement: ${fmt(youtube?.engagement_rate)}%`
+      : "";
+
+    const xSection = xData?.total_posts || xData?.total_likes
+      ? `\nX (TWITTER):\n- Posts: ${fmt(xData?.total_posts)} | Likes: ${fmt(xData?.total_likes)} | Retweets: ${fmt(xData?.total_retweets)}`
+      : "";
+
+    const topPostSection = bestPost
+      ? `\nTOP POST:\n- "${(bestPost.caption || "").substring(0, 100)}"\n- Likes: ${bestPost.likes || bestPost.total_likes || 0} | Comments: ${bestPost.comments || bestPost.total_comments || 0} | Engagement: ${bestPost.engagement_rate || 0}%`
+      : "";
+
+    const recentPostsSection = (posts?.slice(0, 3) || []).length > 0
+      ? `\nRECENT POSTS:\n${(posts?.slice(0, 3) || []).map((p: any) => `- "${(p.caption || "").substring(0, 60)}" — ${p.likes || p.total_likes || 0} likes, ${p.comments || p.total_comments || 0} comments`).join("\n")}`
+      : "";
+
+    const contextStr = `You are a senior social media strategist. Analyze the client '${brandName}' for ${active.month} ${active.year}. You have access to all their platform data below. Answer questions about any platform or the client holistically.
+
+ALL PLATFORMS DATA:${igSection}${fbSection}${ytSection}${xSection}${topPostSection}${recentPostsSection}
+
+COMPETITORS: ${compNames}
 
 INSTRUCTIONS:
 - Tone: Data-driven, professional, sales-oriented consultant
-- Structure: Bold headers with bullet points. Each bullet MUST reference a specific number from data above
-- Be specific and detailed — cite exact values
-- Do NOT use markdown headers (#, ##)
+- Be specific and detailed — cite exact values from the data
 - Do NOT include question suggestions in your response
-- Keep responses focused on ${activePlatform} data
-
-REQUIRED ANALYSIS FRAMEWORK (apply to every response):
-1. **WHAT WORKED** — Identify top-performing metrics/content with numbers. Explain WHY it worked (format, timing, audience match, algorithm signals)
-2. **WHAT DIDN'T WORK** — Identify underperforming areas with numbers. Explain root causes (low reach, weak hooks, wrong format, audience mismatch, saturation)
-3. **COMPETITIVE POSITION** — Compare against listed competitors using available data. Where are we winning/losing?
-4. **ACTIONABLE RECOMMENDATIONS** — Specific, prioritized next steps with expected impact. Format: "Do X to achieve Y because Z"
-
-Every response must include all 4 sections. If asked for synopsis, lead with an executive summary then detail each section covering reach, engagement, content performance, competition, and recommendations with numbers.`;
+- Adapt your response structure to the question: specific questions get direct answers, broad questions can use sections like **what's working** or **recommendations** when appropriate. Never force a structure that doesn't fit.`;
 
     setChatInput("");
     setChatMessages(p => [...p, { role: "user", content: q }]);
@@ -1430,14 +1470,14 @@ Every response must include all 4 sections. If asked for synopsis, lead with an 
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ 
           question: q, 
-          history: chatMessages.slice(-2), 
+          history: chatMessages.slice(-6).map(({ suggestions: _, ...rest }) => rest), 
           context: contextStr,
           platform_data: currentData
         }),
       });
       const data = await res.json();
       const answer = data.answer || "No response.";
-      const suggestions = buildSuggestedQuestions();
+      const suggestions = buildSuggestedQuestions(q);
       setChatMessages(p => [...p, { role: "assistant", content: answer, suggestions }]);
     } catch {
       setChatMessages(p => [...p, { role: "assistant", content: "Connection error." }]);
