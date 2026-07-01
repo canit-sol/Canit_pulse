@@ -1093,6 +1093,7 @@ async def upload_seo_pdf(
     from pathlib import Path
     from parser import extract_text_from_file
     from ai_extractor import extract_seo_pdf_data
+    from database import supabase
     
     client_rec = db.query(Client).filter(Client.id == client_id).first()
     if not client_rec:
@@ -1107,14 +1108,28 @@ async def upload_seo_pdf(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not read uploaded file: {str(e)}")
         
-    # Save the file locally
-    from pathlib import Path as PathLib
-    uploads_dir = PathLib("uploads/seo")
-    uploads_dir.mkdir(parents=True, exist_ok=True)
-    local_path = uploads_dir / f"{client_id}_{file.filename}"
-    local_path.write_bytes(contents)
-    supabase_url_path = f"/api/clients/{client_id}/seo-pdf/{file.filename}"
-    print(f"Saved SEO PDF to {local_path}")
+    # Save the file strictly to Supabase Storage
+    supabase_url_path = None
+    bucket_name = "monthly_seo_reports"
+    file_path = f"{client_id}/{file.filename}"
+    
+    try:
+        # Attempt to upload to Supabase Storage
+        try:
+            supabase.storage.create_bucket(bucket_name, options={"public": True})
+        except Exception:
+            pass
+            
+        supabase.storage.from_(bucket_name).upload(
+            path=file_path,
+            file=contents,
+            file_options={"content-type": "application/pdf", "x-upsert": "true"}
+        )
+        supabase_url_path = supabase.storage.from_(bucket_name).get_public_url(file_path)
+        print(f"Successfully uploaded {file.filename} to Supabase storage.")
+    except Exception as storage_err:
+        print(f"Supabase Storage failed for SEO PDF: {storage_err}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload SEO PDF to Supabase Storage: {str(storage_err)}")
             
     # Automated Parser Integration
     try:
@@ -1211,7 +1226,7 @@ async def upload_monthly_seo_pdf(
         raise HTTPException(status_code=403, detail="Not authorized to edit clients/upload SEO.")
     from datetime import datetime
     from pathlib import Path
-    from database import MonthlySEOReport
+    from database import supabase, MonthlySEOReport
 
     client_rec = db.query(Client).filter(Client.id == client_id).first()
     if not client_rec:
@@ -1226,14 +1241,27 @@ async def upload_monthly_seo_pdf(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not read uploaded file: {str(e)}")
 
-    from pathlib import Path as PathLib
-    uploads_dir = PathLib("uploads/seo")
-    uploads_dir.mkdir(parents=True, exist_ok=True)
+    supabase_url_path = None
+    bucket_name = "monthly_seo_reports"
     filename = f"{year}-{month}.pdf"
-    local_path = uploads_dir / f"{client_id}_{filename}"
-    local_path.write_bytes(contents)
-    supabase_url_path = f"/api/clients/{client_id}/seo-pdf/{filename}"
-    print(f"Saved monthly SEO report to {local_path}")
+    file_path = f"{client_id}/{filename}"
+
+    try:
+        try:
+            supabase.storage.create_bucket(bucket_name, options={"public": True})
+        except Exception:
+            pass
+
+        supabase.storage.from_(bucket_name).upload(
+            path=file_path,
+            file=contents,
+            file_options={"content-type": "application/pdf", "x-upsert": "true"}
+        )
+        supabase_url_path = supabase.storage.from_(bucket_name).get_public_url(file_path)
+        print(f"Successfully uploaded monthly SEO report {filename} to Supabase storage.")
+    except Exception as storage_err:
+        print(f"Supabase Storage failed for monthly report: {storage_err}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload monthly SEO report to Supabase Storage: {str(storage_err)}")
 
     # Automated Parser Integration
     from parser import extract_text_from_file
@@ -1326,6 +1354,7 @@ async def upload_client_logo(client_id: str, file: UploadFile = File(...), curre
     if not can_edit_client(current_user.role):
         raise HTTPException(status_code=403, detail="Not authorized to upload logos.")
     from pathlib import Path
+    from database import supabase
     
     client_rec = db.query(Client).filter(Client.id == client_id).first()
     if not client_rec:

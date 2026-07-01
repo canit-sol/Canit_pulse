@@ -9,20 +9,20 @@ load_dotenv(find_dotenv(), override=True)
 from sqlalchemy import create_engine, Column, String, Text, DateTime, Boolean, ForeignKey, JSON, Integer, text, inspect, Date, Float
 
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from sqlalchemy.pool import NullPool
+from supabase import create_client, Client
 
-TURSO_URL = os.environ.get("TURSO_DATABASE_URL")
-TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
+# 1. SUPABASE SDK SETUP
+url = os.environ.get("SUPABASE_URL")
+key = os.environ.get("SUPABASE_KEY")
 
-if TURSO_URL and TURSO_AUTH_TOKEN:
-    import libsql
-    engine = create_engine("sqlite://", creator=lambda: libsql.connect(
-        url=TURSO_URL, auth_token=TURSO_AUTH_TOKEN
-    ), poolclass=NullPool)
-    print(f"[DB] Connected to Turso remote: {TURSO_URL}")
-else:
-    engine = create_engine("sqlite:///./canit_pulse.db")
-    print("[DB] Using local SQLite: ./canit_pulse.db")
+if not url or not key:
+    print("CRITICAL ERROR: SUPABASE_URL or SUPABASE_KEY is missing from the environment. Check your .env file!")
+    
+supabase: Client = create_client(url or "", key or "")
+
+# 2. SQLALCHEMY DATABASE SETUP
+DATABASE_URL = os.getenv("DATABASE_URL")
+engine = create_engine(DATABASE_URL)
 
 # Ensure the 'platform' column exists on the clients table. This runs on app start.
 def _ensure_platform_column():
@@ -510,9 +510,6 @@ def set_config(key: str, value: str):
 
 def create_tables():
     Base.metadata.create_all(bind=engine)
-    if "sqlite" in engine.name:
-        print("[DB] SQLite detected — skipping PostgreSQL-specific migrations")
-        return
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""
