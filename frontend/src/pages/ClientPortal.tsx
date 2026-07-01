@@ -781,6 +781,16 @@ export default function ClientPortal() {
           }
           const dedupedReports = Array.from(seen.values());
 
+          const MONTH_RANK: Record<string, number> = {
+            January: 1, February: 2, March: 3, April: 4,
+            May: 5, June: 6, July: 7, August: 8,
+            September: 9, October: 10, November: 11, December: 12,
+          };
+          dedupedReports.sort((a, b) => {
+            if (a.year !== b.year) return Number(b.year) - Number(a.year);
+            return (MONTH_RANK[b.month] || 0) - (MONTH_RANK[a.month] || 0);
+          });
+
           let finalReports = [...dedupedReports];
         let defaultActive = reportsList[0] || null;
 

@@ -4,6 +4,38 @@ from calendar import monthrange
 # 🎯 Locked to v25.0 to ensure stability
 BASE_URL = "https://graph.facebook.com/v25.0"
 
+
+def _upload_post_thumbnail(post_id: str, image_url: str) -> str:
+    """Download Instagram post image and cache in Supabase Storage.
+    Returns the Supabase public URL, or empty string on failure."""
+    if not image_url:
+        return ""
+    try:
+        resp = requests.get(image_url, timeout=10)
+        resp.raise_for_status()
+        content_type = resp.headers.get("content-type", "image/jpeg")
+
+        from database import supabase
+        bucket = "post-thumbnails"
+        file_path = f"{post_id}.jpg"
+
+        try:
+            supabase.storage.create_bucket(bucket, options={"public": True})
+        except Exception:
+            pass
+
+        supabase.storage.from_(bucket).upload(
+            path=file_path,
+            file=resp.content,
+            file_options={"content-type": content_type, "x-upsert": "true"}
+        )
+        cached = supabase.storage.from_(bucket).get_public_url(file_path)
+        print(f"  ✓ Cached thumbnail for post {post_id}")
+        return cached
+    except Exception as e:
+        print(f"  ⚠ Failed to cache post {post_id} thumbnail: {e}")
+        return ""
+
 def get_client_instagram_stats(client_keys: dict, month=None, year=None) -> dict:
     now = datetime.now()
     month_map = {
@@ -146,6 +178,9 @@ def _fetch_real_data(ig_id, token, handle, month, year, ad_account_id) -> dict:
             else:
                 safe_image_url = post.get("media_url") or post.get("thumbnail_url", "")
 
+            # Cache thumbnail to Supabase Storage so it survives CDN URL expiry
+            cached_url = _upload_post_thumbnail(post["id"], safe_image_url)
+
             # 🎯 THE FIX: Extract shortcode from permalink, try shortcode first then caption prefix
             raw_link = post.get("permalink", "")
             shortcode = raw_link.split("?")[0].rstrip("/").split("/")[-1] if raw_link else ""
@@ -171,6 +206,7 @@ def _fetch_real_data(ig_id, token, handle, month, year, ad_account_id) -> dict:
                 "caption": post.get("caption", "")[:200],
                 "media_type": media_type,
                 "media_url": safe_image_url,
+                "media_base64": cached_url,
                 "permalink": post.get("permalink", ""),
                 "timestamp": ts,
                 "day": post_date.day,
