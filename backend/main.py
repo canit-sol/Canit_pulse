@@ -689,6 +689,110 @@ def get_monthly_quota(current_user: AuthIdentity = Depends(require_admin), db: S
     }
 
 
+@app.get("/api/settings/supabase-usage")
+def get_supabase_usage(current_user: AuthIdentity = Depends(require_admin)):
+    from services.permissions import can_access_settings
+    if not can_access_settings(current_user.role):
+        raise HTTPException(status_code=403, detail="Not authorized to access settings.")
+
+    mgmt_key = os.getenv("SUPABASE_MGMT_KEY")
+    supabase_url = os.getenv("SUPABASE_URL")
+
+    result = {
+        "status": "offline",
+        "plan": "Unknown",
+        "project": "Unknown",
+        "region": "Unknown",
+        "db_size_mb": None,
+        "tables": None,
+        "total_rows": None,
+        "connections": None,
+    }
+
+    if not mgmt_key:
+        result["error"] = "SUPABASE_MGMT_KEY not set in .env"
+        return result
+
+    match = re.search(r"https?://([^.]+)\.supabase\.co", supabase_url or "")
+    if not match:
+        result["error"] = "Could not parse project ref from SUPABASE_URL"
+        return result
+    project_ref = match.group(1)
+
+    headers = {"Authorization": f"Bearer {mgmt_key}"}
+
+    # 1. Project info
+    try:
+        r = requests.get(
+            f"https://api.supabase.com/v1/projects/{project_ref}",
+            headers=headers, timeout=10,
+        )
+        if r.ok:
+            data = r.json()
+            result["status"] = "connected"
+            result["project"] = data.get("name", project_ref)
+            result["region"] = data.get("region", "Unknown")
+    except Exception as e:
+        result["error"] = f"Project info failed: {e}"
+        return result
+
+    # 2. Plan — from organization (project doesn't have it)
+    org_slug = None
+    try:
+        r = requests.get(
+            f"https://api.supabase.com/v1/projects/{project_ref}",
+            headers=headers, timeout=10,
+        )
+        if r.ok:
+            org_slug = r.json().get("organization_slug")
+    except Exception:
+        pass
+
+    if org_slug:
+        try:
+            r = requests.get(
+                f"https://api.supabase.com/v1/organizations/{org_slug}",
+                headers=headers, timeout=10,
+            )
+            if r.ok:
+                result["plan"] = r.json().get("plan", "Free")
+        except Exception:
+            pass
+
+    # 3. Database size from Postgres directly
+    from sqlalchemy import text
+    try:
+        db = next(get_db())
+        r = db.execute(text("SELECT pg_database_size(current_database())"))
+        sz = r.scalar()
+        if sz:
+            result["db_size_mb"] = round(sz / (1024 * 1024), 1)
+        db.close()
+    except Exception:
+        pass
+
+    # 4. Additional Postgres metrics (tables, rows, connections)
+    from sqlalchemy import text
+    try:
+        db = next(get_db())
+        r = db.execute(text("""
+            SELECT COUNT(*) tables,
+                   (SELECT SUM(n_live_tup) FROM pg_stat_user_tables) total_rows,
+                   (SELECT COUNT(*) FROM pg_stat_activity) connections
+            FROM pg_tables WHERE schemaname = 'public'
+        """))
+        row = r.fetchone()
+        if row:
+            result["tables"] = row[0]
+            result["total_rows"] = row[1]
+            result["connections"] = row[2]
+        db.close()
+    except Exception:
+        pass
+
+    return result
+
+
 @app.post("/api/settings/ai-personality")
 def update_ai_personality(req: PersonalityRequest, current_user: AuthIdentity = Depends(require_admin)):
     from services.permissions import can_access_settings

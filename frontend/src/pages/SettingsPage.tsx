@@ -72,6 +72,10 @@ export default function SettingsPage() {
   // --- Quota state ---
   const [quota, setQuota] = useState<any>(null);
 
+  // --- Supabase Usage state ---
+  const [supabaseUsage, setSupabaseUsage] = useState<any>(null);
+  const [supabaseLoading, setSupabaseLoading] = useState(false);
+
   // --- AI Personality state ---
   const [personality, setPersonality] = useState("analytical");
   const [personalitySaving, setPersonalitySaving] = useState(false);
@@ -92,11 +96,21 @@ export default function SettingsPage() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  const fetchSupabaseUsage = async () => {
+    setSupabaseLoading(true);
+    try {
+      const res = await fetch(getApiUrl(`/settings/supabase-usage`), { headers: authHeaders() });
+      setSupabaseUsage(await res.json());
+    } catch { setSupabaseUsage(null); }
+    finally { setSupabaseLoading(false); }
+  };
+
   useEffect(() => {
     fetchHealth();
     fetchQuota();
     fetchPersonality();
     fetchYtKey();
+    fetchSupabaseUsage();
     if (isSuperAdmin) {
       fetchUsers();
     }
@@ -579,6 +593,22 @@ export default function SettingsPage() {
                   Upgrade to paid tier for 2,000 RPM and 4M TPM. Enable billing in Google AI Studio.
                 </p>
               </div>
+
+              {/* Supabase Usage Card */}
+              <IntegrationCard
+                title="Supabase"
+                subtitle="Database, storage & auth infrastructure"
+                iconBg="bg-emerald-50"
+                iconColor="text-emerald-600"
+                status={supabaseUsage?.status}
+                loading={supabaseLoading}
+                details={[
+                  { label: "Plan", value: supabaseUsage?.plan ?? "—" },
+                  { label: "Database Size", value: supabaseUsage?.db_size_mb != null ? `${supabaseUsage.db_size_mb} MB` : "—" },
+                  { label: "Tables", value: supabaseUsage?.tables ?? "—" },
+                  { label: "Total Rows", value: supabaseUsage?.total_rows != null ? supabaseUsage.total_rows.toLocaleString() : "—" },
+                ]}
+              />
 
               {/* YouTube API Key Card */}
               <div className="glass-panel p-6 shadow-soft animate-in fade-in duration-300">
