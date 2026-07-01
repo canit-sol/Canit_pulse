@@ -21,6 +21,7 @@ email-validator==2.3.0
 fastapi==0.111.0
 fastapi-cli==0.0.27
 feedparser==6.0.10
+gotrue==2.12.4
 greenlet==3.5.2
 groq==0.9.0
 h11==0.16.0
@@ -77,7 +78,8 @@ starlette==0.37.2
 # storage3 (installed via supabase)
 StrEnum==0.4.15
 supabase==2.31.0
-# supabase-auth, supabase-functions, supafunc (installed via supabase)
+supabase-auth==2.31.0
+supabase-functions==2.31.0
 tld==0.13.2
 trafilatura==1.6.0
 typer==0.26.7

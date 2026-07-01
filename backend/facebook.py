@@ -300,6 +300,29 @@ def _fetch_real_data(page_id: str, token: str, month: int, year: int, ad_account
 
         fb_media_url = post.get("full_picture", "")
 
+        # Cache thumbnail to Supabase Storage so it survives CDN URL expiry
+        cached_url = ""
+        if fb_media_url:
+            try:
+                resp = requests.get(fb_media_url, timeout=10)
+                resp.raise_for_status()
+                content_type = resp.headers.get("content-type", "image/jpeg")
+                from database import supabase
+                bucket = "post-thumbnails"
+                file_path = f"fb_{post_id}.jpg"
+                try:
+                    supabase.storage.create_bucket(bucket, options={"public": True})
+                except Exception:
+                    pass
+                supabase.storage.from_(bucket).upload(
+                    path=file_path, file=resp.content,
+                    file_options={"content-type": content_type, "x-upsert": "true"}
+                )
+                cached_url = supabase.storage.from_(bucket).get_public_url(file_path)
+                print(f"  ✓ Cached thumbnail for FB post {post_id}")
+            except Exception as e:
+                print(f"  ⚠ Failed to cache FB post {post_id} thumbnail: {e}")
+
         # ── Paid boost lookup via caption prefix ────────────────────────────
         message   = post.get("message", "") or ""
         match_key = message[:30].strip().lower() if message else ""
@@ -323,6 +346,7 @@ def _fetch_real_data(page_id: str, token: str, month: int, year: int, ad_account
             "caption":    message[:200],
             "media_type": media_type,
             "media_url":  fb_media_url,
+            "media_base64": cached_url,
             "permalink":  post.get("permalink_url", ""),
             "timestamp":  ts,
             "day":        post_date.day,
