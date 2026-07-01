@@ -15,13 +15,16 @@ from supabase import create_client, Client
 url = os.environ.get("SUPABASE_URL")
 key = os.environ.get("SUPABASE_KEY")
 
-if not url or not key:
-    print("CRITICAL ERROR: SUPABASE_URL or SUPABASE_KEY is missing from the environment. Check your .env file!")
-    
-supabase: Client = create_client(url or "", key or "")
+if url and key:
+    supabase: Client = create_client(url, key)
+else:
+    supabase = None
 
 # 2. SQLALCHEMY DATABASE SETUP
 DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    print("WARNING: DATABASE_URL is missing! Falling back to in-memory SQLite.")
+    DATABASE_URL = "sqlite:///:memory:"
 engine = create_engine(DATABASE_URL)
 
 # Ensure the 'platform' column exists on the clients table. This runs on app start.
