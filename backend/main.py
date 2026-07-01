@@ -57,7 +57,7 @@ cors_origins = [
     "http://127.0.0.1:8081",
     "http://127.0.0.1:5173",
     "https://canit-pulse.vercel.app",
-    "https://your-railway-app.up.railway.app",
+    "https://giving-curiosity-production-08c8.up.railway.app",
 ]
 railway_static_url = os.getenv("RAILWAY_STATIC_URL")
 if railway_static_url:
