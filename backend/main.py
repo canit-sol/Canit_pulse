@@ -659,8 +659,10 @@ def check_api_health(current_user: AuthIdentity = Depends(require_admin)):
                 config=types.GenerateContentConfig(max_output_tokens=10),
             )
             latency = round((time.time() - start) * 1000)
-            if gemini_res.candidates and gemini_res.candidates[0].finish_reason == 1:
+            if gemini_res.candidates:
                 gemini_status = {"status": "connected", "latency_ms": latency}
+            else:
+                print(f"[Health] Gemini returned no candidates")
         except Exception as e:
             print(f"[Health] Gemini check failed: {e}")
             gemini_status = {"status": "offline", "latency_ms": 0}
