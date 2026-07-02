@@ -102,14 +102,14 @@ export default function LoginPage() {
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 block mb-2 px-1 font-heading">
-                Email or Username
+                Email
               </label>
               <input
                 type="text"
                 required
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="e.g. client@brand.com or admin_user"
+                placeholder="e.g. admin@canit.co"
                 className="w-full px-4 py-3.5 rounded-2xl bg-white/40 border border-slate-200/70 outline-none focus:bg-white/80 focus:ring-4 focus:ring-[#113a87]/6 focus:border-[#113a87] transition-all text-slate-800 font-medium placeholder:text-slate-300 text-sm"
               />
             </div>
