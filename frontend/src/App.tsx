@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
-import { useEffect, useRef, useState, lazy, Suspense } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import AdminDashboard from "./pages/AdminDashboard";
 import { SidebarProvider } from "./context/SidebarContext";
 import ClientPortal from "./pages/ClientPortal";
@@ -18,43 +18,18 @@ import EmployeeDashboard from "./pages/EmployeeDashboard";
 
 import { setAccessToken, getAccessToken, setUser, clearAuth, getUser } from "./lib/auth";
 
-let authReadyResolve: (() => void) | null = null;
-export const authReady = new Promise<void>((resolve) => {
-  authReadyResolve = resolve;
-});
-// If auth already initialized (non-refresh navigation), resolve immediately
-if (getAccessToken()) {
-  authReadyResolve?.();
-  authReadyResolve = null;
-}
-
 // Dynamic Session Refresher & Token Rotation Engine
 function TokenRefresher() {
-  const ran = useRef(false);
-
   useEffect(() => {
-    if (ran.current) return;
-    ran.current = true;
-
     const checkAndRefreshToken = async () => {
-      if (window.location.pathname === "/login") {
-        authReadyResolve?.();
-        authReadyResolve = null;
-        return;
-      }
+      if (window.location.pathname === "/login") return;
 
-      const existingToken = getAccessToken();
-      if (existingToken) {
-        // Token already present (SPA navigation), just resolve
-        authReadyResolve?.();
-        authReadyResolve = null;
-        return;
-      }
+      const token = getAccessToken();
+      if (!token) return;
 
       try {
         const res = await fetch("/api/auth/refresh", {
           method: "POST",
-          credentials: "include",
           headers: { "Content-Type": "application/json" },
         });
 
@@ -73,9 +48,6 @@ function TokenRefresher() {
           localStorage.removeItem("bento_user");
         }
       } catch {
-      } finally {
-        authReadyResolve?.();
-        authReadyResolve = null;
       }
     };
 
@@ -93,18 +65,9 @@ const INTERNAL_ROLES = ["super_admin", "csm", "hr", "employee", "admin"];
 
 // Logic to protect routes based on login status and user role with multi-tenant isolation
 function ProtectedRoute({ children, role, requirePermission }: { children: React.ReactNode; role?: string; requirePermission?: string }) {
-  const [ready, setReady] = useState(getAccessToken() !== null);
   const token = getAccessToken();
   const user = getUser();
   const params = useParams();
-
-  useEffect(() => {
-    if (!ready) {
-      authReady.then(() => setReady(true));
-    }
-  }, [ready]);
-
-  if (!ready) return null;
 
   if (!token || !user) return <Navigate to="/login" replace />;
   
@@ -145,17 +108,8 @@ function ProtectedRoute({ children, role, requirePermission }: { children: React
 
 // Logic to send users to the right home page after login
 function RootRedirect() {
-  const [ready, setReady] = useState(getAccessToken() !== null);
   const token = getAccessToken();
   const user = getUser();
-
-  useEffect(() => {
-    if (!ready) {
-      authReady.then(() => setReady(true));
-    }
-  }, [ready]);
-
-  if (!ready) return null;
 
   if (!token || !user) return <Navigate to="/login" replace />;
 
