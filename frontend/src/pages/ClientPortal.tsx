@@ -3246,7 +3246,6 @@ INSTRUCTIONS:
             Chat with your data
           </span>
         </button>
-      }
 
       {/* Hidden PDF Container */}
       <div className="absolute top-0 left-0 w-0 h-0 overflow-hidden -z-50">
