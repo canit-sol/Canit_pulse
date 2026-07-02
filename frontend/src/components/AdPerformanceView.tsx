@@ -238,16 +238,14 @@ export default function AdPerformanceView({ theme, month, year }: { theme: any, 
             </PopoverContent>
           </Popover>
 
-          {data?.campaigns?.length > 0 && (
-            <button 
-              onClick={handleSync}
-              disabled={syncing}
-              className={`flex items-center gap-2 px-4 py-2 ${theme.cardBg} ${theme.cardBorder} border rounded-lg text-sm font-bold text-emerald-600 hover:bg-emerald-50 transition`}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing...' : 'Sync Now'}
-            </button>
-          )}
+          <button 
+            onClick={handleSync}
+            disabled={syncing}
+            className={`flex items-center gap-2 px-4 py-2 ${theme.cardBg} ${theme.cardBorder} border rounded-lg text-sm font-bold text-emerald-600 hover:bg-emerald-50 transition`}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing...' : 'Sync Now'}
+          </button>
         </div>
         </div>
 
