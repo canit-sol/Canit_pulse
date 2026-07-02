@@ -4,7 +4,7 @@ import {
   Shield, UserCheck, UserX, Eye, EyeOff, Loader2,
   Users, ShieldCheck, Briefcase, HeartHandshake, AlertCircle
 } from "lucide-react";
-import { authHeaders } from "../config/api";
+import { authHeaders } from "../lib/auth";
 
 
 interface TeamUser {

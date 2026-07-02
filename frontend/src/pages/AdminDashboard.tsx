@@ -6,7 +6,7 @@ import ClientCard from "@/components/ClientCard";
 import { useSidebar } from "@/context/SidebarContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getApiUrl, apiFetch, authHeaders } from "@/config/api";
-
+import { getAccessToken, clearAuth } from "../lib/auth";
 interface Client {
   id: string;
   name: string;
@@ -221,7 +221,7 @@ export default function AdminDashboard() {
       formData.append("year", seoUploadYear);
 
       const headers: Record<string, string> = {};
-      const tk = localStorage.getItem("bento_token");
+      const tk = getAccessToken();
       if (tk) {
         headers["Authorization"] = `Bearer ${tk}`;
       }
@@ -562,7 +562,7 @@ export default function AdminDashboard() {
       formData.append("file", file);
       
       const headers: Record<string, string> = {};
-      const tk = localStorage.getItem("bento_token");
+      const tk = getAccessToken();
       if (tk) {
         headers["Authorization"] = `Bearer ${tk}`;
       }
@@ -624,7 +624,7 @@ export default function AdminDashboard() {
       const data = await res.json();
       const savedClientId = editingId || data.id;
 
-      const tk = localStorage.getItem("bento_token");
+      const tk = getAccessToken();
 
       // 1. Upload SEO PDF if present
       if (seoFile) {

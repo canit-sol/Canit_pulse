@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { RefreshCw, Copy, Check, Eye, EyeOff, Lock, Globe, ShieldCheck, ShieldAlert, KeyRound, Ban, CheckCircle2, Pencil } from "lucide-react";
 import AppSidebar from "@/components/AppSidebar";
 import { useSidebar } from "@/context/SidebarContext";
-import { authHeaders } from "../config/api";
+import { authHeaders } from "../lib/auth";
 
 const getAvatarColors = (name: string) => {
   const hash = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);

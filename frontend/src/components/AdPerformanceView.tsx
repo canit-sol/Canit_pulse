@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { DateRange } from "react-day-picker";
-
+import { getAccessToken } from "../lib/auth";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -14,7 +14,7 @@ const MONTH_NAMES = [
 
 export default function AdPerformanceView({ theme, month, year }: { theme: any, month?: string, year?: string }) {
   const { id } = useParams();
-  const token = localStorage.getItem("bento_token");
+  const token = getAccessToken();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);

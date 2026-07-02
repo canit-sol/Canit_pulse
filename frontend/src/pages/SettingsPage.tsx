@@ -11,7 +11,7 @@ import {
 import { getApiUrl } from "@/config/api";
 import ApiStatusWidget from "@/components/ApiStatusWidget";
 
-import { authHeaders } from "../config/api";
+import { authHeaders } from "../lib/auth";
 
 const YoutubeIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
