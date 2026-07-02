@@ -1507,8 +1507,8 @@ def serve_local_client_logo(client_id: str, filename: str, db: Session = Depends
 # ── COMPETITOR MANAGEMENT ──────────────────────────────
 
 @router.get("/clients/{client_id}/competitors")
-def get_competitors(client_id: str, current_user: AuthIdentity = Depends(require_admin), db: Session = Depends(get_db)):
-    if current_user.role == "employee" and current_user.client_id != client_id:
+def get_competitors(client_id: str, current_user: AuthIdentity = Depends(require_client), db: Session = Depends(get_db)):
+    if current_user.role not in ("super_admin", "admin", "csm", "employee") and current_user.client_id != client_id:
         raise HTTPException(status_code=403, detail="Access denied.")
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
@@ -1536,8 +1536,8 @@ def get_competitors(client_id: str, current_user: AuthIdentity = Depends(require
 # ── AUTOMATIC COMPETITOR INTELLIGENCE ROUTE ─────────────────
 
 @router.get("/clients/{client_id}/automatic-competitors")
-def get_automatic_competitors(client_id: str, current_user: AuthIdentity = Depends(require_admin), db: Session = Depends(get_db)):
-    if current_user.role == "employee" and current_user.client_id != client_id:
+def get_automatic_competitors(client_id: str, current_user: AuthIdentity = Depends(require_client), db: Session = Depends(get_db)):
+    if current_user.role not in ("super_admin", "admin", "csm", "employee") and current_user.client_id != client_id:
         raise HTTPException(status_code=403, detail="Access denied.")
     """
     Fully automatic, AI-driven competitor social intelligence route.
