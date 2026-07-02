@@ -433,7 +433,7 @@ def get_meta_pages(client_id: str, db: Session = Depends(get_db)):
                     page_data = {
                         "fb_page_id":    page["id"],
                         "fb_page_name":  page["name"],
-                        "fb_page_token": page.get("access_token", token),
+                        "fb_page_token": page.get("access_token", ""),
                         "ig_account_id": ig.get("id", ""),
                         "ig_username":   ig.get("username", ""),
                         "ig_followers":  ig.get("followers_count", 0),
@@ -484,7 +484,7 @@ def get_meta_pages(client_id: str, db: Session = Depends(get_db)):
                                 page_data = {
                                     "fb_page_id":    page["id"],
                                     "fb_page_name":  page["name"],
-                                    "fb_page_token": page.get("access_token", token),
+                                    "fb_page_token": page.get("access_token", ""),
                                     "ig_account_id": ig.get("id", ""),
                                     "ig_username":   ig.get("username", ""),
                                     "ig_followers":  ig.get("followers_count", 0),
@@ -518,7 +518,7 @@ def get_meta_pages(client_id: str, db: Session = Depends(get_db)):
                                 page_data = {
                                     "fb_page_id":    page["id"],
                                     "fb_page_name":  page["name"],
-                                    "fb_page_token": page.get("access_token", token),
+                                    "fb_page_token": page.get("access_token", ""),
                                     "ig_account_id": ig.get("id", ""),
                                     "ig_username":   ig.get("username", ""),
                                     "ig_followers":  ig.get("followers_count", 0),
