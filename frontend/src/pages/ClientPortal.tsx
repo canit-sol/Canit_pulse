@@ -3119,7 +3119,7 @@ INSTRUCTIONS:
       </footer>
 
       {/* AI Chat */}
-      {permissions.canUseAi && chatOpen && (
+      {chatOpen && (
         <div className="fixed bottom-28 right-8 w-96 bg-white/95 backdrop-blur-xl rounded-3xl shadow-float border border-gray-200/40 z-50 flex flex-col overflow-hidden animate-fade-in" style={{ height: "460px" }}>
           <div className="bg-gradient-to-r from-[#113a87] to-[#1e56b8] px-5 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2 text-white">
@@ -3239,15 +3239,14 @@ INSTRUCTIONS:
         </button>
       )}
 
-      {permissions.canUseAi && (
-        <button onClick={() => setChatOpen(!chatOpen)}
+      <button onClick={() => setChatOpen(!chatOpen)}
           className="tour-ai-chat joyride-ai-chat fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-br from-[#113a87] to-[#1e56b8] text-white rounded-full shadow-float flex items-center justify-center transition-all hover:scale-105 hover:shadow-glow z-50 group">
           <Bot className="w-6 h-6" />
           <span className="absolute right-16 bg-[#1a1a1a] text-white text-xs font-bold px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg">
             Chat with your data
           </span>
         </button>
-      )}
+      }
 
       {/* Hidden PDF Container */}
       <div className="absolute top-0 left-0 w-0 h-0 overflow-hidden -z-50">
