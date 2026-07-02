@@ -5,7 +5,8 @@ import AppSidebar from "@/components/AppSidebar";
 import ClientCard from "@/components/ClientCard";
 import { useSidebar } from "@/context/SidebarContext";
 import { usePermissions } from "@/hooks/usePermissions";
-import { getApiUrl, apiFetch } from "@/config/api";
+import { getApiUrl, apiFetch, authHeaders } from "@/config/api";
+import { getAccessToken, clearAuth } from "../lib/auth";
 interface Client {
   id: string;
   name: string;
@@ -31,19 +32,6 @@ interface MetaPage {
   ig_username: string;
   ig_followers: number;
   source?: string;
-}
-
-function authHeaders() {
-  let token = null;
-  try {
-    token = localStorage.getItem("bento_token");
-  } catch (e) {
-    console.warn("localStorage blocked:", e);
-  }
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
 }
 
 export default function AdminDashboard() {
@@ -232,16 +220,10 @@ export default function AdminDashboard() {
       formData.append("month", seoUploadMonth);
       formData.append("year", seoUploadYear);
 
-      let token = null;
-      try {
-        token = localStorage.getItem("bento_token");
-      } catch (err) {
-        console.warn("localStorage blocked:", err);
-      }
-
       const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
+      const tk = getAccessToken();
+      if (tk) {
+        headers["Authorization"] = `Bearer ${tk}`;
       }
 
       const res = await fetch(`/api/clients/${seoUploadClientId}/upload-monthly-seo`, {
@@ -579,16 +561,10 @@ export default function AdminDashboard() {
       const formData = new FormData();
       formData.append("file", file);
       
-      let token = null;
-      try {
-        token = localStorage.getItem("bento_token");
-      } catch (e) {
-        console.warn("localStorage blocked:", e);
-      }
-      
       const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
+      const tk = getAccessToken();
+      if (tk) {
+        headers["Authorization"] = `Bearer ${tk}`;
       }
 
       const res = await fetch(`/api/clients/${clientId}/upload-seo`, {
@@ -648,12 +624,7 @@ export default function AdminDashboard() {
       const data = await res.json();
       const savedClientId = editingId || data.id;
 
-      let token = null;
-      try {
-        token = localStorage.getItem("bento_token");
-      } catch (e) {
-        console.warn("localStorage blocked:", e);
-      }
+      const tk = getAccessToken();
 
       // 1. Upload SEO PDF if present
       if (seoFile) {
@@ -661,7 +632,7 @@ export default function AdminDashboard() {
         seoFormData.append("file", seoFile);
         const seoRes = await fetch(`/api/clients/${savedClientId}/upload-seo`, {
           method: "POST",
-          headers: token ? { "Authorization": `Bearer ${token}` } : {},
+          headers: tk ? { "Authorization": `Bearer ${tk}` } : {},
           body: seoFormData
         });
         if (!seoRes.ok) {
@@ -676,7 +647,7 @@ export default function AdminDashboard() {
         logoFormData.append("file", logoFile);
         const logoRes = await fetch(`/api/clients/${savedClientId}/upload-logo`, {
           method: "POST",
-          headers: token ? { "Authorization": `Bearer ${token}` } : {},
+          headers: tk ? { "Authorization": `Bearer ${tk}` } : {},
           body: logoFormData
         });
         if (!logoRes.ok) {

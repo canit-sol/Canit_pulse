@@ -16,49 +16,43 @@ import PlatformInfo from "./pages/settings/PlatformInfo";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 
 
+import { setAccessToken, getAccessToken, setUser, clearAuth, getUser } from "./lib/auth";
+
 // Dynamic Session Refresher & Token Rotation Engine
 function TokenRefresher() {
   useEffect(() => {
     const checkAndRefreshToken = async () => {
-      // Skip entirely on the login page to prevent 401 console spam
       if (window.location.pathname === "/login") return;
 
-      const token = localStorage.getItem("bento_token");
-      const refreshToken = localStorage.getItem("bento_refresh_token");
-      if (!token || !refreshToken) return;
+      const token = getAccessToken();
+      if (!token) return;
 
       try {
         const res = await fetch("/api/auth/refresh", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh_token: refreshToken }),
         });
 
         if (res.ok) {
           const data = await res.json();
-          localStorage.setItem("bento_token", data.access_token);
-          localStorage.setItem("bento_refresh_token", data.refresh_token);
-          localStorage.setItem("bento_user", JSON.stringify({
+          setAccessToken(data.access_token);
+          const userData = {
             id: data.id || "admin-id",
             name: data.name || "Admin",
             role: data.role || "admin",
             client_id: data.client_id || null,
-          }));
+          };
+          localStorage.setItem("bento_user", JSON.stringify(userData));
         } else {
-          // Silently clear stale session without triggering redirect loops
-          localStorage.removeItem("bento_token");
-          localStorage.removeItem("bento_refresh_token");
+          clearAuth();
           localStorage.removeItem("bento_user");
         }
       } catch {
-        // Network error — do not crash or spam console
       }
     };
 
-    // Validate/refresh session immediately on mount
     checkAndRefreshToken();
 
-    // 10-minute rotation interval (15-minute access token lifespan)
     const interval = setInterval(checkAndRefreshToken, 10 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
@@ -71,8 +65,8 @@ const INTERNAL_ROLES = ["super_admin", "csm", "hr", "employee", "admin"];
 
 // Logic to protect routes based on login status and user role with multi-tenant isolation
 function ProtectedRoute({ children, role, requirePermission }: { children: React.ReactNode; role?: string; requirePermission?: string }) {
-  const token = localStorage.getItem("bento_token");
-  const user = JSON.parse(localStorage.getItem("bento_user") || "null");
+  const token = getAccessToken();
+  const user = getUser();
   const params = useParams();
 
   if (!token || !user) return <Navigate to="/login" replace />;
@@ -113,11 +107,9 @@ function ProtectedRoute({ children, role, requirePermission }: { children: React
 }
 
 // Logic to send users to the right home page after login
-// If role is super_admin, csm, hr, or employee -> redirect to /admin/dashboard
-// If role is client -> redirect to /client/{client_id}
 function RootRedirect() {
-  const token = localStorage.getItem("bento_token");
-  const user = JSON.parse(localStorage.getItem("bento_user") || "null");
+  const token = getAccessToken();
+  const user = getUser();
 
   if (!token || !user) return <Navigate to="/login" replace />;
 

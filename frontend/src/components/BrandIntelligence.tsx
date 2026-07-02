@@ -9,6 +9,7 @@ import {
   ArrowUpRight, ArrowDownRight, Sparkles, RefreshCw,
   Globe, TrendingDown, Cpu, Flame,
 } from "lucide-react";
+import { authHeaders } from "../lib/auth";
 
 /* ── Types ─────────────────────────────────────────── */
 
@@ -56,11 +57,6 @@ interface Props {
   historicalSnapshots?: any[];
   intelligenceData?: IntelligenceData | null;
   intelligenceLoading?: boolean;
-}
-
-function authHeaders() {
-  const token = localStorage.getItem("bento_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 /* ── Animated Score Ring ───────────────────────────── */

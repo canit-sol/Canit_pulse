@@ -4,6 +4,7 @@ import {
   ResponsiveContainer, Tooltip,
 } from "recharts";
 import { TrendingUp, Loader2 } from "lucide-react";
+import { authHeaders } from "../lib/auth";
 
 /* ── Types ─────────────────────────────────────────── */
 
@@ -35,14 +36,6 @@ const AXIS_MAP: { key: string; label: string }[] = [
   { key: "quality",    label: "Quality" },
   { key: "growth",     label: "Growth" },
 ];
-
-function authHeaders() {
-  const token = localStorage.getItem("bento_token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 /* ── Custom Tooltip ────────────────────────────────── */
 

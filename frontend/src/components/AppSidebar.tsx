@@ -31,20 +31,14 @@ export default function AppSidebar() {
   ].filter(item => item.show);
 
   const handleSignOut = async () => {
-    const refreshToken = localStorage.getItem("bento_refresh_token");
-    if (refreshToken) {
-      try {
-        await fetch("/api/auth/logout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        });
-      } catch (err) {
-        console.error("Logout API call failed:", err);
-      }
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch (err) {
+      console.error("Logout API call failed:", err);
     }
-    localStorage.removeItem("bento_token");
-    localStorage.removeItem("bento_refresh_token");
     localStorage.removeItem("bento_user");
     navigate("/login");
   };

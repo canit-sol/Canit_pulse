@@ -19,10 +19,14 @@ def _upload_post_thumbnail(post_id: str, image_url: str) -> str:
         bucket = "post-thumbnails"
         file_path = f"{post_id}.jpg"
 
+        import httpx
         try:
-            supabase.storage.create_bucket(bucket, options={"public": True})
+            supabase.storage.from_(bucket).get_bucket(bucket)
         except Exception:
-            pass
+            try:
+                supabase.storage.create_bucket(bucket, options={"public": True})
+            except Exception:
+                pass
 
         supabase.storage.from_(bucket).upload(
             path=file_path,

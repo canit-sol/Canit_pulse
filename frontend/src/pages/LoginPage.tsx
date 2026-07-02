@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
+import { setAccessToken } from "../lib/auth";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -32,17 +33,14 @@ export default function LoginPage() {
         return;
       }
 
-      // 💾 Clean Storage (No duplicates, safe fallbacks)
-      localStorage.setItem("bento_token", data.access_token);
-      if (data.refresh_token) {
-        localStorage.setItem("bento_refresh_token", data.refresh_token);
-      }
-      localStorage.setItem("bento_user", JSON.stringify({
-        id: data.id || "admin-id", // 🛡️ Fallback in case backend omits ID
+      setAccessToken(data.access_token);
+      const userData = {
+        id: data.id || "admin-id",
         name: data.name || "Admin",
         role: data.role || "admin",
         client_id: data.client_id || null,
-      }));
+      };
+      localStorage.setItem("bento_user", JSON.stringify(userData));
 
       // 🚀 Clean Navigation (Only fires once!)
       const adminRoles = ["super_admin", "csm", "hr", "employee", "admin"];

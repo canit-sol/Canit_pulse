@@ -5,14 +5,7 @@ import {
   UsersRound, Plus, Trash2, Edit, Loader2
 } from "lucide-react";
 import { getApiUrl } from "@/config/api";
-
-function authHeaders() {
-  const token = localStorage.getItem("bento_token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
+import { authHeaders } from "../lib/auth";
 
 export default function UsersPage() {
   const { collapsed } = useSidebar();

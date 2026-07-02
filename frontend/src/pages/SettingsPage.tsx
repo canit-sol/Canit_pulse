@@ -11,6 +11,8 @@ import {
 import { getApiUrl } from "@/config/api";
 import ApiStatusWidget from "@/components/ApiStatusWidget";
 
+import { authHeaders } from "../lib/auth";
+
 const YoutubeIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
     <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.517 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.871.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
@@ -18,14 +20,6 @@ const YoutubeIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
 );
 
 // Base API URL handled via getApiUrl
-
-function authHeaders() {
-  const token = localStorage.getItem("bento_token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 type TabKey = "general" | "integrations" | "security" | "users";
 
