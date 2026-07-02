@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
-import { setAccessToken } from "../lib/auth";
+
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -33,7 +33,8 @@ export default function LoginPage() {
         return;
       }
 
-      setAccessToken(data.access_token);
+      localStorage.setItem("bento_token", data.access_token);
+      localStorage.setItem("bento_refresh_token", data.refresh_token);
       const userData = {
         id: data.id || "admin-id",
         name: data.name || "Admin",

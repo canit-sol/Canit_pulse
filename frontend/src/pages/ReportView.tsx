@@ -1,4 +1,3 @@
-import { getAccessToken } from "../lib/auth";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Sparkles, TrendingUp, Heart, MessageCircle, Bookmark, Users, Eye, Loader2 } from "lucide-react";
@@ -13,7 +12,7 @@ export default function ReportView() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const token = getAccessToken();
+    const token = localStorage.getItem("bento_token");
     fetch(`/api/reports/${id}`, {
       headers: {
         "Content-Type": "application/json",

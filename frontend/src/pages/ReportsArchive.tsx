@@ -4,7 +4,7 @@ import { FolderKanban, Eye, Calendar, Building2, Trash2, AlertTriangle, X } from
 import AppSidebar from "../components/AppSidebar";
 import { useSidebar } from "../context/SidebarContext";
 import { usePermissions } from "../hooks/usePermissions";
-import { authHeaders } from "../lib/auth";
+import { authHeaders } from "../config/api";
 
 export default function ReportsArchive() {
   const { collapsed } = useSidebar();

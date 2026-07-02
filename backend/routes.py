@@ -221,23 +221,14 @@ def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
     db.add(audit)
     db.commit()
 
-    resp = JSONResponse({
+    return {
         "access_token": access_token,
+        "refresh_token": refresh_hex,
         "token_type": "bearer",
         "role": resolved_role,
         "name": resolved_name,
         "client_id": resolved_client_id,
-    })
-    resp.set_cookie(
-        key="bento_refresh_token",
-        value=refresh_hex,
-        httponly=True,
-        samesite="lax",
-        secure=IS_PRODUCTION,
-        max_age=7 * 24 * 60 * 60,
-        path="/api/auth",
-    )
-    return resp
+    }
 
 def _resolve_refresh_token(db: Session, refresh_token: str | None):
     """Common logic for refresh token validation and rotation. Returns (access_token, role, name, client_id) or raises."""
@@ -296,44 +287,28 @@ def _resolve_refresh_token(db: Session, refresh_token: str | None):
 
 
 @router.post("/auth/refresh")
-def refresh_token(request: Request, refresh_token: Optional[str] = Body(None), db: Session = Depends(get_db)):
-    # Read refresh token from cookie first, fall back to request body
-    cookie_token = request.cookies.get("bento_refresh_token")
-    if cookie_token:
-        refresh_token = cookie_token
+def refresh_token(refresh_token: Optional[str] = Body(None), db: Session = Depends(get_db)):
 
     access_token, new_refresh_hex, role, name, client_id = _resolve_refresh_token(db, refresh_token)
 
-    resp = JSONResponse({
+    return {
         "access_token": access_token,
+        "refresh_token": new_refresh_hex,
         "token_type": "bearer",
         "role": role,
         "name": name,
         "client_id": client_id,
-    })
-    resp.set_cookie(
-        key="bento_refresh_token",
-        value=new_refresh_hex,
-        httponly=True,
-        samesite="lax",
-        secure=IS_PRODUCTION,
-        max_age=7 * 24 * 60 * 60,
-        path="/api/auth",
-    )
-    return resp
+    }
 
 
 @router.post("/auth/logout")
-def logout(request: Request, db: Session = Depends(get_db)):
-    refresh_token = request.cookies.get("bento_refresh_token")
+def logout(refresh_token: Optional[str] = Body(None), db: Session = Depends(get_db)):
     if refresh_token:
         token_rec = db.query(RefreshToken).filter(RefreshToken.token == refresh_token).first()
         if token_rec:
             token_rec.is_revoked = True
             db.commit()
-    resp = JSONResponse({"message": "Logged out successfully."})
-    resp.delete_cookie("bento_refresh_token", path="/api/auth")
-    return resp
+    return {"message": "Logged out successfully."}
 
 @router.get("/auth/me")
 def me(current_user: AuthIdentity = Depends(get_current_user)):

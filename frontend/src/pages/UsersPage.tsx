@@ -5,7 +5,7 @@ import {
   UsersRound, Plus, Trash2, Edit, Loader2
 } from "lucide-react";
 import { getApiUrl } from "@/config/api";
-import { authHeaders } from "../lib/auth";
+import { authHeaders } from "../config/api";
 
 export default function UsersPage() {
   const { collapsed } = useSidebar();

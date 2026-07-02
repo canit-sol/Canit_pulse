@@ -4,7 +4,7 @@ import {
   ChevronLeft, ChevronRight, Upload, Download, X, FileSpreadsheet,
   AlertCircle
 } from "lucide-react";
-import { getAccessToken } from "../lib/auth";
+
 
 interface AdSpendRow {
   campaign_name: string;
@@ -125,7 +125,7 @@ export default function AdSpendsPanel({ clientId, month, year }: { clientId: str
     const mName = MONTH_NAMES[selMonth];
     try {
       const res = await fetch(`/api/clients/${clientId}/ad-spends?month=${mName}&year=${selYear}`, {
-        headers: { Authorization: `Bearer ${getAccessToken()}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem("bento_token")}` },
       });
       if (res.ok) {
         const json = await res.json();
@@ -199,7 +199,7 @@ export default function AdSpendsPanel({ clientId, month, year }: { clientId: str
     try {
       const res = await fetch(`/api/clients/${clientId}/ad-spends/import`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${getAccessToken()}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem("bento_token")}` },
         body: formData,
       });
       if (res.ok) {

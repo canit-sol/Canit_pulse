@@ -9,7 +9,7 @@ import {
   ArrowUpRight, ArrowDownRight, Sparkles, RefreshCw,
   Globe, TrendingDown, Cpu, Flame,
 } from "lucide-react";
-import { authHeaders } from "../lib/auth";
+import { authHeaders } from "../config/api";
 
 /* ── Types ─────────────────────────────────────────── */
 

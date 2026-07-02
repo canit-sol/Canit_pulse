@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, Tooltip,
 } from "recharts";
 import { TrendingUp, Loader2 } from "lucide-react";
-import { authHeaders } from "../lib/auth";
+import { authHeaders } from "../config/api";
 
 /* ── Types ─────────────────────────────────────────── */
 

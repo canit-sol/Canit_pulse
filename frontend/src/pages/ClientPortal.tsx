@@ -13,7 +13,7 @@ import BrandIntelligence from "@/components/BrandIntelligence";
 import PrintReportView from "../components/PrintReportView";
 import DeliverablesPanel from "@/components/DeliverablesPanel";
 import AdPerformanceView from "@/components/AdPerformanceView";
-import { getAccessToken, clearAuth } from "../lib/auth";
+
 import { Download, AlertCircle, Play } from "lucide-react";
 import { usePermissions } from "../hooks/usePermissions";
 import TourGuide from "../components/TourGuide";
@@ -537,7 +537,7 @@ export default function ClientPortal() {
   const permissions = usePermissions();
   const { id } = useParams();
   const navigate = useNavigate();
-  const token = getAccessToken();
+  const token = localStorage.getItem("bento_token");
   const currentUser = JSON.parse(localStorage.getItem("bento_user") || "{}");
   const isInternalStaff = ["super_admin", "csm", "hr", "employee", "admin"].includes(currentUser.role);
 
@@ -550,7 +550,9 @@ export default function ClientPortal() {
     } catch (err) {
       console.error("Logout API call failed:", err);
     }
-    clearAuth();
+    localStorage.removeItem("bento_token");
+    localStorage.removeItem("bento_refresh_token");
+    localStorage.removeItem("bento_user");
     localStorage.removeItem("bento_user");
     navigate("/login");
   };
@@ -3780,7 +3782,7 @@ function IndustryNewsSection({ industry, clientId }: { industry: string; clientI
     }
 
     fetch(fetchUrl, {
-      headers: getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {},
+      headers: localStorage.getItem("bento_token") ? { Authorization: `Bearer ${localStorage.getItem("bento_token")}` } : {},
     })
       .then((res) => { if (!res.ok) throw new Error("Failed"); return res.json(); })
       .then((data: NewsArticle[]) => {
