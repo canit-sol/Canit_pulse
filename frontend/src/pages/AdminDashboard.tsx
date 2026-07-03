@@ -6,7 +6,7 @@ import ClientCard from "@/components/ClientCard";
 import { useSidebar } from "@/context/SidebarContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getApiUrl, apiFetch, authHeaders } from "@/config/api";
-import { getAccessToken, clearAuth } from "../lib/auth";
+import { getAccessToken, clearAuth, getUser } from "../lib/auth";
 interface Client {
   id: string;
   name: string;
@@ -38,7 +38,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const { collapsed } = useSidebar();
   const permissions = usePermissions();
-  const currentUser = JSON.parse(localStorage.getItem("bento_user") || "{}");
+  const currentUser = getUser() || {};
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [search, setSearch] = useState("");

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useSidebar } from "../context/SidebarContext";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./ui/tooltip";
+import { getUser } from "../lib/auth";
 import { usePermissions } from "../hooks/usePermissions";
 
 export default function AppSidebar() {
@@ -14,7 +15,7 @@ export default function AppSidebar() {
   const navigate = useNavigate();
   const permissions = usePermissions();
 
-  const currentUser = JSON.parse(localStorage.getItem("bento_user") || "{}");
+  const currentUser = getUser() || {};
   const user = {
       name: currentUser.name || "User",
       role: permissions.displayName
