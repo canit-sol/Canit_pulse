@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, LogOut, Bot, X, Send, Loader2,
-  TrendingUp, BarChart3, DollarSign,
+  TrendingUp, BarChart3, DollarSign, IndianRupee,
   Heart, MessageCircle, Bookmark, Users, Eye,
   ChevronLeft, ChevronRight, RefreshCw, Calendar,
   Globe, ShieldAlert, Activity, Flame, Mic, MicOff,
@@ -83,7 +83,7 @@ const SHOW_FACEBOOK_TAB = true;
 
 const PLATFORMS = [
   { id: "deliverables", label: "Deliverables", Icon: ClipboardList, color: "#7C3AED", bg: "bg-violet-50", active_bg: "bg-[#7C3AED]" },
-  { id: "ad-performance", label: "Ad Performance", Icon: DollarSign, color: "#059669", bg: "bg-emerald-50", active_bg: "bg-[#059669]" },
+  { id: "ad-performance", label: "Meta Ads", Icon: IndianRupee, color: "#059669", bg: "bg-emerald-50", active_bg: "bg-[#059669]" },
   { id: "instagram", label: "Instagram",  Icon: InstagramIcon,     color: "#E1306C", bg: "bg-pink-50",   active_bg: "bg-gradient-to-r from-[#E1306C] to-[#833AB4]" },
   ...(SHOW_FACEBOOK_TAB
     ? [{ id: "facebook", label: "Facebook", Icon: FacebookIcon, color: "#1877F2", bg: "bg-blue-50", active_bg: "bg-[#1877F2]" }]
