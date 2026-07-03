@@ -125,57 +125,11 @@ export default function AdPerformanceView({ theme, month, year }: { theme: any, 
 
       {/* Top Summary Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Budget Card */}
-        <div className={`col-span-1 md:col-span-2 rounded-xl p-5 border ${theme.cardBg} ${theme.cardBorder} shadow-sm relative overflow-hidden group`}>
-          <div className="flex justify-between items-start relative z-10">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-sm font-bold text-slate-500 uppercase tracking-widest font-heading">Monthly Budget</span>
-              </div>
-              {editingBudget ? (
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-[32px] font-black ${theme.valueColor}`}>₹</span>
-                  <input 
-                    type="number"
-                    className="text-[32px] font-black bg-white border border-emerald-200 rounded-lg w-32 px-2 text-slate-800 outline-none focus:ring-2 focus:ring-emerald-400"
-                    value={budgetInput}
-                    onChange={(e) => setBudgetInput(e.target.value)}
-                    autoFocus
-                  />
-                  <button onClick={saveBudget} className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"><Check className="w-5 h-5"/></button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <div className={`text-[42px] font-black leading-none tracking-tight ${theme.valueColor}`}>
-                    ₹{data.budget.toLocaleString('en-IN')}
-                  </div>
-                  <button onClick={() => setEditingBudget(true)} className="p-1.5 text-slate-400 hover:text-emerald-600 bg-white/50 hover:bg-white rounded-md transition opacity-0 group-hover:opacity-100">
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className={`w-12 h-12 rounded-xl ${theme.iconBg} flex items-center justify-center shrink-0`}>
-              <DollarSign className={`w-6 h-6 ${theme.iconColor}`} />
-            </div>
-          </div>
-          
-          <div className="mt-6 relative z-10">
-            <div className="flex justify-between text-xs font-bold text-slate-500 mb-2">
-              <span>Spent: ₹{data.total_spend.toLocaleString('en-IN')}</span>
-              <span>Remaining: ₹{data.remaining_budget.toLocaleString('en-IN')}</span>
-            </div>
-            <div className="h-2.5 w-full bg-white/60 rounded-full overflow-hidden border border-white">
-              <div 
-                className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-1000" 
-                style={{ width: `${data.budget > 0 ? min(100, (data.total_spend / data.budget) * 100) : 0}%` }} 
-              />
-            </div>
-          </div>
-          
-          <div className="absolute -right-12 -bottom-12 opacity-5 pointer-events-none">
-            <DollarSign className="w-48 h-48" />
+        {/* Budget Card - spent only */}
+        <div className={`col-span-1 md:col-span-2 rounded-xl p-5 border ${theme.cardBg} ${theme.cardBorder} shadow-sm`}>
+          <div className="text-sm font-bold text-slate-500 uppercase tracking-widest font-heading mb-1">Total Spent</div>
+          <div className={`text-[36px] font-black leading-none tracking-tight ${theme.valueColor}`}>
+            ₹{data.total_spend.toLocaleString('en-IN')}
           </div>
         </div>
 
