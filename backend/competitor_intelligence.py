@@ -46,6 +46,7 @@ def _industry_to_hashtags(industry: str) -> list:
         "manufacturing": ["manufacturing", "manufacturingIndia", "industrialIndia", "makeinindia", "engineering", "steelIndia"],
         "construction": ["construction", "constructionIndia", "buildingIndia", "infrastructureIndia", "realestateIndia"],
         "wire": ["wire", "wires", "cablesIndia", "wiresIndia", "metalIndia", "steelIndia"],
+        "plywood": ["plywood", "wood", "woodIndia", "timberIndia", "interiorIndia", "furnitureIndia"],
     }
     for key, tags in TAG_MAP.items():
         if key in industry_lower:
@@ -532,7 +533,13 @@ def get_default_competitors(industry: str) -> list:
             {"handle": "mahindralive", "name": "Mahindra", "style_summary": "Indian auto major with SUV and farm equipment content."},
             {"handle": "bharatbenz", "name": "BharatBenz", "style_summary": "Indian commercial vehicle brand with engineering content."},
         ]
-    if "manufacturing" in ind_lower or "industrial" in ind_lower or "steel" in ind_lower or "metal" in ind_lower or "wire" in ind_lower or "factory" in ind_lower or "engineering" in ind_lower or "construction" in ind_lower or "building" in ind_lower or "material" in ind_lower or "wood" in ind_lower or "plywood" in ind_lower or "lumber" in ind_lower or "timber" in ind_lower:
+    if "plywood" in ind_lower or "wood" in ind_lower or "lumber" in ind_lower or "timber" in ind_lower:
+        return [
+            {"handle": "greenply", "name": "Greenply", "style_summary": "Indian plywood leader with interior design and wood solutions."},
+            {"handle": "centuryply", "name": "CenturyPly", "style_summary": "India's trusted plywood brand showcasing premium wood products."},
+            {"handle": "kitply", "name": "Kitply", "style_summary": "Indian plywood and panel products with industry insights."},
+        ]
+    if "manufacturing" in ind_lower or "industrial" in ind_lower or "steel" in ind_lower or "metal" in ind_lower or "wire" in ind_lower or "factory" in ind_lower or "engineering" in ind_lower or "construction" in ind_lower or "building" in ind_lower or "material" in ind_lower:
         return [
             {"handle": "tatasteel", "name": "Tata Steel", "style_summary": "Indian steel giant showcasing industrial innovation and sustainability."},
             {"handle": "adani_wires", "name": "Adani Wires", "style_summary": "Indian wire manufacturing leader with engineering-focused content."},
