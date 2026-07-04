@@ -261,6 +261,22 @@ Analyze the client's niche and output exactly 3 relevant competitor profiles in 
                     
             niche_analysis = discovery_data.get("niche_analysis", f"Focuses on premium {sanitized_industry} audience engagement.")
             discovered_comps = discovery_data.get("competitors", [])
+            # Validate Groq-discovered handles actually exist on Instagram
+            if discovered_comps:
+                valid = []
+                for c in discovered_comps:
+                    ch = c.get("handle", "").strip().lstrip("@")
+                    if ch:
+                        profile = fetch_public_profile(ch)
+                        if profile.get("source") == "live" and profile.get("followers", 0) > 0:
+                            valid.append(c)
+                        else:
+                            print(f"competitor_intelligence: Rejecting Groq handle @{ch} (source={profile.get('source')}, followers={profile.get('followers')})")
+                if len(valid) >= 2:
+                    discovered_comps = valid
+                else:
+                    print(f"competitor_intelligence: Only {len(valid)} valid handles from Groq, falling to defaults")
+                    discovered_comps = []
         except Exception as e:
             print("competitor_intelligence discovery error, falling back to defaults:", e)
     
