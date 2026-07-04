@@ -8,9 +8,9 @@ from dotenv import load_dotenv, find_dotenv
 from public_fetcher import fetch_public_profile
 load_dotenv(find_dotenv(), override=True)
 
-# Simple 24-hour caching mechanism to protect API rate limits
+# Simple 1-hour caching mechanism to protect API rate limits
 _COMPETITORS_CACHE: Dict[str, Dict] = {}
-CACHE_DURATION_SECS = 24 * 60 * 60
+CACHE_DURATION_SECS = 60 * 60
 
 def _strip_think_tags(text: str) -> str:
     text = re.sub(r'(?s)<think>.*?</think>', '', text)
@@ -44,6 +44,7 @@ def _industry_to_hashtags(industry: str) -> list:
         "real estate": ["realestate", "propertyIndia", "realestateIndia", "homes", "architecture", "indianrealestate"],
         "automotive": ["automotive", "carsIndia", "autoIndia", "bikeIndia", "driving", "indianauto"],
         "manufacturing": ["manufacturing", "manufacturingIndia", "industrialIndia", "makeinindia", "engineering", "steelIndia"],
+        "construction": ["construction", "constructionIndia", "buildingIndia", "infrastructureIndia", "realestateIndia"],
         "wire": ["wire", "wires", "cablesIndia", "wiresIndia", "metalIndia", "steelIndia"],
     }
     for key, tags in TAG_MAP.items():
@@ -234,7 +235,7 @@ Analyze the client's niche and output exactly 3 relevant competitor profiles in 
                     {"role": "user", "content": discovery_user_prompt}
                 ],
                 temperature=0.4,
-                max_tokens=600,
+                max_tokens=1500,
             )
             raw_res = res.choices[0].message.content.strip()
             raw_res = _strip_think_tags(raw_res)
@@ -507,7 +508,7 @@ def get_default_competitors(industry: str) -> list:
             {"handle": "swiggyindia", "name": "Swiggy", "style_summary": "Indian food delivery leader with vibrant content."},
             {"handle": "eatfit", "name": "EatFit", "style_summary": "Healthy food brand targeting fitness-conscious consumers."},
         ]
-    if "manufacturing" in ind_lower or "industrial" in ind_lower or "steel" in ind_lower or "metal" in ind_lower or "wire" in ind_lower or "factory" in ind_lower or "engineering" in ind_lower:
+    if "manufacturing" in ind_lower or "industrial" in ind_lower or "steel" in ind_lower or "metal" in ind_lower or "wire" in ind_lower or "factory" in ind_lower or "engineering" in ind_lower or "construction" in ind_lower:
         return [
             {"handle": "tatasteel", "name": "Tata Steel", "style_summary": "Indian steel giant showcasing industrial innovation and sustainability."},
             {"handle": "adani_wires", "name": "Adani Wires", "style_summary": "Indian wire manufacturing leader with engineering-focused content."},
