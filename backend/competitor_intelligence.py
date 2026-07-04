@@ -508,7 +508,7 @@ def get_default_competitors(industry: str) -> list:
             {"handle": "swiggyindia", "name": "Swiggy", "style_summary": "Indian food delivery leader with vibrant content."},
             {"handle": "eatfit", "name": "EatFit", "style_summary": "Healthy food brand targeting fitness-conscious consumers."},
         ]
-    if "manufacturing" in ind_lower or "industrial" in ind_lower or "steel" in ind_lower or "metal" in ind_lower or "wire" in ind_lower or "factory" in ind_lower or "engineering" in ind_lower or "construction" in ind_lower:
+    if "manufacturing" in ind_lower or "industrial" in ind_lower or "steel" in ind_lower or "metal" in ind_lower or "wire" in ind_lower or "factory" in ind_lower or "engineering" in ind_lower or "construction" in ind_lower or "building" in ind_lower or "material" in ind_lower or "wood" in ind_lower or "plywood" in ind_lower or "lumber" in ind_lower or "timber" in ind_lower:
         return [
             {"handle": "tatasteel", "name": "Tata Steel", "style_summary": "Indian steel giant showcasing industrial innovation and sustainability."},
             {"handle": "adani_wires", "name": "Adani Wires", "style_summary": "Indian wire manufacturing leader with engineering-focused content."},
