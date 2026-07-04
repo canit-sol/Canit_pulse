@@ -166,7 +166,7 @@ def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
             client = db.query(Client).filter(Client.id == client_acc.client_id).first()
             auth_success = True
             resolved_id = client_acc.id
-            resolved_role = client_acc.report_access_scope # "client"
+            resolved_role = "client"
             resolved_name = client.name if client else "Client User"
             resolved_client_id = client_acc.client_id
 
@@ -270,7 +270,7 @@ def _resolve_refresh_token(db: Session, refresh_token: str | None):
         raise HTTPException(status_code=401, detail="Client access is revoked.")
 
     resolved_id = user.id if user else client_acc.id
-    resolved_role = user.role if user else client_acc.report_access_scope
+    resolved_role = user.role if user else "client"
     resolved_client_id = user.client_id if user else client_acc.client_id
     resolved_name = user.name if user else "Client"
 
