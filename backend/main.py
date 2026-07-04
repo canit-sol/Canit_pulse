@@ -46,6 +46,17 @@ REDIRECT_URI = "http://localhost:8000/api/auth/instagram/callback"
 
 app = FastAPI(title="Canit Pulse v4")
 
+from fastapi.responses import JSONResponse
+from fastapi import Request as FastAPIRequest
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: FastAPIRequest, exc: Exception):
+    print(f"[UNHANDLED EXCEPTION] {request.method} {request.url}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error.", "error": str(exc)}
+    )
+
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "service": "canit-pulse-api"}

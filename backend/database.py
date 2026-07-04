@@ -515,6 +515,17 @@ def create_tables():
     Base.metadata.create_all(bind=engine)
     try:
         with engine.connect() as conn:
+            # Migration: add missing columns to report_feedback
+            for col_name, col_type in [("rating", "INTEGER"), ("content", "VARCHAR DEFAULT ''")]:
+                exists = conn.execute(text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_name = 'report_feedback' AND column_name = :col"
+                ), {"col": col_name}).fetchone()
+                if not exists:
+                    conn.execute(text(f"ALTER TABLE report_feedback ADD COLUMN {col_name} {col_type};"))
+                    conn.commit()
+                    print(f"Migrated report_feedback: added column {col_name}.")
+
             result = conn.execute(text("""
                 SELECT column_name FROM information_schema.columns 
                 WHERE table_name = 'content_calendar' AND column_name = 'post_type'

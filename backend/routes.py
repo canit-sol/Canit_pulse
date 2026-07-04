@@ -199,7 +199,7 @@ def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
         client_acc.last_login = now
 
     # Generate short-lived JWT Access Token and persistent Refresh Token
-    access_token = create_token(resolved_id, resolved_role, resolved_client_id)
+    access_token = create_token(resolved_id, resolved_role, resolved_client_id, expires_delta=timedelta(hours=168))
     refresh_hex = secrets.token_hex(32)
 
     refresh_token_rec = RefreshToken(
@@ -289,7 +289,7 @@ def _resolve_refresh_token(db: Session, refresh_token: str | None):
     )
     db.add(new_refresh_rec)
 
-    new_access_token = create_token(resolved_id, resolved_role, resolved_client_id)
+    new_access_token = create_token(resolved_id, resolved_role, resolved_client_id, expires_delta=timedelta(hours=168))
     db.commit()
 
     return new_access_token, new_refresh_hex, resolved_role, resolved_name, resolved_client_id
@@ -991,6 +991,29 @@ def list_clients(current_user: AuthIdentity = Depends(require_admin), db: Sessio
     except Exception as e:
         print(f"❌ DATABASE CRASH: {e}")
         return JSONResponse(status_code=500, content={"detail": f"Database connection error: {str(e)}"})
+
+@router.get("/clients/{client_id}")
+def get_client(client_id: str, current_user: AuthIdentity = Depends(require_client), db: Session = Depends(get_db)):
+    if current_user.role == "client" and current_user.client_id != client_id:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found.")
+    access = db.query(ClientAccess).filter(ClientAccess.client_id == client_id).first()
+    return {
+        "id": client.id,
+        "name": client.name,
+        "industry": client.industry,
+        "instagram_handle": client.instagram_handle,
+        "website_url": client.website_url,
+        "brand_color": client.brand_color,
+        "fb_page_id": client.fb_page_id,
+        "ig_user_id": client.ig_user_id,
+        "youtube_channel_id": client.youtube_channel_id,
+        "client_logo_url": client.client_logo_url,
+        "access_username": access.username if access else None,
+        "access_active": access.is_active if access else False,
+    }
 
 @router.post("/clients")
 def create_client(data: ClientCreate, current_user: AuthIdentity = Depends(require_admin), db: Session = Depends(get_db)):

@@ -604,9 +604,8 @@ export default function AdminDashboard() {
     const url = editingId ? `/api/clients/${editingId}` : "/api/clients";
 
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
-        headers: authHeaders(),
         body: JSON.stringify({
           name: formData.name,
           industry: formData.industry,
