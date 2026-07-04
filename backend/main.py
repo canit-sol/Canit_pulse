@@ -156,7 +156,6 @@ def update_client(client_id: str, client_data: ClientCreate, current_user: AuthI
         "industry": client.industry,
         "website_url": client.website_url,
         "instagram_handle": client.instagram_handle,
-        "client_type": client.client_type,
         "platform": client.platform,
         "brand_color": client.brand_color,
     }
