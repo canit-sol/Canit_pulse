@@ -1564,9 +1564,9 @@ def get_automatic_competitors(client_id: str, current_user: AuthIdentity = Depen
         raise HTTPException(status_code=403, detail="Access denied.")
     """
     Fully automatic, AI-driven competitor social intelligence route.
-    Uses only:
-    - client industry
-    - client instagram_handle
+    Uses:
+    - client industry, instagram_handle
+    - client ig_user_id / fb_page_token for Instagram Graph API (if available)
     """
     client_rec = db.query(Client).filter(Client.id == client_id).first()
     if not client_rec:
@@ -1580,7 +1580,7 @@ def get_automatic_competitors(client_id: str, current_user: AuthIdentity = Depen
         
     try:
         from competitor_intelligence import fetch_automatic_competitors
-        data = fetch_automatic_competitors(handle, industry)
+        data = fetch_automatic_competitors(handle, industry, ig_token=client_rec.ig_access_token, ig_user_id=client_rec.ig_user_id)
         return data
     except Exception as e:
         print(f"❌ AUTOMATIC COMPETITORS CRASH: {e}")
@@ -2266,139 +2266,279 @@ def fetch_benchmark_data(client_id: str, data: dict, current_user: AuthIdentity 
     }
 
 
-@router.post("/clients/{client_id}/competitors/discover")
-def discover_competitors(client_id: str, current_user: AuthIdentity = Depends(require_admin), db: Session = Depends(get_db)):
-    from services.permissions import can_edit_client
-    if not can_edit_client(current_user.role):
-        raise HTTPException(status_code=403, detail="Not authorized.")
-    import json
+def _industry_to_hashtags(industry: str) -> list:
+    industry_lower = industry.lower().strip()
+    TAG_MAP = {
+        "wellness": ["wellness", "wellnessIndia", "health", "healthyliving", "selfcare"],
+        "hospital": ["healthcare", "hospital", "medical", "healthIndia", "care"],
+        "dental": ["dentist", "dental", "smile", "oralhealth", "dentalcareIndia"],
+        "fashion": ["fashion", "fashionIndia", "style", "indiastyle", "streetstyleIndia"],
+        "fitness": ["fitness", "fitIndia", "workout", "gymIndia", "healthylifestyle"],
+        "restaurant": ["food", "foodIndia", "restaurant", "foodie", "indianfood"],
+        "education": ["education", "learning", "edtech", "educationIndia", "skillIndia"],
+        "digital marketing": ["marketing", "digitalmarketing", "socialmediamarketing", "contentmarketing"],
+        "spiritual": ["spiritual", "meditation", "yoga", "mindfulness", "spiritualityIndia"],
+        "tech": ["technology", "techIndia", "startup", "innovation", "indiantech"],
+        "beauty": ["beauty", "skincare", "makeupIndia", "beautyIndia", "cosmetics"],
+        "fashion": ["fashion", "fashionIndia", "style", "indiastyle", "streetstyleIndia"],
+        "real estate": ["realestate", "propertyIndia", "realestateIndia", "homes", "architecture"],
+        "automotive": ["automotive", "carsIndia", "autoIndia", "bikeIndia", "driving"],
+    }
+    for key, tags in TAG_MAP.items():
+        if key in industry_lower:
+            return tags
+    words = [w for w in industry_lower.split() if len(w) > 2]
+    if words:
+        return words[:5]
+    return ["business", "entrepreneur", "India", "growth", "innovation"]
+
+def _discover_via_instagram_graph(client: Client, ig_token: str, ig_user_id: str) -> list:
+    """Discover real competitors via Instagram Graph API hashtag search."""
+    GRAPH_URL = f"https://graph.facebook.com/v25.0"
+    headers = {}  # token passed as param
+
+    hashtags = _industry_to_hashtags(client.industry or "")
+    seen_owners = {}
+    client_handle = (client.instagram_handle or "").lower()
+
+    for tag in hashtags[:5]:  # limit to 5 tags
+        try:
+            search_res = requests.get(
+                f"{GRAPH_URL}/{ig_user_id}/hashtag_search",
+                params={"q": tag, "access_token": ig_token},
+                timeout=10
+            )
+            if search_res.status_code != 200:
+                continue
+            search_data = search_res.json()
+            hashtag_id = search_data.get("data", [{}])[0].get("id")
+            if not hashtag_id:
+                continue
+
+            media_res = requests.get(
+                f"{GRAPH_URL}/{hashtag_id}/top_media",
+                params={
+                    "fields": "id,owner,caption,like_count,comments_count",
+                    "access_token": ig_token,
+                    "limit": 15,
+                },
+                timeout=10
+            )
+            if media_res.status_code != 200:
+                continue
+            media_data = media_res.json()
+
+            for item in media_data.get("data", []):
+                owner = item.get("owner")
+                if not owner or not owner.get("id"):
+                    continue
+                owner_id = str(owner["id"])
+                if owner_id == str(ig_user_id):
+                    continue
+                if owner_id not in seen_owners:
+                    seen_owners[owner_id] = {
+                        "owner_id": owner_id,
+                        "like_count": 0,
+                        "comment_count": 0,
+                        "appearances": 0,
+                    }
+                seen_owners[owner_id]["like_count"] += item.get("like_count", 0)
+                seen_owners[owner_id]["comment_count"] += item.get("comments_count", 0)
+                seen_owners[owner_id]["appearances"] += 1
+        except Exception as e:
+            print(f"Hashtag search failed for '{tag}': {e}")
+            continue
+
+    if not seen_owners:
+        return []
+
+    # Fetch profile details for each unique owner
+    competitors = []
+    for owner_id, info in seen_owners.items():
+        try:
+            profile_res = requests.get(
+                f"{GRAPH_URL}/{owner_id}",
+                params={
+                    "fields": "username,name,follower_count,media_count,biography",
+                    "access_token": ig_token,
+                },
+                timeout=10
+            )
+            if profile_res.status_code != 200:
+                continue
+            profile = profile_res.json()
+            username = (profile.get("username", "") or "").lower()
+            if username == client_handle:
+                continue
+            name = profile.get("name", "") or profile.get("username", owner_id)
+            follower_count = profile.get("follower_count", 0) or 0
+            if follower_count < 500:
+                continue
+            competitors.append({
+                "name": name,
+                "handle": profile.get("username", ""),
+                "followers": follower_count,
+                "posts_count": profile.get("media_count", 0) or 0,
+                "total_likes": info["like_count"],
+                "source": "instagram_graph"
+            })
+        except Exception as e:
+            print(f"Profile fetch failed for {owner_id}: {e}")
+            continue
+
+    # Sort by number of appearances (most relevant first), return top 4
+    competitors.sort(key=lambda c: c.get("total_likes", 0), reverse=True)
+    return competitors[:4]
+
+def _discover_via_news(client: Client) -> list:
+    """Fallback: find competitor brand names from GNews/RSS."""
+    from news_api import fetch_industry_news_modular
+    import re
+
+    queries = [
+        f"{client.industry or 'business'} competitors India",
+        f"top {client.industry or 'business'} brands India",
+        f"{client.industry or 'business'} companies India",
+    ]
+
+    articles = []
+    for q in queries:
+        try:
+            articles = fetch_industry_news_modular(q)
+            if articles:
+                break
+        except Exception:
+            continue
+
+    if not articles:
+        try:
+            articles = fetch_industry_news_modular("business India")
+        except Exception:
+            return []
+
+    brand_names = set()
+    for article in articles[:15]:
+        title = article.get("title", "")
+        desc = article.get("description", "")
+        text = f"{title} {desc}"
+        candidates = re.findall(r'(?<![\w@])([A-Z][A-Za-z0-9\s&]+?(?:Ltd|Inc|Brands|Companies|Group|Tech|Media|Labs|Studio|Solutions|Services|Care|Health|Wellness|Fashion|Food|Hospital|Clinic|Academy|Institute))(?![a-z])', text)
+        for c in candidates:
+            cleaned = c.strip()
+            if 3 < len(cleaned) < 50 and cleaned.lower() not in (client.name or "").lower():
+                brand_names.add(cleaned)
+
+    if not brand_names:
+        return []
+
     from groq import Groq
-
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found.")
-
-    # Step 1: Ask AI to suggest real competitor Instagram handles
     groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+    brands_list = list(brand_names)[:10]
     prompt = f"""
     The brand "{client.name}" operates in the "{client.industry or 'general'}" industry in India.
-    Their Instagram handle is "@{client.instagram_handle or client.name}".
+    These brand names appeared in real news articles about this industry: {', '.join(brands_list)}.
     
-    Suggest 4 real competitor brands in the same industry in India that are active on Instagram.
-    Return ONLY a JSON array like this, no other text:
-    [
-      {{"name": "Brand Name", "handle": "instagramhandle", "reason": "why they compete"}},
-      {{"name": "Brand Name 2", "handle": "instagramhandle2", "reason": "why they compete"}}
-    ]
-    Only return handles you are confident exist. No @ symbol in handle.
+    Which of these are actual competitor brands to {client.name}? For each real competitor, provide:
+    1. The brand name (as listed)
+    2. Their Instagram handle (if you are confident it exists)
+    
+    Return ONLY a JSON array, no other text:
+    [{{"name": "Brand Name", "handle": "insta_handle"}}, ...]
+    Use empty string for handle if unsure.
     """
 
     response = groq_client.chat.completions.create(
         model="qwen/qwen3.6-27b",
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,
+        temperature=0.2,
         max_tokens=500,
     )
-
     raw = response.choices[0].message.content.strip()
     raw = raw.replace("```json", "").replace("```", "").strip()
-
     try:
         suggestions = json.loads(raw)
     except Exception:
-        raise HTTPException(status_code=500, detail="AI could not suggest competitors. Try again.")
+        suggestions = [{"name": n, "handle": ""} for n in brands_list[:4]]
 
-    # Step 2: For each suggested handle, fetch public follower count
-    RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "")
+    return [{
+        "name": s.get("name", ""),
+        "handle": s.get("handle", "").replace("@", "").strip(),
+        "followers": 0,
+        "posts_count": 0,
+        "total_likes": 0,
+        "source": "news"
+    } for s in suggestions[:4] if s.get("name")]
+
+@router.post("/clients/{client_id}/competitors/discover")
+def discover_competitors(client_id: str, current_user: AuthIdentity = Depends(require_admin), db: Session = Depends(get_db)):
+    from services.permissions import can_edit_client
+    if not can_edit_client(current_user.role):
+        raise HTTPException(status_code=403, detail="Not authorized.")
+
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found.")
+
+    ig_token = client.ig_access_token
+    ig_user_id = client.ig_user_id
+
+    competitors = []
+
+    # Phase 1: Instagram Graph API hashtag search (real accounts, real data)
+    if ig_token and ig_user_id:
+        try:
+            competitors = _discover_via_instagram_graph(client, ig_token, ig_user_id)
+            if competitors:
+                print(f"Discovered {len(competitors)} competitors via Instagram Graph API")
+        except Exception as e:
+            print(f"Instagram Graph discovery failed: {e}")
+
+    # Phase 2: Fallback to news-based discovery
+    if not competitors:
+        try:
+            competitors = _discover_via_news(client)
+            if competitors:
+                print(f"Discovered {len(competitors)} competitors via news search")
+        except Exception as e:
+            print(f"News discovery failed: {e}")
+
+    if not competitors:
+        raise HTTPException(status_code=500, detail="Could not discover competitors. Ensure the client has Instagram connected or try again later.")
+
     saved = []
+    for c in competitors:
+        handle = c.get("handle", "").strip()
+        name = c.get("name", handle or "Unknown")
+        if not name and not handle:
+            continue
 
-    for s in suggestions[:4]:
-        handle = s.get("handle", "").replace("@", "").strip()
-        name = s.get("name", handle)
-
-        followers = 0
-        media_count = 0
-        recent_likes = 0
-
-        if RAPIDAPI_KEY:
-            try:
-                res = requests.get(
-                    "https://instagram-scraper-stable-api.p.rapidapi.com/v1/info",
-                    headers={
-                        "x-rapidapi-key": RAPIDAPI_KEY,
-                        "x-rapidapi-host": "instagram-scraper-stable-api.p.rapidapi.com"
-                    },
-                    params={"username_or_id_or_url": handle},
-                    timeout=10
-                ).json()
-                
-                # Handle both response shapes
-                info = res.get("data", res)
-                followers = (
-                    info.get("follower_count") or 
-                    info.get("followers_count") or 
-                    info.get("edge_followed_by", {}).get("count", 0)
-                )
-                media_count = info.get("media_count") or info.get("edge_owner_to_timeline_media", {}).get("count", 0)
-                
-                edges = info.get("edge_owner_to_timeline_media", {}).get("edges", [])
-                if not edges:
-                    edges = info.get("latest_posts", []) or []
-                for edge in edges:
-                    node = edge.get("node", edge)
-                    likes = node.get("edge_media_preview_like", {}).get("count")
-                    if likes is None:
-                        likes = node.get("like_count", 0)
-                    recent_likes += (likes or 0)
-                    
-            except Exception as e:
-                print(f"RapidAPI failed for {handle}: {e}")
-                followers = 0
-
-        # If still 0, use smart industry-based estimate
-        if followers == 0:
-            industry = (client.industry or "").lower()
-            estimates = {
-                "hospital": 12000, "dental": 8000, "digital marketing": 15000,
-                "spiritual": 6000, "wellness": 10000, "fashion": 25000,
-                "restaurant": 9000, "education": 7000, "fitness": 18000,
-            }
-            followers = next((v for k, v in estimates.items() if k in industry), 5000)
-
-        engagement_est = round(followers * 0.035)  # 3.5% industry average
-        
-        if media_count == 0:
-            media_count = max(10, int(followers / 100))
-        if recent_likes == 0:
-            recent_likes = engagement_est * min(media_count, 12)
-
-        # Save to DB (skip if already exists for this client)
         existing = db.query(Competitor).filter(
             Competitor.client_id == client_id,
             Competitor.name == name
         ).first()
+        if existing:
+            continue
 
-        if not existing:
-            comp = Competitor(
-                id=str(uuid.uuid4()),
-                client_id=client_id,
-                name=name,
-                engagement_est=engagement_est,
-                revenue_est=followers,
-                is_client=False,
-                instagram_handle=handle,
-                posts_count=media_count,
-                recent_likes=recent_likes,
-            )
-            db.add(comp)
-            saved.append({
-                "name": name, 
-                "handle": handle, 
-                "followers": followers, 
-                "engagement_est": engagement_est,
-                "posts_count": media_count,
-                "recent_likes": recent_likes
-            })
+        comp = Competitor(
+            id=str(uuid.uuid4()),
+            client_id=client_id,
+            name=name,
+            engagement_est=0,
+            revenue_est=c.get("followers", 0),
+            is_client=False,
+            instagram_handle=handle,
+            posts_count=c.get("posts_count", 0),
+            recent_likes=c.get("total_likes", 0),
+        )
+        db.add(comp)
+        saved.append({
+            "name": name,
+            "handle": handle,
+            "followers": c.get("followers", 0),
+            "engagement_est": 0,
+            "posts_count": c.get("posts_count", 0),
+            "recent_likes": c.get("total_likes", 0),
+            "source": c.get("source", "unknown"),
+        })
 
     db.commit()
     return {"discovered": len(saved), "competitors": saved}
