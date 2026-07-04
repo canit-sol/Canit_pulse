@@ -456,6 +456,13 @@ Output ONLY valid JSON according to the specified structure.
 
 def get_default_competitors(industry: str) -> list:
     ind_lower = industry.lower()
+    # Check more specific industries first before broad "hospital" (e.g. "dental hospital" should match dental, not hospital)
+    if "dental" in ind_lower or "dentist" in ind_lower:
+        return [
+            {"handle": "invisalign", "name": "Invisalign", "style_summary": "Clear aligner brand with patient transformation stories."},
+            {"handle": "colgate", "name": "Colgate", "style_summary": "Global oral care leader with educational content."},
+            {"handle": "oralb", "name": "Oral-B", "style_summary": "Dental hygiene product brand with how-to guides."},
+        ]
     if "hospital" in ind_lower or "medical" in ind_lower or "healthcare" in ind_lower:
         return [
             {"handle": "apollohospitals", "name": "Apollo Hospitals", "style_summary": "India's leading healthcare brand sharing medical insights."},
@@ -479,12 +486,6 @@ def get_default_competitors(industry: str) -> list:
             {"handle": "socialmediatoday", "name": "Social Media Today", "style_summary": "Shares platform updates and functional info-graphics."},
             {"handle": "hubspot", "name": "HubSpot", "style_summary": "Aesthetic business memes and actionable marketing carousels."},
             {"handle": "latermedia", "name": "Later Media", "style_summary": "Sleek, pastel-colored social media scheduling insights."},
-        ]
-    if "dental" in ind_lower or "dentist" in ind_lower:
-        return [
-            {"handle": "invisalign", "name": "Invisalign", "style_summary": "Clear aligner brand with patient transformation stories."},
-            {"handle": "colgate", "name": "Colgate", "style_summary": "Global oral care leader with educational content."},
-            {"handle": "oralb", "name": "Oral-B", "style_summary": "Dental hygiene product brand with how-to guides."},
         ]
     if "fashion" in ind_lower or "style" in ind_lower:
         return [
