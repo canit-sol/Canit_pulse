@@ -478,7 +478,7 @@ def get_default_competitors(industry: str) -> list:
             {"handle": "mindbodygreen", "name": "MindBodyGreen", "style_summary": "Wellness lifestyle hub with high-quality quote carousels."},
             {"handle": "cultfit", "name": "CultFit", "style_summary": "Interactive fitness and wellness content for India."},
         ]
-    if "tech" in ind_lower or "software" in ind_lower:
+    if "tech" in ind_lower or "software" in ind_lower or "drone" in ind_lower or "robotics" in ind_lower or "aerial" in ind_lower:
         return [
             {"handle": "techcrunch", "name": "TechCrunch", "style_summary": "High-speed reporting on tech updates and modern aesthetics."},
             {"handle": "wired", "name": "Wired", "style_summary": "Deep technological coverage using sleek high-contrast images."},
@@ -496,7 +496,7 @@ def get_default_competitors(industry: str) -> list:
             {"handle": "myntra", "name": "Myntra", "style_summary": "Leading Indian fashion e-commerce brand."},
             {"handle": "ajio", "name": "AJIO", "style_summary": "Trendy Indian fashion and lifestyle brand."},
         ]
-    if "education" in ind_lower or "edtech" in ind_lower:
+    if "education" in ind_lower or "edtech" in ind_lower or "college" in ind_lower or "university" in ind_lower or "science" in ind_lower or "arts" in ind_lower:
         return [
             {"handle": "byjus", "name": "Byju's", "style_summary": "India's largest edtech company with engaging learning content."},
             {"handle": "unacademy", "name": "Unacademy", "style_summary": "Indian online education platform for exam prep."},
@@ -507,6 +507,30 @@ def get_default_competitors(industry: str) -> list:
             {"handle": "zomatato", "name": "Zomato", "style_summary": "Food delivery and restaurant discovery platform."},
             {"handle": "swiggyindia", "name": "Swiggy", "style_summary": "Indian food delivery leader with vibrant content."},
             {"handle": "eatfit", "name": "EatFit", "style_summary": "Healthy food brand targeting fitness-conscious consumers."},
+        ]
+    if "spiritual" in ind_lower or "meditation" in ind_lower or "yoga" in ind_lower or "mindfulness" in ind_lower:
+        return [
+            {"handle": "sadhguru", "name": "Sadhguru", "style_summary": "Indian spiritual leader with wisdom and mindfulness content."},
+            {"handle": "artofliving", "name": "Art of Living", "style_summary": "Global spiritual wellness organization with meditation content."},
+            {"handle": "yogawithadriene", "name": "Yoga With Adriene", "style_summary": "Popular yoga instruction with accessible wellness content."},
+        ]
+    if "beauty" in ind_lower or "cosmetic" in ind_lower or "skincare" in ind_lower:
+        return [
+            {"handle": "nykaabeauty", "name": "Nykaa Beauty", "style_summary": "India's leading beauty retailer with product tutorials and reviews."},
+            {"handle": "sugarfreebeauty", "name": "Sugar Cosmetics", "style_summary": "Indian cruelty-free makeup brand with vibrant tutorials."},
+            {"handle": "mamaearth", "name": "Mamaearth", "style_summary": "Indian natural skincare brand with toxin-free content."},
+        ]
+    if "real estate" in ind_lower or "property" in ind_lower or "realestate" in ind_lower or "homes" in ind_lower:
+        return [
+            {"handle": "magicbricks", "name": "MagicBricks", "style_summary": "Indian real estate platform with property listings and insights."},
+            {"handle": "housing", "name": "Housing.com", "style_summary": "Indian real estate discovery with modern home content."},
+            {"handle": "squareyards", "name": "Square Yards", "style_summary": "Indian real estate consultancy with market trends."},
+        ]
+    if "automotive" in ind_lower or "car" in ind_lower or "auto" in ind_lower or "vehicle" in ind_lower:
+        return [
+            {"handle": "tata_motors", "name": "Tata Motors", "style_summary": "Indian automotive leader showcasing vehicles and innovation."},
+            {"handle": "mahindralive", "name": "Mahindra", "style_summary": "Indian auto major with SUV and farm equipment content."},
+            {"handle": "bharatbenz", "name": "BharatBenz", "style_summary": "Indian commercial vehicle brand with engineering content."},
         ]
     if "manufacturing" in ind_lower or "industrial" in ind_lower or "steel" in ind_lower or "metal" in ind_lower or "wire" in ind_lower or "factory" in ind_lower or "engineering" in ind_lower or "construction" in ind_lower or "building" in ind_lower or "material" in ind_lower or "wood" in ind_lower or "plywood" in ind_lower or "lumber" in ind_lower or "timber" in ind_lower:
         return [
