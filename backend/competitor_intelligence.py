@@ -56,31 +56,69 @@ def _industry_to_hashtags(industry: str) -> list:
         return words[:5]
     return ["business", "entrepreneur", "India", "growth", "innovation"]
 
-def _discover_via_instagram_graph(client_handle: str, industry: str, ig_token: str, ig_user_id: str) -> tuple:
+def _generate_hashtags_via_groq(industry: str, client) -> list:
+    """Use Groq to generate relevant Instagram hashtags for a given industry."""
+    try:
+        prompt = f"""Given the industry "{industry}", generate exactly 5 relevant Instagram hashtags that would help discover competitor business accounts in this space.
+Return ONLY a JSON array of strings, no markdown, no explanation, no think tags.
+Example: ["tag1", "tag2", "tag3", "tag4", "tag5"]"""
+        res = client.chat.completions.create(
+            model="openai/gpt-oss-20b",
+            messages=[
+                {"role": "system", "content": "You are a social media strategist. Return ONLY valid JSON arrays."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=200,
+        )
+        raw = res.choices[0].message.content.strip()
+        raw = re.sub(r'(?s)<think>.*?(</think>|$)', '', raw)
+        tags = json.loads(raw)
+        if isinstance(tags, list) and len(tags) >= 3:
+            print(f"competitor_intelligence: Groq generated hashtags for '{industry}': {tags}")
+            return tags
+    except Exception as e:
+        print(f"competitor_intelligence: Groq hashtag generation failed: {e}")
+    return None
+
+def _discover_via_instagram_graph(client_handle: str, industry: str, ig_token: str, ig_user_id: str, client=None) -> tuple:
     """Discover real competitors via Instagram Graph API hashtag search.
+    Uses Groq to generate relevant hashtags, then searches them via Graph API.
     Returns (niche_analysis, [competitor_dicts])."""
     import requests
     GRAPH_URL = "https://graph.facebook.com/v25.0"
-    hashtags = _industry_to_hashtags(industry)
-    if "india" not in hashtags:
-        hashtags.append("india")
+    
+    # Generate hashtags via Groq first, fall back to hardcoded map
+    hashtags = None
+    if client:
+        hashtags = _generate_hashtags_via_groq(industry, client)
+    if not hashtags:
+        hashtags = _industry_to_hashtags(industry)
+        if "india" not in hashtags:
+            hashtags.append("india")
+    
+    print(f"competitor_intelligence: Searching hashtags: {hashtags[:5]}")
     seen_owners = {}
     client_handle_lower = client_handle.strip().lstrip("@").lower()
 
     for tag in hashtags[:5]:
         try:
+            # Step 1: Get hashtag ID
             search_res = requests.get(
                 f"{GRAPH_URL}/{ig_user_id}/hashtag_search",
                 params={"q": tag, "access_token": ig_token},
                 timeout=10
             )
             if search_res.status_code != 200:
+                print(f"competitor_intelligence: hashtag_search for #{tag} returned {search_res.status_code}: {search_res.text[:200]}")
                 continue
             search_data = search_res.json()
             hashtag_id = search_data.get("data", [{}])[0].get("id")
             if not hashtag_id:
+                print(f"competitor_intelligence: No hashtag_id found for #{tag}")
                 continue
 
+            # Step 2: Get top media for that hashtag
             media_res = requests.get(
                 f"{GRAPH_URL}/{hashtag_id}/top_media",
                 params={
@@ -91,10 +129,13 @@ def _discover_via_instagram_graph(client_handle: str, industry: str, ig_token: s
                 timeout=10
             )
             if media_res.status_code != 200:
+                print(f"competitor_intelligence: top_media for #{tag} returned {media_res.status_code}: {media_res.text[:200]}")
                 continue
             media_data = media_res.json()
+            media_items = media_data.get("data", [])
+            print(f"competitor_intelligence: #{tag} -> {len(media_items)} media items")
 
-            for item in media_data.get("data", []):
+            for item in media_items:
                 owner = item.get("owner")
                 if not owner or not owner.get("id"):
                     continue
@@ -114,6 +155,8 @@ def _discover_via_instagram_graph(client_handle: str, industry: str, ig_token: s
             print(f"Hashtag search failed for '{tag}': {e}")
             continue
 
+    print(f"competitor_intelligence: Found {len(seen_owners)} unique owner IDs from hashtag search")
+
     if not seen_owners:
         return None, []
 
@@ -129,14 +172,17 @@ def _discover_via_instagram_graph(client_handle: str, industry: str, ig_token: s
                 timeout=10
             )
             if profile_res.status_code != 200:
+                print(f"competitor_intelligence: Profile fetch for {owner_id} returned {profile_res.status_code}")
                 continue
             profile = profile_res.json()
             username = (profile.get("username", "") or "").lower()
             if username == client_handle_lower:
+                print(f"competitor_intelligence: Skipping own handle @{username}")
                 continue
             name = profile.get("name", "") or profile.get("username", owner_id)
             follower_count = profile.get("follower_count", 0) or 0
             if follower_count < 500:
+                print(f"competitor_intelligence: Skipping @{username} (only {follower_count} followers)")
                 continue
             competitors.append({
                 "handle": profile.get("username", ""),
@@ -178,7 +224,7 @@ def fetch_automatic_competitors(client_handle: str, industry: str, ig_token: str
     print(f"competitor_intelligence: ig_token={'set' if ig_token else 'NOT SET'} ({type(ig_token).__name__}), ig_user_id={'set' if ig_user_id else 'NOT SET'} ({type(ig_user_id).__name__})")
     if ig_token and ig_user_id:
         try:
-            niche_analysis, discovered_comps = _discover_via_instagram_graph(sanitized_handle, sanitized_industry, ig_token, ig_user_id)
+            niche_analysis, discovered_comps = _discover_via_instagram_graph(sanitized_handle, sanitized_industry, ig_token, ig_user_id, client=client)
             if discovered_comps:
                 for c in discovered_comps:
                     ig_followers_map[c["handle"]] = c.get("followers", 0)
