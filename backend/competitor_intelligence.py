@@ -5,7 +5,7 @@ import time
 from typing import Dict, List
 from groq import Groq
 from dotenv import load_dotenv, find_dotenv
-from public_fetcher import fetch_public_profile
+from public_fetcher import fetch_public_profile, RAPIDAPI_KEY as HAS_RAPIDAPI
 load_dotenv(find_dotenv(), override=True)
 
 # Simple 1-hour caching mechanism to protect API rate limits
@@ -46,7 +46,7 @@ def _industry_to_hashtags(industry: str) -> list:
         "manufacturing": ["manufacturing", "manufacturingIndia", "industrialIndia", "makeinindia", "engineering", "steelIndia"],
         "construction": ["construction", "constructionIndia", "buildingIndia", "infrastructureIndia", "realestateIndia"],
         "wire": ["wire", "wires", "cablesIndia", "wiresIndia", "metalIndia", "steelIndia"],
-        "plywood": ["plywood", "wood", "woodIndia", "timberIndia", "interiorIndia", "furnitureIndia"],
+        "plywood": ["plywood", "wood", "woodIndia", "timberIndia", "interiordesignIndia", "furnitureIndia", "homedesignIndia"],
     }
     for key, tags in TAG_MAP.items():
         if key in industry_lower:
@@ -186,8 +186,8 @@ def fetch_automatic_competitors(client_handle: str, industry: str, ig_token: str
         except Exception as e:
             print(f"competitor_intelligence: Instagram Graph discovery failed: {e}")
 
-    # Phase 2: If Graph API didn't work, fall back to Groq discovery
-    if not discovered_comps and client:
+    # Phase 2: If Graph API didn't work and we can validate handles, fall back to Groq discovery
+    if not discovered_comps and client and HAS_RAPIDAPI:
         print("competitor_intelligence: Falling back to Groq discovery")
         discovery_system_prompt = """You are a senior social intelligence analyst.
 Your job is to discover exactly 3 similar, real-world competitor brands or public accounts on Instagram based on a client's handle and industry.
