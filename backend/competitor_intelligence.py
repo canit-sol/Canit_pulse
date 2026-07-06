@@ -14,6 +14,7 @@ GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 _COMPETITORS_CACHE: Dict[str, dict] = {}
 _CACHE_FILE = os.path.join(os.path.dirname(__file__), "competitors_cache.json")
+_CACHE_VERSION = 2
 
 
 def _load_cache():
@@ -21,7 +22,13 @@ def _load_cache():
     try:
         if os.path.exists(_CACHE_FILE):
             with open(_CACHE_FILE, "r") as f:
-                _COMPETITORS_CACHE = json.load(f)
+                data = json.load(f)
+            stored_version = data.get("_version", 0)
+            if stored_version != _CACHE_VERSION:
+                print(f"competitor_intelligence: Cache version mismatch (stored={stored_version}, current={_CACHE_VERSION}), clearing")
+                _COMPETITORS_CACHE = {}
+                return
+            _COMPETITORS_CACHE = {k: v for k, v in data.items() if not k.startswith("_")}
     except Exception as e:
         print(f"competitor_intelligence: Failed to load cache: {e}")
         _COMPETITORS_CACHE = {}
@@ -29,8 +36,10 @@ def _load_cache():
 
 def _save_cache():
     try:
+        data = dict(_COMPETITORS_CACHE)
+        data["_version"] = _CACHE_VERSION
         with open(_CACHE_FILE, "w") as f:
-            json.dump(_COMPETITORS_CACHE, f)
+            json.dump(data, f)
     except Exception as e:
         print(f"competitor_intelligence: Failed to save cache: {e}")
 
@@ -164,8 +173,8 @@ def fetch_automatic_competitors(client_handle: str, industry: str, ig_token: str
     sanitized_industry = industry.strip()
     cache_key = f"{sanitized_handle.lower()}:{sanitized_industry.lower()}"
 
-    # Only refresh on explicit request — otherwise serve cached or empty
-    if cache_key in _COMPETITORS_CACHE:
+    # Serve cached unless explicitly refreshing
+    if not refresh and cache_key in _COMPETITORS_CACHE:
         print(f"competitor_intelligence: Serving cached competitors for '{sanitized_handle}'")
         return _COMPETITORS_CACHE[cache_key]
 
