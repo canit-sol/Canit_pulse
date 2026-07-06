@@ -243,7 +243,26 @@ function CompetitorIntelCard({ competitorData, compLoading, onCompRefresh }: {
   const competitors: any[] = (competitorData.competitors || []).slice(0, 3);
   const niche: string = competitorData.niche_ecosystem_analysis || "";
 
-  if (competitors.length === 0) return null;
+  if (competitors.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[160px] text-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center">
+          <Users className="w-5 h-5 text-gray-300" />
+        </div>
+        <div>
+          <p className="text-xs font-bold text-gray-400">No competitor data yet</p>
+          {onCompRefresh && (
+            <button
+              onClick={onCompRefresh}
+              className="mt-2 text-[11px] font-bold text-[#113a87] hover:underline flex items-center gap-1 mx-auto"
+            >
+              <RefreshCw className="w-3 h-3" /> Discover competitors
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2.5 h-full flex flex-col">
