@@ -17,7 +17,6 @@ interface Client {
   fb_page_id?: string;
   youtube_channel_id?: string;
   purpose?: string;
-  completed_creatives?: number;
   status: "live" | "syncing";
   seo_pdf_filename?: string;
   seo_pdf_uploaded_at?: string;
@@ -664,46 +663,6 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error(err);
       showCustomAlert("❌ Network error saving brand details.");
-    }
-  };
-
-  const handleAddCreative = async (clientId: string) => {
-    try {
-      const res = await fetch(`/api/clients/${clientId}/creative`, {
-        method: "PATCH",
-        headers: authHeaders(),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setClients(clients.map(c =>
-          c.id === clientId ? { ...c, completed_creatives: data.completed_creatives } : c
-        ));
-      } else {
-        const err = await res.json();
-        showCustomAlert(`❌ ${err.detail}`);
-      }
-    } catch {
-      showCustomAlert("❌ Network error updating creative.");
-    }
-  };
-
-  const handleDecrementCreative = async (clientId: string) => {
-    try {
-      const res = await fetch(`/api/clients/${clientId}/creative/decrement`, {
-        method: "PATCH",
-        headers: authHeaders(),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setClients(clients.map(c =>
-          c.id === clientId ? { ...c, completed_creatives: data.completed_creatives } : c
-        ));
-      } else {
-        const err = await res.json();
-        showCustomAlert(`❌ ${err.detail}`);
-      }
-    } catch {
-      showCustomAlert("❌ Network error updating creative.");
     }
   };
 

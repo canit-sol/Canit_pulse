@@ -49,7 +49,6 @@ class ClientCreate(BaseModel):
     x_user_id: Optional[str] = None
     x_token: Optional[str] = None
     purpose: Optional[str] = None
-    social_media_count: Optional[int] = 0
     platform: Optional[str] = "instagram"
     create_login: Optional[bool] = False
     contact_name: Optional[str] = None
@@ -719,28 +718,6 @@ def update_creative_progress(client_id: str, current_user: AuthIdentity = Depend
     if not client:
         raise HTTPException(status_code=404, detail="Client not found.")
     
-    if client.completed_creatives is None:
-        client.completed_creatives = 0
-    client.completed_creatives += 1
-    db.commit()
-    return {"completed_creatives": client.completed_creatives}
-
-@router.patch("/clients/{client_id}/creative/decrement")
-def decrement_creative_progress(client_id: str, current_user: AuthIdentity = Depends(require_admin), db: Session = Depends(get_db)):
-    from services.permissions import can_edit_client
-    if not can_edit_client(current_user.role):
-        raise HTTPException(status_code=403, detail="Not authorized.")
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found.")
-    
-    if client.completed_creatives is None:
-        client.completed_creatives = 0
-    if client.completed_creatives > 0:
-        client.completed_creatives -= 1
-    db.commit()
-    return {"completed_creatives": client.completed_creatives}
-
 @router.post("/clients/{client_id}/users")
 def create_client_user(
     client_id: str, 

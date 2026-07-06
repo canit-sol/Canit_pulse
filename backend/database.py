@@ -222,10 +222,8 @@ class Client(Base):
     monthly_ad_budget = Column(Float, default=0.0)
     ad_account_error  = Column(String, nullable=True)
     
-    # Creative Tracker & Brand Management
+    # Brand Management
     purpose                = Column(String, nullable=True)
-    social_media_count     = Column(Integer, default=0)
-    completed_creatives    = Column(Integer, default=0)
     
     reports     = relationship("Report", back_populates="client")
     users       = relationship("User", back_populates="client")
