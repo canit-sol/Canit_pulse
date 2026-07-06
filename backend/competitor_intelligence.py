@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import requests
 from typing import Dict
 from dotenv import load_dotenv, find_dotenv
 from google import genai
@@ -37,17 +38,56 @@ def _save_cache():
 _load_cache()
 
 
+def _handle_exists(handle: str, min_followers: int = 1000) -> bool:
+    """Check if an Instagram handle exists using Instagram's internal web API.
+    Returns 404 for non-existent handles, 200 with profile data for real ones.
+    Also enforces minimum follower count."""
+    handle = handle.strip().lstrip("@")
+    if not handle:
+        return False
+    try:
+        url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={handle}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "X-IG-App-ID": "936619743392459",
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": "https://www.instagram.com/",
+        }
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 404:
+            return False
+        if r.status_code != 200:
+            print(f"competitor_intelligence: handle check @{handle} returned {r.status_code}")
+            return False
+        data = r.json()
+        user = data.get("data", {}).get("user", {})
+        if not user or user.get("username", "").lower() != handle.lower():
+            return False
+        followers = (user.get("edge_followed_by", {}) or {}).get("count", 0)
+        if followers < min_followers:
+            print(f"competitor_intelligence: @{handle} has {followers} followers (min {min_followers})")
+            return False
+        return True
+    except Exception as e:
+        print(f"competitor_intelligence: handle verification failed for @{handle}: {e}")
+        return False
+
+
 def _discover_via_gemini(client_handle: str, industry: str) -> dict | None:
     """Use Gemini with Google Search grounding to find real Instagram competitor handles.
     Returns dict with competitors, niche_ecosystem_analysis, and client handle, or None on failure."""
     if not os.environ.get("GEMINI_API_KEY"):
         return None
     try:
-        json_format = '{"competitors": [{"handle": "instagram_handle", "name": "Brand Name", "style_summary": "Brief 1-line description of their content style"}], "niche_ecosystem_analysis": "2-3 sentence analysis"}'
+        json_format = '{"competitors": [{"name": "Brand Name", "instagram_url": "https://www.instagram.com/realhandle/", "style_summary": "Brief 1-line description of their content style"}], "niche_ecosystem_analysis": "2-3 sentence analysis"}'
         prompt = (
-            f"Search Google to find exactly 3 real Instagram competitor accounts for '{client_handle}', "
-            f"a company in the '{industry}' industry based in India. "
-            f"Find similar Indian companies in the same space that have real Instagram presences. "
+            f"Search Google to find exactly 3 real Indian competitor brands similar to '{client_handle}', "
+            f"a company in the '{industry}' industry. "
+            f"For each competitor, find their ACTUAL Instagram profile URL (must start with https://www.instagram.com/). "
+            f"ONLY return brands whose Instagram profile you can confirm exists through search results. "
+            f"Prioritize accounts with at least 1000 followers. "
+            f"Do NOT make up or guess Instagram handles. "
             f"Return ONLY valid JSON (no markdown, no code fences, no backticks) in this exact structure: {json_format}"
         )
         response = gemini_client.models.generate_content(
@@ -62,11 +102,31 @@ def _discover_via_gemini(client_handle: str, industry: str) -> dict | None:
         raw = re.sub(r"^```\s*", "", raw)
         raw = re.sub(r"\s*```$", "", raw)
         data = json.loads(raw)
-        competitors = data.get("competitors", [])
-        for c in competitors:
-            c["handle"] = c.get("handle", "").strip().lstrip("@")
+        raw_competitors = data.get("competitors", [])
+        competitors = []
+        for c in raw_competitors:
+            url = c.get("instagram_url", "")
+            # Extract handle from URL
+            match = re.search(r"instagram\.com/([a-zA-Z0-9_.]+)", url)
+            handle = match.group(1) if match else ""
+            if not handle:
+                # Try using handle field if url was missing
+                handle = c.get("handle", "").strip().lstrip("@")
+            if not handle:
+                continue
+            handle = handle.strip().lstrip("@").lower()
+            # Verify the handle actually exists
+            if _handle_exists(handle):
+                competitors.append({
+                    "handle": handle,
+                    "name": c.get("name", handle),
+                    "style_summary": c.get("style_summary", ""),
+                })
+                print(f"competitor_intelligence: VERIFIED @{handle}")
+            else:
+                print(f"competitor_intelligence: REJECTED @{handle} (does not exist on Instagram)")
         niche = data.get("niche_ecosystem_analysis", f"Competitor landscape in the {industry} space.")
-        print(f"competitor_intelligence: Gemini discovered {len(competitors)} competitors for '{client_handle}'")
+        print(f"competitor_intelligence: Gemini discovered {len(competitors)} verified competitors for '{client_handle}'")
         for c in competitors:
             print(f"  - @{c['handle']} ({c.get('name', '?')})")
         return {
@@ -103,20 +163,26 @@ def fetch_automatic_competitors(client_handle: str, industry: str, ig_token: str
     # Phase 1: Gemini Google Search (returns verified-real handles, no hallucination)
     result = _discover_via_gemini(sanitized_handle, sanitized_industry)
 
-    # Phase 2: Fallback to curated defaults if Gemini fails
-    if not result or not result.get("competitors"):
-        print(f"competitor_intelligence: Gemini returned no results, using curated defaults")
+    # Phase 2: Pad with curated defaults if fewer than 3 verified competitors
+    verified = result.get("competitors", []) if result else []
+    if len(verified) < 3:
         default_comps = get_default_competitors(sanitized_industry)
-        if not default_comps:
-            default_comps = [
-                {"handle": "tatasteel", "name": "Tata Steel", "style_summary": "Indian industrial leader."},
-                {"handle": "adani_wires", "name": "Adani Wires", "style_summary": "Indian wire manufacturing leader."},
-                {"handle": "hindalco", "name": "Hindalco", "style_summary": "Indian metals and mining leader."},
-            ]
+        defaults = default_comps or [
+            {"handle": "tatasteel", "name": "Tata Steel", "style_summary": "Indian industrial leader."},
+            {"handle": "adani_wires", "name": "Adani Wires", "style_summary": "Indian wire manufacturing leader."},
+            {"handle": "hindalco", "name": "Hindalco", "style_summary": "Indian metals and mining leader."},
+        ]
+        existing_handles = {c["handle"].lower() for c in verified}
+        for d in defaults:
+            if len(verified) >= 3:
+                break
+            if d["handle"].lower() not in existing_handles:
+                verified.append(d)
+        niche = (result or {}).get("niche_ecosystem_analysis", f"Competitor landscape in the {sanitized_industry} space.")
         result = {
             "client": {"handle": sanitized_handle},
-            "competitors": default_comps[:3],
-            "niche_ecosystem_analysis": f"Competitor landscape in the {sanitized_industry} space.",
+            "competitors": verified[:3],
+            "niche_ecosystem_analysis": niche,
         }
 
     # Cache permanently
