@@ -38,15 +38,13 @@ def _save_cache():
 _load_cache()
 
 
-def _verify_handle(handle: str, brand_name: str = "", min_followers: int = 1000) -> dict | None:
-    """Check if an Instagram handle belongs to the claimed brand.
-    Uses Instagram's internal web API — returns 404 for non-existent handles.
-    Verifies: handle exists, follower count >= min_followers, and
-    profile full_name or biography matches the brand name.
-    Returns the user dict on success, None on failure."""
+def _handle_exists(handle: str, min_followers: int = 1000) -> bool:
+    """Check if an Instagram handle exists using Instagram's internal web API.
+    Returns 404 for non-existent handles, 200 with profile data for real ones.
+    Also enforces minimum follower count."""
     handle = handle.strip().lstrip("@")
     if not handle:
-        return None
+        return False
     try:
         url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={handle}"
         headers = {
@@ -58,33 +56,22 @@ def _verify_handle(handle: str, brand_name: str = "", min_followers: int = 1000)
         }
         r = requests.get(url, headers=headers, timeout=10)
         if r.status_code == 404:
-            return None
+            return False
         if r.status_code != 200:
             print(f"competitor_intelligence: handle check @{handle} returned {r.status_code}")
-            return None
+            return False
         data = r.json()
         user = data.get("data", {}).get("user", {})
         if not user or user.get("username", "").lower() != handle.lower():
-            return None
+            return False
         followers = (user.get("edge_followed_by", {}) or {}).get("count", 0)
         if followers < min_followers:
             print(f"competitor_intelligence: @{handle} has {followers} followers (min {min_followers})")
-            return None
-        # Verify brand name match in full_name or biography
-        profile_name = (user.get("full_name", "") or "").lower()
-        biography = (user.get("biography", "") or "").lower()
-        brand_lower = brand_name.lower().strip()
-        if brand_lower and brand_lower not in profile_name and brand_lower not in biography:
-            # Try matching just the first word of brand name
-            brand_first_word = brand_lower.split()[0] if brand_lower.split() else ""
-            if not brand_first_word or (brand_first_word not in profile_name and brand_first_word not in biography):
-                print(f"competitor_intelligence: @{handle} profile name '{profile_name}' doesn't match brand '{brand_name}'")
-                return None
-        user["_followers"] = followers
-        return user
+            return False
+        return True
     except Exception as e:
         print(f"competitor_intelligence: handle verification failed for @{handle}: {e}")
-        return None
+        return False
 
 
 def _discover_via_gemini(client_handle: str, industry: str) -> dict | None:
@@ -128,19 +115,16 @@ def _discover_via_gemini(client_handle: str, industry: str) -> dict | None:
             if not handle:
                 continue
             handle = handle.strip().lstrip("@").lower()
-            brand_name = c.get("name", "")
-            # Verify the handle actually belongs to the claimed brand
-            user_data = _verify_handle(handle, brand_name)
-            if user_data:
-                real_name = user_data.get("full_name", brand_name)
+            # Verify the handle actually exists
+            if _handle_exists(handle):
                 competitors.append({
                     "handle": handle,
-                    "name": real_name,
+                    "name": c.get("name", handle),
                     "style_summary": c.get("style_summary", ""),
                 })
-                print(f"competitor_intelligence: VERIFIED @{handle} -> {real_name}")
+                print(f"competitor_intelligence: VERIFIED @{handle}")
             else:
-                print(f"competitor_intelligence: REJECTED @{handle} (not matching brand '{brand_name}')")
+                print(f"competitor_intelligence: REJECTED @{handle} (does not exist on Instagram)")
         niche = data.get("niche_ecosystem_analysis", f"Competitor landscape in the {industry} space.")
         print(f"competitor_intelligence: Gemini discovered {len(competitors)} verified competitors for '{client_handle}'")
         for c in competitors:
