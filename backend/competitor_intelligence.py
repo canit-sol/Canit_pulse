@@ -226,7 +226,7 @@ def get_default_competitors(industry: str) -> list:
     if "hospital" in ind_lower or "medical" in ind_lower or "healthcare" in ind_lower:
         return [
             {"handle": "apollohospitals", "name": "Apollo Hospitals", "style_summary": "India's leading healthcare brand sharing medical insights."},
-            {"handle": "fortisnh", "name": "Fortis Healthcare", "style_summary": "Indian healthcare network with patient stories and health education."},
+            {"handle": "fortishealthcare", "name": "Fortis Healthcare", "style_summary": "Indian healthcare network with patient stories and health education."},
             {"handle": "maxhealthcare", "name": "Max Healthcare", "style_summary": "Premier Indian hospital chain with expert medical content."},
         ]
     if "wellness" in ind_lower or "health" in ind_lower or "fitness" in ind_lower:
@@ -261,7 +261,7 @@ def get_default_competitors(industry: str) -> list:
         ]
     if "restaurant" in ind_lower or "food" in ind_lower:
         return [
-            {"handle": "zomatato", "name": "Zomato", "style_summary": "Food delivery and restaurant discovery platform."},
+            {"handle": "zomato", "name": "Zomato", "style_summary": "Food delivery and restaurant discovery platform."},
             {"handle": "swiggyindia", "name": "Swiggy", "style_summary": "Indian food delivery leader with vibrant content."},
             {"handle": "eatfit", "name": "EatFit", "style_summary": "Healthy food brand targeting fitness-conscious consumers."},
         ]
@@ -291,7 +291,7 @@ def get_default_competitors(industry: str) -> list:
         ]
     if "plywood" in ind_lower or "wood" in ind_lower or "lumber" in ind_lower or "timber" in ind_lower:
         return [
-            {"handle": "greenply", "name": "Greenply", "style_summary": "Indian plywood leader with interior design and wood solutions."},
+            {"handle": "greenplyplywood", "name": "Greenply", "style_summary": "Indian plywood leader with interior design and wood solutions."},
             {"handle": "centuryply", "name": "CenturyPly", "style_summary": "India's trusted plywood brand showcasing premium wood products."},
             {"handle": "kitply", "name": "Kitply", "style_summary": "Indian plywood and panel products with industry insights."},
         ]
