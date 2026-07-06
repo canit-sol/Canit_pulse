@@ -49,6 +49,7 @@ class ClientCreate(BaseModel):
     x_user_id: Optional[str] = None
     x_token: Optional[str] = None
     purpose: Optional[str] = None
+    social_media_count: Optional[int] = 0
     platform: Optional[str] = "instagram"
     create_login: Optional[bool] = False
     contact_name: Optional[str] = None

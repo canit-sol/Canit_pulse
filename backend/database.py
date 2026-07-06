@@ -224,6 +224,7 @@ class Client(Base):
     
     # Creative Tracker & Brand Management
     purpose                = Column(String, nullable=True)
+    social_media_count     = Column(Integer, default=0)
     completed_creatives    = Column(Integer, default=0)
     
     reports     = relationship("Report", back_populates="client")
