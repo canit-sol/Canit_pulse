@@ -1559,33 +1559,27 @@ def get_competitors(client_id: str, current_user: AuthIdentity = Depends(require
 # ── AUTOMATIC COMPETITOR INTELLIGENCE ROUTE ─────────────────
 
 @router.get("/clients/{client_id}/automatic-competitors")
-def get_automatic_competitors(client_id: str, current_user: AuthIdentity = Depends(require_client), db: Session = Depends(get_db)):
+def get_automatic_competitors(client_id: str, refresh: bool = False, current_user: AuthIdentity = Depends(require_client), db: Session = Depends(get_db)):
     if current_user.role not in ("super_admin", "admin", "csm", "employee") and current_user.client_id != client_id:
         raise HTTPException(status_code=403, detail="Access denied.")
-    """
-    Fully automatic, AI-driven competitor social intelligence route.
-    Uses:
-    - client industry, instagram_handle
-    - client ig_user_id / fb_page_token for Instagram Graph API (if available)
-    """
     client_rec = db.query(Client).filter(Client.id == client_id).first()
     if not client_rec:
         raise HTTPException(status_code=404, detail="Client not found.")
-        
     industry = client_rec.industry or "Wellness"
     handle = client_rec.instagram_handle
     if not handle:
         import re
         handle = re.sub(r"[^a-zA-Z0-9_.]", "", client_rec.name.lower())
-        
     try:
         from competitor_intelligence import fetch_automatic_competitors
-        data = fetch_automatic_competitors(handle, industry, ig_token=client_rec.ig_access_token, ig_user_id=client_rec.ig_user_id)
+        data = fetch_automatic_competitors(handle, industry, ig_token=client_rec.ig_access_token, ig_user_id=client_rec.ig_user_id, refresh=refresh)
         return data
     except Exception as e:
         print(f"❌ AUTOMATIC COMPETITORS CRASH: {e}")
-        from competitor_intelligence import generate_mock_competitor_intelligence
-        return generate_mock_competitor_intelligence(handle, industry)
+        # Fallback to empty response with defaults
+        from competitor_intelligence import get_default_competitors
+        default_comps = get_default_competitors(industry)
+        return {"client": {"handle": handle}, "competitors": default_comps[:3], "niche_ecosystem_analysis": f"Competitor landscape in the {industry} space."}
 
 @router.post("/clients/{client_id}/competitors")
 def add_competitor(client_id: str, data: dict, current_user: AuthIdentity = Depends(require_admin), db: Session = Depends(get_db)):

@@ -739,10 +739,11 @@ export default function ClientPortal() {
     };
   }
 
-  const fetchAutomaticCompetitorsData = (clientId: string) => {
+  const fetchAutomaticCompetitorsData = (clientId: string, forceRefresh = false) => {
     setCompLoading(true);
     setCompError(null);
-    fetch(`/api/clients/${clientId}/automatic-competitors`, {
+    const url = forceRefresh ? `/api/clients/${clientId}/automatic-competitors?refresh=1` : `/api/clients/${clientId}/automatic-competitors`;
+    fetch(url, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
       .then(res => {
@@ -1909,7 +1910,7 @@ INSTRUCTIONS:
                 platform={activePlatform === "blogs" ? "instagram" : activePlatform}
                 competitorData={automaticCompetitors}
                 compLoading={compLoading}
-                onCompRefresh={() => { if (id) fetchAutomaticCompetitorsData(id); }}
+                onCompRefresh={() => { if (id) fetchAutomaticCompetitorsData(id, true); }}
                 fbMetrics={stableFbMetrics}
                 igMetrics={ig}
                 seoMetrics={seoData}
