@@ -1,388 +1,308 @@
 import os
 import json
 import re
-import time
-from typing import Dict, List
-from groq import Groq
+import requests
+from typing import Dict
 from dotenv import load_dotenv, find_dotenv
-from public_fetcher import fetch_public_profile
+from google import genai
+from google.genai import types
+
 load_dotenv(find_dotenv(), override=True)
 
-# Simple 24-hour caching mechanism to protect API rate limits
-_COMPETITORS_CACHE: Dict[str, Dict] = {}
-CACHE_DURATION_SECS = 24 * 60 * 60
+gemini_client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
-def get_groq_client():
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
+_COMPETITORS_CACHE: Dict[str, dict] = {}
+_CACHE_FILE = os.path.join(os.path.dirname(__file__), "competitors_cache.json")
+_CACHE_VERSION = 2
+
+
+def _load_cache():
+    global _COMPETITORS_CACHE
+    try:
+        if os.path.exists(_CACHE_FILE):
+            with open(_CACHE_FILE, "r") as f:
+                data = json.load(f)
+            stored_version = data.get("_version", 0)
+            if stored_version != _CACHE_VERSION:
+                print(f"competitor_intelligence: Cache version mismatch (stored={stored_version}, current={_CACHE_VERSION}), clearing")
+                _COMPETITORS_CACHE = {}
+                return
+            _COMPETITORS_CACHE = {k: v for k, v in data.items() if not k.startswith("_")}
+    except Exception as e:
+        print(f"competitor_intelligence: Failed to load cache: {e}")
+        _COMPETITORS_CACHE = {}
+
+
+def _save_cache():
+    try:
+        data = dict(_COMPETITORS_CACHE)
+        data["_version"] = _CACHE_VERSION
+        with open(_CACHE_FILE, "w") as f:
+            json.dump(data, f)
+    except Exception as e:
+        print(f"competitor_intelligence: Failed to save cache: {e}")
+
+
+_load_cache()
+
+
+def _verify_handle(handle: str, brand_name: str = "", min_followers: int = 1000) -> dict | None:
+    """Check if an Instagram handle belongs to the claimed brand.
+    Uses Instagram's internal web API — returns 404 for non-existent handles.
+    Verifies: handle exists, follower count >= min_followers, and
+    profile full_name or biography matches the brand name.
+    Returns the user dict on success, None on failure."""
+    handle = handle.strip().lstrip("@")
+    if not handle:
         return None
     try:
-        return Groq(api_key=api_key)
+        url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={handle}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "X-IG-App-ID": "936619743392459",
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": "https://www.instagram.com/",
+        }
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 404:
+            return None
+        if r.status_code != 200:
+            print(f"competitor_intelligence: handle check @{handle} returned {r.status_code}")
+            return None
+        data = r.json()
+        user = data.get("data", {}).get("user", {})
+        if not user or user.get("username", "").lower() != handle.lower():
+            return None
+        followers = (user.get("edge_followed_by", {}) or {}).get("count", 0)
+        if followers < min_followers:
+            print(f"competitor_intelligence: @{handle} has {followers} followers (min {min_followers})")
+            return None
+        # Verify brand name match in full_name or biography
+        profile_name = (user.get("full_name", "") or "").lower()
+        biography = (user.get("biography", "") or "").lower()
+        brand_lower = brand_name.lower().strip()
+        if brand_lower and brand_lower not in profile_name and brand_lower not in biography:
+            brand_first_word = brand_lower.split()[0] if brand_lower.split() else ""
+            if not brand_first_word or (brand_first_word not in profile_name and brand_first_word not in biography):
+                print(f"competitor_intelligence: @{handle} profile name '{profile_name}' doesn't match brand '{brand_name}'")
+                return None
+        user["_followers"] = followers
+        return user
     except Exception as e:
-        print("competitor_intelligence: Failed to initialize Groq client:", e)
+        print(f"competitor_intelligence: handle verification failed for @{handle}: {e}")
         return None
 
-def fetch_automatic_competitors(client_handle: str, industry: str) -> dict:
-    now = time.time()
+
+def _discover_via_gemini(client_handle: str, industry: str) -> dict | None:
+    """Use Gemini with Google Search grounding to find real Instagram competitor handles.
+    Returns dict with competitors, niche_ecosystem_analysis, and client handle, or None on failure."""
+    if not os.environ.get("GEMINI_API_KEY"):
+        return None
+    try:
+        json_format = '{"competitors": [{"name": "Brand Name", "instagram_url": "https://www.instagram.com/realhandle/", "style_summary": "Brief 1-line description of their content style"}], "niche_ecosystem_analysis": "2-3 sentence analysis"}'
+        prompt = (
+            f"Search Google to find exactly 3 real Indian competitor brands similar to '{client_handle}', "
+            f"a company in the '{industry}' industry. "
+            f"For each competitor, find their ACTUAL Instagram profile URL (must start with https://www.instagram.com/). "
+            f"ONLY return brands whose Instagram profile you can confirm exists through search results. "
+            f"Prioritize accounts with at least 1000 followers. "
+            f"Do NOT make up or guess Instagram handles. "
+            f"Return ONLY valid JSON (no markdown, no code fences, no backticks) in this exact structure: {json_format}"
+        )
+        response = gemini_client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())]
+            )
+        )
+        raw = response.text.strip()
+        raw = re.sub(r"^```json\s*", "", raw)
+        raw = re.sub(r"^```\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+        data = json.loads(raw)
+        raw_competitors = data.get("competitors", [])
+        competitors = []
+        for c in raw_competitors:
+            url = c.get("instagram_url", "")
+            # Extract handle from URL
+            match = re.search(r"instagram\.com/([a-zA-Z0-9_.]+)", url)
+            handle = match.group(1) if match else ""
+            if not handle:
+                # Try using handle field if url was missing
+                handle = c.get("handle", "").strip().lstrip("@")
+            if not handle:
+                continue
+            handle = handle.strip().lstrip("@").lower()
+            brand_name = c.get("name", "")
+            # Verify the handle actually belongs to the claimed brand
+            user_data = _verify_handle(handle, brand_name)
+            if user_data:
+                real_name = user_data.get("full_name", brand_name)
+                competitors.append({
+                    "handle": handle,
+                    "name": real_name,
+                    "style_summary": c.get("style_summary", ""),
+                })
+                print(f"competitor_intelligence: VERIFIED @{handle} -> {real_name}")
+            else:
+                print(f"competitor_intelligence: REJECTED @{handle} (not matching brand '{brand_name}')")
+        niche = data.get("niche_ecosystem_analysis", f"Competitor landscape in the {industry} space.")
+        print(f"competitor_intelligence: Gemini discovered {len(competitors)} verified competitors for '{client_handle}'")
+        for c in competitors:
+            print(f"  - @{c['handle']} ({c.get('name', '?')})")
+        return {
+            "competitors": competitors[:3],
+            "niche_ecosystem_analysis": niche,
+            "client": {"handle": client_handle.strip().lstrip("@")},
+        }
+    except json.JSONDecodeError as e:
+        print(f"competitor_intelligence: Gemini response was not valid JSON: {e}")
+        return None
+    except Exception as e:
+        print(f"competitor_intelligence: Gemini discovery failed: {e}")
+        return None
+
+
+def fetch_automatic_competitors(client_handle: str, industry: str, ig_token: str = None, ig_user_id: str = None, refresh: bool = False) -> dict:
+    """Discover Instagram competitors via Gemini Google Search grounding.
+    Results are cached indefinitely — only refreshed when refresh=True."""
     sanitized_handle = client_handle.strip().lstrip("@")
     sanitized_industry = industry.strip()
     cache_key = f"{sanitized_handle.lower()}:{sanitized_industry.lower()}"
-    
-    if cache_key in _COMPETITORS_CACHE:
-        entry = _COMPETITORS_CACHE[cache_key]
-        if now - entry["timestamp"] < CACHE_DURATION_SECS:
-            print(f"competitor_intelligence: Serving cached results for '{sanitized_handle}'")
-            return entry["data"]
-            
-    print(f"competitor_intelligence: Running automatic analysis for '{sanitized_handle}' in '{sanitized_industry}'")
-    
-    client = get_groq_client()
-    if not client:
-        print("competitor_intelligence: GROQ_API_KEY is not configured. Serving dynamic fallback data.")
-        fallback_data = generate_mock_competitor_intelligence(sanitized_handle, sanitized_industry)
-        return fallback_data
 
-    # Step 1: Discover top 3 competitor handles using Llama
-    discovery_system_prompt = """You are a senior social intelligence analyst.
-Your job is to discover exactly 3 similar, real-world competitor brands or public accounts on Instagram based on a client's handle and industry.
-Always respond with ONLY valid JSON — no markdown, no explanation, no backticks.
+    # Serve cached unless explicitly refreshing
+    if not refresh and cache_key in _COMPETITORS_CACHE:
+        print(f"competitor_intelligence: Serving cached competitors for '{sanitized_handle}'")
+        return _COMPETITORS_CACHE[cache_key]
 
-Example JSON Output format:
-{
-  "niche_analysis": "Provide a 2-sentence summary analyzing the client's industry niche and content ecosystem.",
-  "competitors": [
-    {
-      "handle": "instagram_handle_1",
-      "name": "Brand Name 1",
-      "style_summary": "Short 1-sentence description of their content style and visual approach."
-    },
-    {
-      "handle": "instagram_handle_2",
-      "name": "Brand Name 2",
-      "style_summary": "Short 1-sentence description."
-    },
-    {
-      "handle": "instagram_handle_3",
-      "name": "Brand Name 3",
-      "style_summary": "Short 1-sentence description."
-    }
-  ]
-}
+    if not refresh:
+        print(f"competitor_intelligence: No cached data for '{sanitized_handle}', returning empty (click Refresh to discover)")
+        return {"client": {"handle": sanitized_handle}, "competitors": [], "niche_ecosystem_analysis": ""}
 
-Rules:
-1. Handles must be realistic Instagram usernames (lowercase, alphanumeric, periods/underscores, no @ prefix).
-2. The brands must be real and highly relevant to the specified industry. E.g., if Wellness: brands like @yoga_journal, @mindbodygreen, @headspace, @lululemon.
-"""
-    
-    discovery_user_prompt = f"""Discover exactly 3 Instagram competitors for:
-Client Handle: @{sanitized_handle}
-Client Industry: {sanitized_industry}
+    print(f"competitor_intelligence: Discovering competitors for '{sanitized_handle}' ({sanitized_industry})")
 
-Analyze the client's niche and output exactly 3 relevant competitor profiles in the specified JSON format.
-"""
-    
-    try:
-        res = client.chat.completions.create(
-            model="qwen/qwen3.6-27b",
-            messages=[
-                {"role": "system", "content": discovery_system_prompt},
-                {"role": "user", "content": discovery_user_prompt}
-            ],
-            temperature=0.4,
-            max_tokens=600,
-        )
-        raw_res = res.choices[0].message.content.strip()
-        raw_res = re.sub(r"^```json\s*", "", raw_res)
-        raw_res = re.sub(r"^```\s*", "", raw_res)
-        raw_res = re.sub(r"\s*```$", "", raw_res)
-        
-        try:
-            discovery_data = json.loads(raw_res)
-        except Exception:
-            match = re.search(r'\{.*\}', raw_res, re.DOTALL)
-            if match:
-                discovery_data = json.loads(match.group())
-            else:
-                raise ValueError("JSON parsing failed")
-    except Exception as e:
-        print("competitor_intelligence discovery error, falling back to mock:", e)
-        fallback_data = generate_mock_competitor_intelligence(sanitized_handle, sanitized_industry)
-        return fallback_data
+    # Phase 1: Gemini Google Search (returns verified-real handles, no hallucination)
+    result = _discover_via_gemini(sanitized_handle, sanitized_industry)
 
-    niche_analysis = discovery_data.get("niche_analysis", f"Focuses on premium {sanitized_industry} audience engagement.")
-    discovered_comps = discovery_data.get("competitors", [])
-    if len(discovered_comps) < 3:
-        discovered_comps = get_default_competitors(sanitized_industry)
+    # Phase 2: Pad with curated defaults if fewer than 3 verified competitors
+    verified = result.get("competitors", []) if result else []
+    if len(verified) < 3:
+        default_comps = get_default_competitors(sanitized_industry)
+        defaults = default_comps or [
+            {"handle": "tatasteel", "name": "Tata Steel", "style_summary": "Indian industrial leader."},
+            {"handle": "adani_wires", "name": "Adani Wires", "style_summary": "Indian wire manufacturing leader."},
+            {"handle": "hindalco", "name": "Hindalco", "style_summary": "Indian metals and mining leader."},
+        ]
+        existing_handles = {c["handle"].lower() for c in verified}
+        for d in defaults:
+            if len(verified) >= 3:
+                break
+            if d["handle"].lower() not in existing_handles:
+                verified.append(d)
+        niche = (result or {}).get("niche_ecosystem_analysis", f"Competitor landscape in the {sanitized_industry} space.")
+        result = {
+            "client": {"handle": sanitized_handle},
+            "competitors": verified[:3],
+            "niche_ecosystem_analysis": niche,
+        }
 
-    # Step 2: Fetch public activity signals (followers, following, posts) for client and competitors
-    client_profile = fetch_public_profile(sanitized_handle)
-    comp_profiles = []
-    for c in discovered_comps:
-        c_handle = c.get("handle", "").strip().lstrip("@")
-        profile = fetch_public_profile(c_handle)
-        profile["name"] = c.get("name", profile.get("name", c_handle))
-        profile["style_summary"] = c.get("style_summary", "Shares visual updates and interactive social campaigns.")
-        comp_profiles.append(profile)
-
-    # Step 3: Use LLM to generate AI-inferred comparative social-content behavior metrics
-    comparison_system_prompt = """You are a senior social intelligence engine.
-Your task is to generate highly realistic, comparative social-content behavior metrics and tactical notes for a client and their top 3 competitors.
-Always respond with ONLY valid JSON — no markdown, no explanation, no backticks.
-
-Compare ONLY these 5 social-content behaviors:
-- posting_consistency: Frequency and schedule consistency (score 0-100)
-- engagement_behavior: Interactivity, replies, and community metrics (score 0-100)
-- reel_usage: Frequency and creativity of reels/video formats (score 0-100)
-- content_activity: Overall weekly content output volume (score 0-100)
-- virality_estimation: Propensity of posts to hit explore page or trend (score 0-100)
-
-Do NOT compare SEO, ads, websites, business revenue, or financial data. This is a social-content platform.
-
-Standard Output JSON Structure:
-{
-  "comparison_metrics": {
-    "posting_consistency": {
-      "client": {"score": 75, "note": "Weekly postings are consistent but lack weekend coverage."},
-      "competitor1": {"score": 88, "note": "Daily structured postings with high predictability."},
-      "competitor2": {"score": 62, "note": "Infrequent but high-quality thematic drop series."},
-      "competitor3": {"score": 92, "note": "High-frequency multi-daily automated feed pushes."}
-    },
-    "engagement_behavior": {
-      "client": {"score": 80, "note": "Strong audience interaction in comment threads."},
-      "competitor1": {"score": 70, "note": "Mainly broadcasts with moderate dialogue."},
-      "competitor2": {"score": 85, "note": "Excellent comment response speed and community vibe."},
-      "competitor3": {"score": 60, "note": "Standard corporate broadcast profile."}
-    },
-    "reel_usage": {
-      "client": {"score": 65, "note": "Utilizes reels occasionally; needs trend alignment."},
-      "competitor1": {"score": 90, "note": "Reel-first visual focus utilizing viral sound bytes."},
-      "competitor2": {"score": 80, "note": "Highly polished instructional videos and guides."},
-      "competitor3": {"score": 50, "note": "Relies mostly on static carousels and graphic sheets."}
-    },
-    "content_activity": {
-      "client": {"score": 70, "note": "Steady activity level, averaging 3-4 posts per week."},
-      "competitor1": {"score": 95, "note": "Extremely active daily calendar scheduling."},
-      "competitor2": {"score": 55, "note": "Low output volume focusing on boutique items."},
-      "competitor3": {"score": 88, "note": "Aggressive cross-channel posting consistency."}
-    },
-    "virality_estimation": {
-      "client": {"score": 58, "note": "Moderate shareability, mostly localized reach."},
-      "competitor1": {"score": 85, "note": "High organic discovery driven by aesthetic reels."},
-      "competitor2": {"score": 90, "note": "Niche authority content yielding frequent saves."},
-      "competitor3": {"score": 70, "note": "Medium virality reliant on large follower seed base."}
-    }
-  },
-  "niche_ecosystem_analysis": "Comprehensive 3-sentence summary of the overall competitive social landscape in this niche, highlighting current trends and strategic opportunities for the client."
-}
-
-Rules:
-1. Ensure the scores are realistic based on the followers, post counts, and engagement rate provided. E.g., if a competitor has massive followers and high post counts, they should score higher in content_activity/virality.
-2. The labels under comparison_metrics MUST correspond to the exact handles passed. E.g. 'client', 'competitor1', 'competitor2', 'competitor3'.
-3. Keep scores strictly as integers between 0 and 100.
-"""
-
-    comparison_user_prompt = f"""Generate comparative social-content metrics for:
-
-1. Client Profile (Label: 'client')
-- Handle: @{sanitized_handle}
-- Followers: {client_profile.get('followers')}
-- Post Count: {client_profile.get('post_count')}
-- Source: {client_profile.get('source')}
-
-2. Competitor 1 (Label: 'competitor1')
-- Handle: @{comp_profiles[0].get('handle')}
-- Name: {comp_profiles[0].get('name')}
-- Followers: {comp_profiles[0].get('followers')}
-- Post Count: {comp_profiles[0].get('post_count')}
-- Style: {comp_profiles[0].get('style_summary')}
-
-3. Competitor 2 (Label: 'competitor2')
-- Handle: @{comp_profiles[1].get('handle')}
-- Name: {comp_profiles[1].get('name')}
-- Followers: {comp_profiles[1].get('followers')}
-- Post Count: {comp_profiles[1].get('post_count')}
-- Style: {comp_profiles[1].get('style_summary')}
-
-4. Competitor 3 (Label: 'competitor3')
-- Handle: @{comp_profiles[2].get('handle')}
-- Name: {comp_profiles[2].get('name')}
-- Followers: {comp_profiles[2].get('followers')}
-- Post Count: {comp_profiles[2].get('post_count')}
-- Style: {comp_profiles[2].get('style_summary')}
-
-Output ONLY valid JSON according to the specified structure.
-"""
-
-    try:
-        res = client.chat.completions.create(
-            model="qwen/qwen3.6-27b",
-            messages=[
-                {"role": "system", "content": comparison_system_prompt},
-                {"role": "user", "content": comparison_user_prompt}
-            ],
-            temperature=0.3,
-            max_tokens=1500,
-        )
-        raw_res = res.choices[0].message.content.strip()
-        raw_res = re.sub(r"^```json\s*", "", raw_res)
-        raw_res = re.sub(r"^```\s*", "", raw_res)
-        raw_res = re.sub(r"\s*```$", "", raw_res)
-        
-        try:
-            comparison_data = json.loads(raw_res)
-        except Exception:
-            match = re.search(r'\{.*\}', raw_res, re.DOTALL)
-            if match:
-                comparison_data = json.loads(match.group())
-            else:
-                raise ValueError("JSON parsing failed")
-                
-    except Exception as e:
-        print("competitor_intelligence metrics generation failed, falling back to mock:", e)
-        fallback_data = generate_mock_competitor_intelligence(sanitized_handle, sanitized_industry, client_profile, comp_profiles, niche_analysis)
-        return fallback_data
-
-    # Standardize result object
-    result = {
-        "client": {
-            "handle": sanitized_handle,
-            "name": client_profile.get("name", sanitized_handle.title()),
-            "followers": client_profile.get("followers", 0),
-            "posts": client_profile.get("post_count", 0),
-            "engagement_score": client_profile.get("engagement_score", 0),
-        },
-        "competitors": [
-            {
-                "handle": comp_profiles[0].get("handle"),
-                "name": comp_profiles[0].get("name"),
-                "style_summary": comp_profiles[0].get("style_summary"),
-                "key": "competitor1"
-            },
-            {
-                "handle": comp_profiles[1].get("handle"),
-                "name": comp_profiles[1].get("name"),
-                "style_summary": comp_profiles[1].get("style_summary"),
-                "key": "competitor2"
-            },
-            {
-                "handle": comp_profiles[2].get("handle"),
-                "name": comp_profiles[2].get("name"),
-                "style_summary": comp_profiles[2].get("style_summary"),
-                "key": "competitor3"
-            }
-        ],
-        "metrics": comparison_data.get("comparison_metrics", {}),
-        "niche_ecosystem_analysis": comparison_data.get("niche_ecosystem_analysis", niche_analysis)
-    }
-
-    _COMPETITORS_CACHE[cache_key] = {
-        "timestamp": now,
-        "data": result
-    }
-    
+    # Cache permanently
+    _COMPETITORS_CACHE[cache_key] = result
+    _save_cache()
     return result
+
 
 def get_default_competitors(industry: str) -> list:
     ind_lower = industry.lower()
-    if "wellness" in ind_lower or "health" in ind_lower:
+    if "dental" in ind_lower or "dentist" in ind_lower:
         return [
-            {"handle": "headspace", "name": "Headspace", "style_summary": "Shares clean visual illustrations and mindfulness tips."},
-            {"handle": "mindbodygreen", "name": "MindBodyGreen", "style_summary": "Wellness lifestyle hub with high-quality quote carousels."},
-            {"handle": "yoga_journal", "name": "Yoga Journal", "style_summary": "Focuses on instructional poses and premium video guides."}
+            {"handle": "invisalign", "name": "Invisalign", "style_summary": "Clear aligner brand with patient transformation stories."},
+            {"handle": "colgate", "name": "Colgate", "style_summary": "Global oral care leader with educational content."},
+            {"handle": "oralb", "name": "Oral-B", "style_summary": "Dental hygiene product brand with how-to guides."},
         ]
-    elif "tech" in ind_lower or "software" in ind_lower:
+    if "hospital" in ind_lower or "medical" in ind_lower or "healthcare" in ind_lower:
+        return [
+            {"handle": "apollohospitals", "name": "Apollo Hospitals", "style_summary": "India's leading healthcare brand sharing medical insights."},
+            {"handle": "fortishealthcare", "name": "Fortis Healthcare", "style_summary": "Indian healthcare network with patient stories and health education."},
+            {"handle": "maxhealthcare", "name": "Max Healthcare", "style_summary": "Premier Indian hospital chain with expert medical content."},
+        ]
+    if "wellness" in ind_lower or "health" in ind_lower or "fitness" in ind_lower:
+        return [
+            {"handle": "yoga_journal", "name": "Yoga Journal", "style_summary": "Focuses on instructional poses and premium video guides."},
+            {"handle": "mindbodygreen", "name": "MindBodyGreen", "style_summary": "Wellness lifestyle hub with high-quality quote carousels."},
+            {"handle": "cultfit", "name": "CultFit", "style_summary": "Interactive fitness and wellness content for India."},
+        ]
+    if "tech" in ind_lower or "software" in ind_lower or "drone" in ind_lower or "robotics" in ind_lower or "aerial" in ind_lower:
         return [
             {"handle": "techcrunch", "name": "TechCrunch", "style_summary": "High-speed reporting on tech updates and modern aesthetics."},
             {"handle": "wired", "name": "Wired", "style_summary": "Deep technological coverage using sleek high-contrast images."},
-            {"handle": "producthunt", "name": "ProductHunt", "style_summary": "Interactive daily releases with community voting highlights."}
+            {"handle": "producthunt", "name": "ProductHunt", "style_summary": "Interactive daily releases with community voting highlights."},
         ]
-    elif "marketing" in ind_lower or "digital" in ind_lower:
+    if "marketing" in ind_lower or "digital" in ind_lower:
         return [
             {"handle": "socialmediatoday", "name": "Social Media Today", "style_summary": "Shares platform updates and functional info-graphics."},
             {"handle": "hubspot", "name": "HubSpot", "style_summary": "Aesthetic business memes and actionable marketing carousels."},
-            {"handle": "latermedia", "name": "Later Media", "style_summary": "Sleek, pastel-colored social media scheduling insights."}
+            {"handle": "latermedia", "name": "Later Media", "style_summary": "Sleek, pastel-colored social media scheduling insights."},
         ]
-    else:
+    if "fashion" in ind_lower or "style" in ind_lower:
         return [
-            {"handle": "instagram", "name": "Instagram Creators", "style_summary": "Platform tips and reels creation guides."},
-            {"handle": "creators", "name": "Creator Intelligence", "style_summary": "Actionable visual analytics and growth insights."},
-            {"handle": "socialmedia", "name": "Social Media Hub", "style_summary": "Industry updates and viral trend reporting."}
+            {"handle": "nykaafashion", "name": "Nykaa Fashion", "style_summary": "Indian fashion marketplace with trend-driven content."},
+            {"handle": "myntra", "name": "Myntra", "style_summary": "Leading Indian fashion e-commerce brand."},
+            {"handle": "ajio", "name": "AJIO", "style_summary": "Trendy Indian fashion and lifestyle brand."},
         ]
-
-def generate_mock_competitor_intelligence(client_handle: str, industry: str, client_profile=None, comp_profiles=None, niche_analysis=None) -> dict:
-    if not client_profile:
-        client_profile = fetch_public_profile(client_handle)
-    if not comp_profiles:
-        default_comps = get_default_competitors(industry)
-        comp_profiles = []
-        for c in default_comps:
-            profile = fetch_public_profile(c["handle"])
-            profile["name"] = c["name"]
-            profile["style_summary"] = c["style_summary"]
-            comp_profiles.append(profile)
-    if not niche_analysis:
-        niche_analysis = f"The {industry} landscape shows intensive competition with a visual shift toward highly interactive educational carousel cards."
-
-    result = {
-        "client": {
-            "handle": client_handle,
-            "name": client_profile.get("name") or client_handle.title(),
-            "followers": client_profile.get("followers") or 8450,
-            "posts": client_profile.get("post_count") or 112,
-            "engagement_score": client_profile.get("engagement_score") or 4.2,
-        },
-        "competitors": [
-            {
-                "handle": comp_profiles[0].get("handle"),
-                "name": comp_profiles[0].get("name"),
-                "style_summary": comp_profiles[0].get("style_summary"),
-                "key": "competitor1"
-            },
-            {
-                "handle": comp_profiles[1].get("handle"),
-                "name": comp_profiles[1].get("name"),
-                "style_summary": comp_profiles[1].get("style_summary"),
-                "key": "competitor2"
-            },
-            {
-                "handle": comp_profiles[2].get("handle"),
-                "name": comp_profiles[2].get("name"),
-                "style_summary": comp_profiles[2].get("style_summary"),
-                "key": "competitor3"
-            }
-        ],
-        "metrics": {
-            "posting_consistency": {
-                "client": {"score": 70, "note": "Stable calendar posting schedule but lacks daily presence."},
-                "competitor1": {"score": 85, "note": "Strict schedule, publishing daily at morning peaks."},
-                "competitor2": {"score": 95, "note": "Extremely consistent multi-post daily cadence."},
-                "competitor3": {"score": 60, "note": "Boutique posting rhythm, prioritizing heavy drops."}
-            },
-            "engagement_behavior": {
-                "client": {"score": 82, "note": "Excellent comment response rate and community discussion."},
-                "competitor1": {"score": 65, "note": "Moderate comment threads with low reply rates."},
-                "competitor2": {"score": 72, "note": "Standard customer query replies, lacks conversational style."},
-                "competitor3": {"score": 88, "note": "High engagement through interactive stickers and polls."}
-            },
-            "reel_usage": {
-                "client": {"score": 60, "note": "Utilizes video formats occasionally; needs trend alignment."},
-                "competitor1": {"score": 90, "note": "Reel-first visual focus utilizing viral sound bytes."},
-                "competitor2": {"score": 80, "note": "Highly polished instructional videos and guides."},
-                "competitor3": {"score": 45, "note": "Relies mostly on static carousels and quote cards."}
-            },
-            "content_activity": {
-                "client": {"score": 68, "note": "Moderate output, averaging 3 active posts per week."},
-                "competitor1": {"score": 88, "note": "High calendar saturation and frequent story loops."},
-                "competitor2": {"score": 94, "note": "Continuous content pipeline across all visual formats."},
-                "competitor3": {"score": 55, "note": "Boutique volume focusing strictly on premium quality."}
-            },
-            "virality_estimation": {
-                "client": {"score": 52, "note": "Niche sharing. Needs trending audio strategies."},
-                "competitor1": {"score": 82, "note": "Aesthetic Reels frequently enter explore page loops."},
-                "competitor2": {"score": 88, "note": "High viral scale, supported by large initial follower pool."},
-                "competitor3": {"score": 75, "note": "Highly shareable infographics drive recurring spikes."}
-            }
-        },
-        "niche_ecosystem_analysis": niche_analysis
-    }
-    return result
+    if "education" in ind_lower or "edtech" in ind_lower or "college" in ind_lower or "university" in ind_lower or "science" in ind_lower or "arts" in ind_lower:
+        return [
+            {"handle": "byjus", "name": "Byju's", "style_summary": "India's largest edtech company with engaging learning content."},
+            {"handle": "unacademy", "name": "Unacademy", "style_summary": "Indian online education platform for exam prep."},
+            {"handle": "vedantu", "name": "Vedantu", "style_summary": "Live online tutoring platform with interactive classes."},
+        ]
+    if "restaurant" in ind_lower or "food" in ind_lower:
+        return [
+            {"handle": "zomato", "name": "Zomato", "style_summary": "Food delivery and restaurant discovery platform."},
+            {"handle": "swiggyindia", "name": "Swiggy", "style_summary": "Indian food delivery leader with vibrant content."},
+            {"handle": "eatfit", "name": "EatFit", "style_summary": "Healthy food brand targeting fitness-conscious consumers."},
+        ]
+    if "spiritual" in ind_lower or "meditation" in ind_lower or "yoga" in ind_lower or "mindfulness" in ind_lower:
+        return [
+            {"handle": "sadhguru", "name": "Sadhguru", "style_summary": "Indian spiritual leader with wisdom and mindfulness content."},
+            {"handle": "artofliving", "name": "Art of Living", "style_summary": "Global spiritual wellness organization with meditation content."},
+            {"handle": "yogawithadriene", "name": "Yoga With Adriene", "style_summary": "Popular yoga instruction with accessible wellness content."},
+        ]
+    if "beauty" in ind_lower or "cosmetic" in ind_lower or "skincare" in ind_lower:
+        return [
+            {"handle": "nykaabeauty", "name": "Nykaa Beauty", "style_summary": "India's leading beauty retailer with product tutorials and reviews."},
+            {"handle": "sugarfreebeauty", "name": "Sugar Cosmetics", "style_summary": "Indian cruelty-free makeup brand with vibrant tutorials."},
+            {"handle": "mamaearth", "name": "Mamaearth", "style_summary": "Indian natural skincare brand with toxin-free content."},
+        ]
+    if "real estate" in ind_lower or "property" in ind_lower or "realestate" in ind_lower or "homes" in ind_lower:
+        return [
+            {"handle": "magicbricks", "name": "MagicBricks", "style_summary": "Indian real estate platform with property listings and insights."},
+            {"handle": "housing", "name": "Housing.com", "style_summary": "Indian real estate discovery with modern home content."},
+            {"handle": "squareyards", "name": "Square Yards", "style_summary": "Indian real estate consultancy with market trends."},
+        ]
+    if "automotive" in ind_lower or "car" in ind_lower or "auto" in ind_lower or "vehicle" in ind_lower:
+        return [
+            {"handle": "tata_motors", "name": "Tata Motors", "style_summary": "Indian automotive leader showcasing vehicles and innovation."},
+            {"handle": "mahindralive", "name": "Mahindra", "style_summary": "Indian auto major with SUV and farm equipment content."},
+            {"handle": "bharatbenz", "name": "BharatBenz", "style_summary": "Indian commercial vehicle brand with engineering content."},
+        ]
+    if "plywood" in ind_lower or "wood" in ind_lower or "lumber" in ind_lower or "timber" in ind_lower:
+        return [
+            {"handle": "greenplyplywood", "name": "Greenply", "style_summary": "Indian plywood leader with interior design and wood solutions."},
+            {"handle": "centuryply", "name": "CenturyPly", "style_summary": "India's trusted plywood brand showcasing premium wood products."},
+            {"handle": "kitply", "name": "Kitply", "style_summary": "Indian plywood and panel products with industry insights."},
+        ]
+    if "manufacturing" in ind_lower or "industrial" in ind_lower or "steel" in ind_lower or "metal" in ind_lower or "wire" in ind_lower or "factory" in ind_lower or "engineering" in ind_lower or "construction" in ind_lower or "building" in ind_lower or "material" in ind_lower:
+        return [
+            {"handle": "tatasteel", "name": "Tata Steel", "style_summary": "Indian steel giant showcasing industrial innovation and sustainability."},
+            {"handle": "adani_wires", "name": "Adani Wires", "style_summary": "Indian wire manufacturing leader with engineering-focused content."},
+            {"handle": "hindalco", "name": "Hindalco", "style_summary": "Indian metals and mining leader with industrial insights."},
+        ]
+    return [
+        {"handle": "culture", "name": "Culture", "style_summary": "Industry insights and creative visual content."},
+        {"handle": "creators", "name": "Creator Intelligence", "style_summary": "Actionable visual analytics and growth insights."},
+        {"handle": "trending", "name": "Trending Hub", "style_summary": "Industry updates and viral trend reporting."},
+    ]

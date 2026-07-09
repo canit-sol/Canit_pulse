@@ -240,10 +240,8 @@ class Client(Base):
     monthly_ad_budget = Column(Float, default=0.0)
     ad_account_error  = Column(String, nullable=True)
     
-    # Creative Tracker & Brand Management
+    # Brand Management
     purpose                = Column(String, nullable=True)
-    social_media_count     = Column(Integer, default=0)
-    completed_creatives    = Column(Integer, default=0)
     
     reports     = relationship("Report", back_populates="client")
     users       = relationship("User", back_populates="client")
@@ -534,6 +532,17 @@ def create_tables():
     Base.metadata.create_all(bind=engine)
     try:
         with engine.connect() as conn:
+            # Migration: add missing columns to report_feedback
+            for col_name, col_type in [("rating", "INTEGER"), ("content", "VARCHAR DEFAULT ''")]:
+                exists = conn.execute(text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_name = 'report_feedback' AND column_name = :col"
+                ), {"col": col_name}).fetchone()
+                if not exists:
+                    conn.execute(text(f"ALTER TABLE report_feedback ADD COLUMN {col_name} {col_type};"))
+                    conn.commit()
+                    print(f"Migrated report_feedback: added column {col_name}.")
+
             result = conn.execute(text("""
                 SELECT column_name FROM information_schema.columns 
                 WHERE table_name = 'content_calendar' AND column_name = 'post_type'

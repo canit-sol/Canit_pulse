@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Loader2, ClipboardList, Check, Star, X } from "lucide-react";
 import { usePermissions } from "../hooks/usePermissions";
+import { getAccessToken } from "../lib/auth";
 
 interface Deliverable {
   id: string;
@@ -50,7 +51,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
     try {
       const res = await fetch(`/api/deliverables?clientId=${clientId}&month=${month}&year=${year}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("bento_token")}`,
+          Authorization: `Bearer ${getAccessToken()}`,
         }
       });
       if (res.ok) {
@@ -76,7 +77,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
     const fetchNotes = async () => {
       try {
         const res = await fetch(`/api/client-notes?clientId=${clientId}&month=${month}&year=${year}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("bento_token")}` },
+          headers: { Authorization: `Bearer ${getAccessToken()}` },
         });
         if (res.ok) {
           const data = await res.json();
@@ -95,7 +96,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
     const fetchFeedback = async () => {
       try {
         const res = await fetch(`/api/report-feedback?clientId=${clientId}&month=${month}&year=${year}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("bento_token")}` },
+          headers: { Authorization: `Bearer ${getAccessToken()}` },
         });
         if (res.ok) {
           const data = await res.json();
@@ -118,7 +119,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
       try {
         await fetch(`/api/client-notes`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("bento_token")}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAccessToken()}` },
           body: JSON.stringify({ clientId, month, year, content: val }),
         });
       } catch (err) {
@@ -134,7 +135,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
       try {
         await fetch(`/api/report-feedback`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("bento_token")}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAccessToken()}` },
           body: JSON.stringify({ clientId, month, year, content: val, rating: feedbackRating }),
         });
       } catch (err) {
@@ -150,7 +151,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
       try {
         await fetch(`/api/report-feedback`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("bento_token")}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAccessToken()}` },
           body: JSON.stringify({ clientId, month, year, rating: rating === 0 ? null : rating }),
         });
       } catch (err) {
@@ -207,7 +208,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("bento_token")}`,
+        Authorization: `Bearer ${getAccessToken()}`,
       },
       body: JSON.stringify({
         clientId,
@@ -259,7 +260,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("bento_token")}`,
+            Authorization: `Bearer ${getAccessToken()}`,
           },
           body: JSON.stringify({ title }),
         });
@@ -294,7 +295,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("bento_token")}`,
+          Authorization: `Bearer ${getAccessToken()}`,
         },
         body: JSON.stringify({ title }),
       });
@@ -338,7 +339,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("bento_token")}`,
+          Authorization: `Bearer ${getAccessToken()}`,
         },
         body: JSON.stringify({ title: item.title, status: nextStatus }),
       });
@@ -362,7 +363,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
       await fetch(`/api/deliverables/${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("bento_token")}`,
+          Authorization: `Bearer ${getAccessToken()}`,
         }
       });
     } catch (err) {

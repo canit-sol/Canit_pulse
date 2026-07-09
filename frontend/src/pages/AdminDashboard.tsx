@@ -5,7 +5,8 @@ import AppSidebar from "@/components/AppSidebar";
 import ClientCard from "@/components/ClientCard";
 import { useSidebar } from "@/context/SidebarContext";
 import { usePermissions } from "@/hooks/usePermissions";
-import { getApiUrl, apiFetch } from "@/config/api";
+import { getApiUrl, apiFetch, authHeaders } from "@/config/api";
+import { getAccessToken, clearAuth, getUser } from "../lib/auth";
 interface Client {
   id: string;
   name: string;
@@ -16,7 +17,6 @@ interface Client {
   fb_page_id?: string;
   youtube_channel_id?: string;
   purpose?: string;
-  completed_creatives?: number;
   status: "live" | "syncing";
   seo_pdf_filename?: string;
   seo_pdf_uploaded_at?: string;
@@ -33,24 +33,11 @@ interface MetaPage {
   source?: string;
 }
 
-function authHeaders() {
-  let token = null;
-  try {
-    token = localStorage.getItem("bento_token");
-  } catch (e) {
-    console.warn("localStorage blocked:", e);
-  }
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { collapsed } = useSidebar();
   const permissions = usePermissions();
-  const currentUser = JSON.parse(localStorage.getItem("bento_user") || "{}");
+  const currentUser = getUser() || {};
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [search, setSearch] = useState("");
@@ -232,16 +219,10 @@ export default function AdminDashboard() {
       formData.append("month", seoUploadMonth);
       formData.append("year", seoUploadYear);
 
-      let token = null;
-      try {
-        token = localStorage.getItem("bento_token");
-      } catch (err) {
-        console.warn("localStorage blocked:", err);
-      }
-
       const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
+      const tk = getAccessToken();
+      if (tk) {
+        headers["Authorization"] = `Bearer ${tk}`;
       }
 
       const res = await fetch(`/api/clients/${seoUploadClientId}/upload-monthly-seo`, {
@@ -452,7 +433,7 @@ export default function AdminDashboard() {
   const fetchClients = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/clients", { headers: authHeaders() });
+      const res = await apiFetch("/api/clients", {});
       const data = await res.json();
       if (Array.isArray(data)) setClients(data);
     } catch (err) {
@@ -578,16 +559,10 @@ export default function AdminDashboard() {
       const formData = new FormData();
       formData.append("file", file);
       
-      let token = null;
-      try {
-        token = localStorage.getItem("bento_token");
-      } catch (e) {
-        console.warn("localStorage blocked:", e);
-      }
-      
       const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
+      const tk = getAccessToken();
+      if (tk) {
+        headers["Authorization"] = `Bearer ${tk}`;
       }
 
       const res = await fetch(`/api/clients/${clientId}/upload-seo`, {
@@ -627,9 +602,8 @@ export default function AdminDashboard() {
     const url = editingId ? `/api/clients/${editingId}` : "/api/clients";
 
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
-        headers: authHeaders(),
         body: JSON.stringify({
           name: formData.name,
           industry: formData.industry,
@@ -647,12 +621,7 @@ export default function AdminDashboard() {
       const data = await res.json();
       const savedClientId = editingId || data.id;
 
-      let token = null;
-      try {
-        token = localStorage.getItem("bento_token");
-      } catch (e) {
-        console.warn("localStorage blocked:", e);
-      }
+      const tk = getAccessToken();
 
       // 1. Upload SEO PDF if present
       if (seoFile) {
@@ -660,7 +629,7 @@ export default function AdminDashboard() {
         seoFormData.append("file", seoFile);
         const seoRes = await fetch(`/api/clients/${savedClientId}/upload-seo`, {
           method: "POST",
-          headers: token ? { "Authorization": `Bearer ${token}` } : {},
+          headers: tk ? { "Authorization": `Bearer ${tk}` } : {},
           body: seoFormData
         });
         if (!seoRes.ok) {
@@ -675,7 +644,7 @@ export default function AdminDashboard() {
         logoFormData.append("file", logoFile);
         const logoRes = await fetch(`/api/clients/${savedClientId}/upload-logo`, {
           method: "POST",
-          headers: token ? { "Authorization": `Bearer ${token}` } : {},
+          headers: tk ? { "Authorization": `Bearer ${tk}` } : {},
           body: logoFormData
         });
         if (!logoRes.ok) {
@@ -693,46 +662,6 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error(err);
       showCustomAlert("❌ Network error saving brand details.");
-    }
-  };
-
-  const handleAddCreative = async (clientId: string) => {
-    try {
-      const res = await fetch(`/api/clients/${clientId}/creative`, {
-        method: "PATCH",
-        headers: authHeaders(),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setClients(clients.map(c =>
-          c.id === clientId ? { ...c, completed_creatives: data.completed_creatives } : c
-        ));
-      } else {
-        const err = await res.json();
-        showCustomAlert(`❌ ${err.detail}`);
-      }
-    } catch {
-      showCustomAlert("❌ Network error updating creative.");
-    }
-  };
-
-  const handleDecrementCreative = async (clientId: string) => {
-    try {
-      const res = await fetch(`/api/clients/${clientId}/creative/decrement`, {
-        method: "PATCH",
-        headers: authHeaders(),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setClients(clients.map(c =>
-          c.id === clientId ? { ...c, completed_creatives: data.completed_creatives } : c
-        ));
-      } else {
-        const err = await res.json();
-        showCustomAlert(`❌ ${err.detail}`);
-      }
-    } catch {
-      showCustomAlert("❌ Network error updating creative.");
     }
   };
 

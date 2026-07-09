@@ -4,6 +4,7 @@ import {
   Shield, UserCheck, UserX, Eye, EyeOff, Loader2,
   Users, ShieldCheck, Briefcase, HeartHandshake, AlertCircle
 } from "lucide-react";
+import { authHeaders } from "../lib/auth";
 
 
 interface TeamUser {
@@ -22,14 +23,6 @@ const ROLE_META: Record<string, { label: string; icon: React.ElementType; color:
   employee:    { label: "Employee",    icon: Briefcase, color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
   admin:       { label: "Admin",       icon: Shield, color: "text-slate-700", bg: "bg-slate-50 border-slate-200" },
 };
-
-function authHeaders() {
-  const token = localStorage.getItem("bento_token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 export default function UserManagementPanel() {
   const [users, setUsers] = useState<TeamUser[]>([]);

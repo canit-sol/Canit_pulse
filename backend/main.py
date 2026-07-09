@@ -46,6 +46,17 @@ REDIRECT_URI = "http://localhost:8000/api/auth/instagram/callback"
 
 app = FastAPI(title="Canit Pulse v4")
 
+from fastapi.responses import JSONResponse
+from fastapi import Request as FastAPIRequest
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: FastAPIRequest, exc: Exception):
+    print(f"[UNHANDLED EXCEPTION] {request.method} {request.url}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error.", "error": str(exc)}
+    )
+
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "service": "canit-pulse-api"}
@@ -139,7 +150,15 @@ def update_client(client_id: str, client_data: ClientCreate, current_user: AuthI
         client.instagram_handle = client_data.handle
     db.commit()
     db.refresh(client)
-    return client
+    return {
+        "id": client.id,
+        "name": client.name,
+        "industry": client.industry,
+        "website_url": client.website_url,
+        "instagram_handle": client.instagram_handle,
+        "platform": client.platform,
+        "brand_color": client.brand_color,
+    }
 
 
 
@@ -650,8 +669,10 @@ def check_api_health(current_user: AuthIdentity = Depends(require_admin)):
                 config=types.GenerateContentConfig(max_output_tokens=10),
             )
             latency = round((time.time() - start) * 1000)
-            if gemini_res.candidates and gemini_res.candidates[0].finish_reason == 1:
+            if gemini_res.candidates:
                 gemini_status = {"status": "connected", "latency_ms": latency}
+            else:
+                print(f"[Health] Gemini returned no candidates")
         except Exception as e:
             print(f"[Health] Gemini check failed: {e}")
             gemini_status = {"status": "offline", "latency_ms": 0}
