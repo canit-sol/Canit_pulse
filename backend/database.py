@@ -49,11 +49,20 @@ def _ensure_competitor_handle_column():
     insp = inspect(engine)
     if 'competitors' in insp.get_table_names():
         cols = [c['name'] for c in insp.get_columns('competitors')]
-        if 'instagram_handle' not in cols:
-            with engine.connect() as conn:
+        with engine.connect() as conn:
+            if 'instagram_handle' not in cols:
                 conn.execute(text("ALTER TABLE competitors ADD COLUMN instagram_handle VARCHAR;"))
-                conn.commit()
                 print("Added missing 'instagram_handle' column to competitors table.")
+            if 'style_summary' not in cols:
+                conn.execute(text("ALTER TABLE competitors ADD COLUMN style_summary TEXT;"))
+                print("Added missing 'style_summary' column to competitors table.")
+            if 'posts_count' not in cols:
+                conn.execute(text("ALTER TABLE competitors ADD COLUMN posts_count INTEGER DEFAULT 0;"))
+                print("Added missing 'posts_count' column to competitors table.")
+            if 'recent_likes' not in cols:
+                conn.execute(text("ALTER TABLE competitors ADD COLUMN recent_likes INTEGER DEFAULT 0;"))
+                print("Added missing 'recent_likes' column to competitors table.")
+            conn.commit()
 
 try:
     _ensure_competitor_handle_column()
@@ -161,6 +170,15 @@ def _ensure_ad_columns():
             if 'ad_account_error' not in cols:
                 conn.execute(text("ALTER TABLE clients ADD COLUMN ad_account_error VARCHAR;"))
                 print("Added missing 'ad_account_error' column to clients table.")
+            if 'purpose' not in cols:
+                conn.execute(text("ALTER TABLE clients ADD COLUMN purpose VARCHAR;"))
+                print("Added missing 'purpose' column to clients table.")
+            if 'social_media_count' not in cols:
+                conn.execute(text("ALTER TABLE clients ADD COLUMN social_media_count INTEGER DEFAULT 0;"))
+                print("Added missing 'social_media_count' column to clients table.")
+            if 'completed_creatives' not in cols:
+                conn.execute(text("ALTER TABLE clients ADD COLUMN completed_creatives INTEGER DEFAULT 0;"))
+                print("Added missing 'completed_creatives' column to clients table.")
             conn.commit()
 
 try:
@@ -248,6 +266,7 @@ class Competitor(Base):
     instagram_handle  = Column(String, nullable=True)
     posts_count       = Column(Integer, default=0)
     recent_likes      = Column(Integer, default=0)
+    style_summary     = Column(Text, nullable=True)
     client = relationship("Client", back_populates="competitors")
 
 class Report(Base):

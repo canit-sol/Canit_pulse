@@ -273,8 +273,7 @@ export default function AdminDashboard() {
   const [compList, setCompList] = useState<any[]>([]);
   const [compLoading, setCompLoading] = useState(false);
   const [compName, setCompName] = useState("");
-  const [compEngagement, setCompEngagement] = useState("");
-  const [compRevenue, setCompRevenue] = useState("");
+  const [compDescription, setCompDescription] = useState("");
   const [discovering, setDiscovering] = useState(false);
   const [discoverMsg, setDiscoverMsg] = useState("");
 
@@ -504,7 +503,7 @@ export default function AdminDashboard() {
   // ── Competitor handlers ─────────────────────────────
   const openCompetitorPanel = async (clientId: string) => {
     setCompClientId(clientId);
-    setCompName(""); setCompEngagement(""); setCompRevenue("");
+    setCompName(""); setCompDescription("");
     setCompLoading(true);
     try {
       const res = await fetch(`/api/clients/${clientId}/competitors`, { headers: authHeaders() });
@@ -520,9 +519,9 @@ export default function AdminDashboard() {
     try {
       await fetch(`/api/clients/${compClientId}/competitors`, {
         method: "POST", headers: authHeaders(),
-        body: JSON.stringify({ name: compName.trim(), engagement_est: Number(compEngagement) || 0, revenue_est: Number(compRevenue) || 0 }),
+        body: JSON.stringify({ name: compName.trim(), engagement_est: 0, revenue_est: 0, style_summary: compDescription.trim() }),
       });
-      setCompName(""); setCompEngagement(""); setCompRevenue("");
+      setCompName(""); setCompDescription("");
       openCompetitorPanel(compClientId);
     } catch { showCustomAlert("❌ Failed to add competitor."); }
   };
@@ -1213,11 +1212,11 @@ export default function AdminDashboard() {
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-0.5 font-semibold font-body">
-                        Engagement: {c.engagement_est}% · Followers: {(c.revenue_est || 0).toLocaleString()}
-                        {c.posts_count ? ` · Posts: ${c.posts_count}` : ""}
-                        {c.recent_likes ? ` · Recent Likes: ${(c.recent_likes || 0).toLocaleString()}` : ""}
-                      </p>
+                      {(c.style_summary || c.niche) && (
+                        <p className="text-[10px] text-gray-400 mt-0.5 font-semibold font-body">
+                          {(c.style_summary || c.niche || "").slice(0, 60)}{(c.style_summary || c.niche || "").length > 60 ? "…" : ""}
+                        </p>
+                      )}
                     </div>
                     <button
                       onClick={() => handleDeleteComp(c.id)}
@@ -1238,18 +1237,12 @@ export default function AdminDashboard() {
                 placeholder="Competitor Name (e.g. SwastikSust)"
                 className="w-full px-4 py-2.5 text-xs border border-white/60 rounded-xl bg-white/50 outline-none focus:bg-white/80 focus:border-[#113a87] transition-all font-medium text-[#1a1a1a] placeholder:text-gray-300"
               />
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                  type="number" value={compEngagement} onChange={e => setCompEngagement(e.target.value)}
-                  placeholder="Engagement %"
-                  className="w-full px-4 py-2.5 text-xs border border-white/60 rounded-xl bg-white/50 outline-none focus:bg-white/80 focus:border-[#113a87] transition-all font-medium text-[#1a1a1a] placeholder:text-gray-300"
-                />
-                <input
-                  type="number" value={compRevenue} onChange={e => setCompRevenue(e.target.value)}
-                  placeholder="Est. Followers"
-                  className="w-full px-4 py-2.5 text-xs border border-white/60 rounded-xl bg-white/50 outline-none focus:bg-white/80 focus:border-[#113a87] transition-all font-medium text-[#1a1a1a] placeholder:text-gray-300"
-                />
-              </div>
+              <textarea
+                value={compDescription} onChange={e => setCompDescription(e.target.value)}
+                placeholder="Description (e.g. India's leading plywood brand)"
+                rows={2}
+                className="w-full px-4 py-2.5 text-xs border border-white/60 rounded-xl bg-white/50 outline-none focus:bg-white/80 focus:border-[#113a87] transition-all font-medium text-[#1a1a1a] placeholder:text-gray-300 resize-none"
+              />
               <button type="submit" className="w-full py-3 bg-[#113a87] text-white text-xs font-bold rounded-xl hover:opacity-95 transition flex items-center justify-center gap-2 duration-300 font-heading shadow-sm hover:shadow-md">
                 <Plus size={14} /> Add Manually
               </button>

@@ -3514,14 +3514,11 @@ function CompetitorSocialIntelligenceSection({
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-black text-gray-800 leading-none truncate">{name}</p>
-                      <a
-                        href={`https://instagram.com/${handle.replace("@", "")}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={`text-[10px] font-semibold ${COMP_TEXT[idx]} hover:underline`}
+                      <span
+                        className={`text-[10px] font-semibold ${COMP_TEXT[idx]}`}
                       >
                         {handle}
-                      </a>
+                      </span>
                     </div>
                   </div>
                   <span className={`shrink-0 text-[9px] font-black px-2 py-0.5 rounded-full ${gs.bg} ${gs.text} flex items-center gap-1`}>

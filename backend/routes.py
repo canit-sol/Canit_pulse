@@ -1490,6 +1490,7 @@ def get_competitors(client_id: str, current_user: AuthIdentity = Depends(require
                 "instagram_handle": c.instagram_handle or "",
                 "posts_count": getattr(c, "posts_count", 0) or 0,
                 "recent_likes": getattr(c, "recent_likes", 0) or 0,
+                "style_summary": getattr(c, "style_summary", "") or "",
             }
             for c in competitors
         ]
@@ -1543,6 +1544,7 @@ def add_competitor(client_id: str, data: dict, current_user: AuthIdentity = Depe
         revenue_est=data.get("revenue_est", 0),
         is_client=data.get("is_client", False),
         instagram_handle=data.get("instagram_handle", ""),
+        style_summary=data.get("style_summary", ""),
     )
     db.add(comp)
     db.commit()

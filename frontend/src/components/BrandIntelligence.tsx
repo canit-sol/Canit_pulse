@@ -268,22 +268,12 @@ function CompetitorIntelCard({ competitorData, compLoading, onCompRefresh }: {
                 <span className="text-[10px] font-black text-white">{name.charAt(0).toUpperCase()}</span>
               </div>
 
-              {/* Name + handle + style */}
+              {/* Name + description only — no link to Instagram */}
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-black text-gray-800 truncate leading-none">{name}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <a
-                    href={`https://instagram.com/${handle.replace("@", "")}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`text-[9px] font-semibold ${COMP_TEXT[idx]} hover:underline`}
-                  >
-                    {handle}
-                  </a>
-                  {style && (
-                    <span className="text-[9px] text-gray-400 truncate hidden sm:block">· {style.slice(0, 30)}{style.length > 30 ? "…" : ""}</span>
-                  )}
-                </div>
+                {style && (
+                  <p className="text-[9px] text-gray-400 truncate mt-0.5">{style.slice(0, 45)}{style.length > 45 ? "…" : ""}</p>
+                )}
               </div>
             </div>
           );
