@@ -533,6 +533,53 @@ const platformThemes: Record<string, {
   },
 };
 
+function PostItem({ post }: { post: any }) {
+  const [imageError, setImageError] = useState(false);
+  const isVideo   = post.media_type === "VIDEO" || post.media_type === "REELS" || post.media_type === "VIDEO_REELS";
+  const isCarousel= post.media_type === "CAROUSEL_ALBUM";
+  const badgeColor= isVideo
+    ? "bg-pink-500"
+    : isCarousel
+      ? "bg-orange-500"
+      : "bg-black/50";
+  const badgeLabel= isVideo
+    ? "Reel"
+    : isCarousel
+      ? "Album"
+      : "Post";
+
+  const src = post.media_base64 || post.media_url;
+
+  return (
+    <a
+      href={post.permalink}
+      target="_blank"
+      rel="noreferrer"
+      className="relative aspect-square rounded-2xl overflow-hidden bg-white block border border-slate-200/80 shadow-soft hover:border-slate-300 hover:shadow-glass transition duration-200"
+    >
+      {src && !imageError ? (
+        <img
+          src={src}
+          alt={post.caption || "Post"}
+          className="w-full h-full object-cover"
+          onError={() => setImageError(true)}
+        />
+      ) : (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50 gap-2">
+          <InstagramIcon className="w-6 h-6 text-gray-300" />
+          <span className="text-[9px] text-gray-300 font-medium">No image</span>
+        </div>
+      )}
+
+      <div className="absolute top-2 right-2">
+        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full text-white ${badgeColor}`}>
+          {badgeLabel}
+        </span>
+      </div>
+    </a>
+  );
+}
+
 export default function ClientPortal() {
   const permissions = usePermissions();
   const { id } = useParams();
@@ -2211,49 +2258,9 @@ INSTRUCTIONS:
                       </h4>
                       {posts.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                          {posts.map((post: any) => {
-                            const isVideo   = post.media_type === "VIDEO" || post.media_type === "REELS";
-                            const isCarousel= post.media_type === "CAROUSEL_ALBUM";
-                            const badgeColor= isVideo
-                              ? "bg-pink-500"
-                              : isCarousel
-                                ? "bg-orange-500"
-                                : "bg-black/50";
-                            const badgeLabel= isVideo
-                              ? "Reel"
-                              : isCarousel
-                                ? "Album"
-                                : "Post";
-                            return (
-                              <a
-                                key={post.id}
-                                href={post.permalink}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="relative aspect-square rounded-2xl overflow-hidden bg-white block border border-slate-200/80 shadow-soft hover:border-slate-300 hover:shadow-glass transition duration-200"
-                              >
-                                {(post.media_base64 || post.media_url) ? (
-                                  <img
-                                    src={post.media_base64 || post.media_url}
-                                    alt={post.caption || "Post"}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50 gap-2">
-                                    <InstagramIcon className="w-6 h-6 text-gray-300" />
-                                    <span className="text-[9px] text-gray-300 font-medium">No image</span>
-                                  </div>
-                                )}
-
-                                <div className="absolute top-2 right-2">
-                                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full text-white ${badgeColor}`}>
-                                    {badgeLabel}
-                                  </span>
-                                </div>
-                              </a>
-                            );
-                          })}
+                          {posts.map((post: any) => (
+                            <PostItem post={post} key={post.id} />
+                          ))}
                         </div>
                       ) : (
                         <div className="glass-card border-dashed p-10 text-center bg-white/30">
