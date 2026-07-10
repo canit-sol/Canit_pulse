@@ -194,6 +194,22 @@ async def fetch_client_blogs(client_id: str, website_url: str):
                     published_at = datetime(*entry["published_parsed"][:6])
                 except Exception:
                     pass
+            else:
+                # Try to parse date from WordPress style URL path (e.g. /2025/12/title)
+                import re
+                match_ymd = re.search(r'/(\d{4})/(\d{2})/(\d{2})/', url)
+                if match_ymd:
+                    try:
+                        published_at = datetime(int(match_ymd.group(1)), int(match_ymd.group(2)), int(match_ymd.group(3)))
+                    except ValueError:
+                        pass
+                else:
+                    match_ym = re.search(r'/(\d{4})/(\d{2})/', url)
+                    if match_ym:
+                        try:
+                            published_at = datetime(int(match_ym.group(1)), int(match_ym.group(2)), 1)
+                        except ValueError:
+                            pass
                     
             # Deduplication check: check by clean url or same title
             existing = db.query(ClientBlog).filter(

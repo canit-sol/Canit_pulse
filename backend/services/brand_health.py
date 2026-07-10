@@ -232,7 +232,12 @@ def _score_reach_growth(metrics: dict) -> tuple[Any, float, str]:
     reach_multiplier = round(total_reach / followers, 2)
     if prev_reach > 0:
         mom_growth_pct = ((total_reach - prev_reach) / prev_reach) * 100
-        mom_score = _logistic_normalize(mom_growth_pct, midpoint=10.0, steepness=0.04)
+        if mom_growth_pct >= 0:
+            mom_score = _logistic_normalize(mom_growth_pct, midpoint=10.0, steepness=0.04)
+        else:
+            # Gentle penalty for negative reach growth to avoid causing client panic
+            mom_score = max(35.0, 70.0 + mom_growth_pct * 0.35)
+        
         final_score = ratio_score * 0.70 + mom_score * 0.30
         if reach_ratio_pct >= 150.0:
             final_score = max(final_score, ratio_score, 95.0)
@@ -242,6 +247,48 @@ def _score_reach_growth(metrics: dict) -> tuple[Any, float, str]:
         label = f"{reach_multiplier:.1f}x reach multiplier ({total_reach:,} reach)"
 
     return reach_multiplier, round(final_score, 1), label
+
+
+def _score_follower_growth(metrics: dict) -> tuple[Any, float, str]:
+    """
+    Follower Growth → 10%
+    If prev_followers is available: MoM growth % is primary signal.
+      - Small (<10K): midpoint=5.0% growth, steepness=0.2
+      - Mid (10K-100K): midpoint=3.0% growth, steepness=0.3
+      - Large (100K+): midpoint=1.5% growth, steepness=0.4
+    Fallback (no prev): absolute follower tier scoring.
+    """
+    followers      = max(_safe_int(metrics.get("followers", 1)), 1)
+    prev_followers = _safe_int(metrics.get("prev_followers", 0))
+    tier           = metrics.get("tier", "small")
+
+    if prev_followers > 0:
+        mom_growth_pct = ((followers - prev_followers) / prev_followers) * 100
+        
+        if mom_growth_pct >= 0:
+            if tier == "small":
+                midpoint = 5.0
+                steepness = 0.2
+            elif tier == "mid":
+                midpoint = 3.0
+                steepness = 0.3
+            else:
+                midpoint = 1.5
+                steepness = 0.4
+            score = _logistic_normalize(mom_growth_pct, midpoint=midpoint, steepness=steepness)
+        else:
+            # Gentle penalty for negative follower growth (e.g. -0.4% growth should stay in the 60s/70s, not plummet)
+            score = max(40.0, 75.0 + mom_growth_pct * 25.0)
+            
+        label = f"{followers:,} followers ({mom_growth_pct:+.1f}% MoM)"
+        raw   = mom_growth_pct
+    else:
+        # Tier-based fallback using log scale
+        score = _clamp(math.log10(max(followers, 1)) / math.log10(500_000) * 100)
+        label = f"{followers:,} followers"
+        raw   = followers
+
+    return raw, round(score, 1), label
 
 
 def _score_posting_cadence(metrics: dict) -> tuple[Any, float, str]:
@@ -310,43 +357,6 @@ def _score_saves_shares(metrics: dict) -> tuple[Any, float, str]:
     label = f"{combined:,} saves+shares ({per_post:.1f}/post)"
     return combined, round(score, 1), label
 
-
-def _score_follower_growth(metrics: dict) -> tuple[Any, float, str]:
-    """
-    Follower Growth → 10%
-    If prev_followers is available: MoM growth % is primary signal.
-      - Small (<10K): midpoint=5.0% growth, steepness=0.2
-      - Mid (10K-100K): midpoint=3.0% growth, steepness=0.3
-      - Large (100K+): midpoint=1.5% growth, steepness=0.4
-    Fallback (no prev): absolute follower tier scoring.
-    """
-    followers      = max(_safe_int(metrics.get("followers", 1)), 1)
-    prev_followers = _safe_int(metrics.get("prev_followers", 0))
-    tier           = metrics.get("tier", "small")
-
-    if prev_followers > 0:
-        mom_growth_pct = ((followers - prev_followers) / prev_followers) * 100
-        
-        if tier == "small":
-            midpoint = 5.0
-            steepness = 0.2
-        elif tier == "mid":
-            midpoint = 3.0
-            steepness = 0.3
-        else:
-            midpoint = 1.5
-            steepness = 0.4
-            
-        score = _logistic_normalize(mom_growth_pct, midpoint=midpoint, steepness=steepness)
-        label = f"{followers:,} followers ({mom_growth_pct:+.1f}% MoM)"
-        raw   = mom_growth_pct
-    else:
-        # Tier-based fallback using log scale
-        score = _clamp(math.log10(max(followers, 1)) / math.log10(500_000) * 100)
-        label = f"{followers:,} followers"
-        raw   = followers
-
-    return raw, round(score, 1), label
 
 
 def _score_content_diversity(metrics: dict) -> tuple[Any, float, str]:
@@ -552,7 +562,7 @@ def compute_brand_health(
     else:
         raw_score = sum(c["weighted_contribution"] for c in components)
 
-    final_score = round(_clamp(raw_score), 1)
+    final_score = round(_clamp(raw_score, lo=45.0, hi=100.0), 1)
     label       = _resolve_label(final_score)
 
     # ── Explainability string ─────────────────────────────────────────────────
