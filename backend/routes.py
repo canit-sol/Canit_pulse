@@ -1035,8 +1035,34 @@ def create_client(data: ClientCreate, current_user: AuthIdentity = Depends(requi
     db.commit()
     return {"id": client.id, "message": "Created.", "temp_password": temp_password}
 
+def background_auto_refresh_report(client_id: str, month: str, year: str):
+    from database import SessionLocal
+    from main import refresh_report_for_month
+    from auth import AuthIdentity
+    db = SessionLocal()
+    try:
+        admin_identity = AuthIdentity(
+            id="system",
+            email="system@canitpulse.com",
+            name="System",
+            role="super_admin",
+            client_id=None,
+            is_active=True
+        )
+        refresh_report_for_month(client_id, admin_identity, db, month, year)
+        print(f"[AUTO-REFRESH] Successfully refreshed report for client {client_id} for {month} {year}")
+    except Exception as e:
+        print(f"[AUTO-REFRESH] Failed to refresh report in background: {e}")
+    finally:
+        db.close()
+
 @router.get("/clients/{client_id}/reports")
-def get_client_reports(client_id: str, current_user: AuthIdentity = Depends(require_client), db: Session = Depends(get_db)):
+def get_client_reports(
+    client_id: str, 
+    background_tasks: BackgroundTasks, 
+    current_user: AuthIdentity = Depends(require_client), 
+    db: Session = Depends(get_db)
+):
     """Returns stored reports for the ClientPortal dashboard."""
     if current_user.role == "client" and current_user.client_id != client_id:
         raise HTTPException(status_code=403, detail="Forbidden: Access to another tenant's reports is denied.")
@@ -1046,6 +1072,31 @@ def get_client_reports(client_id: str, current_user: AuthIdentity = Depends(requ
     client_rec = db.query(Client).filter(Client.id == client_id).first()
     if not client_rec:
         raise HTTPException(status_code=404, detail="Client not found.")
+
+    # ── Background Auto-Refresh for Current Month ──
+    # Check if the latest report is for the current month/year.
+    # If so, and it is older than 2 hours, trigger a background refresh to pull latest posts automatically.
+    try:
+        from database import Report
+        from datetime import datetime
+        now = datetime.utcnow()
+        current_month_name = now.strftime("%B")
+        current_year_str = str(now.year)
+        
+        # Check if a report exists for the current month
+        latest_current_report = db.query(Report).filter(
+            Report.client_id == client_id,
+            Report.month == current_month_name,
+            Report.year == current_year_str
+        ).first()
+        
+        if latest_current_report:
+            time_diff = (now - latest_current_report.created_at).total_seconds()
+            if time_diff > 7200: # 2 hours
+                print(f"[AUTO-REFRESH] Triggering background refresh for client {client_id} (age: {time_diff:.0f}s)")
+                background_tasks.add_task(background_auto_refresh_report, client_id, current_month_name, current_year_str)
+    except Exception as auto_err:
+        print(f"[AUTO-REFRESH] Failed to setup check: {auto_err}")
 
     try:
         from database import Report
