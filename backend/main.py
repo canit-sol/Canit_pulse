@@ -280,98 +280,140 @@ def generate_full_report(client_id: str, current_user: AuthIdentity = Depends(re
         ai_personality = get_config("ai_personality", "analytical")
         personality_directive = PERSONALITY_DIRECTIVES.get(ai_personality, PERSONALITY_DIRECTIVES["analytical"])
 
-        # ── Build rich post-level context ────────────────────────────────────
-        posts = data_stats.get("posts", [])
-        type_counts = data_stats.get("type_counts", {})
+        # ── Pre-compute patterns in Python (don't rely on AI to find these) ──
+        posts        = data_stats.get("posts", [])
+        type_counts  = data_stats.get("type_counts", {})
         weekly_posts = data_stats.get("weekly_posts", [])
-        top_post = data_stats.get("top_post", {})
+        top_post     = data_stats.get("top_post", {})
+        total_posts  = len(posts)
+        followers    = int(data_stats.get("followers") or 0)
 
-        # Per-post summary: caption snippet + engagement
-        post_lines = []
-        for i, p in enumerate(posts[:10], 1):
-            caption = (p.get("caption") or p.get("message") or "")[:80].strip()
-            likes = p.get("likes", 0)
-            comments = p.get("comments", 0)
-            saves = p.get("saves", 0)
-            shares = p.get("shares", 0)
-            reach = p.get("reach", 0)
-            media = p.get("media_type", "?")
-            post_lines.append(
-                f"  Post {i} [{media}] reach={reach} likes={likes} comments={comments} saves={saves} shares={shares} | \"{caption}\""
-            )
-        posts_block = "\n".join(post_lines) if post_lines else "  No post data available."
+        # 1. POSTING CLUSTER DETECTION
+        active_days = sorted(set(p.get("day", 0) for p in posts if p.get("day")))
+        weeks_active = set()
+        for d in active_days:
+            if d <= 7:   weeks_active.add(1)
+            elif d <= 14: weeks_active.add(2)
+            elif d <= 21: weeks_active.add(3)
+            elif d <= 28: weeks_active.add(4)
+            else:         weeks_active.add(5)
+        cluster_flag = len(weeks_active) == 1 and total_posts > 0
+        cluster_desc = (
+            f"All {total_posts} posts were published in Week {list(weeks_active)[0]} only (days {active_days}). "
+            f"Zero activity for the rest of the month."
+        ) if cluster_flag else (
+            f"Posts spread across {len(weeks_active)} weeks: days {active_days}."
+        )
 
-        # Content type breakdown
-        type_block = ", ".join([f"{k}: {v}" for k, v in type_counts.items()]) if type_counts else "N/A"
+        # 2. CONTENT TYPE WINNER (which type gets highest avg engagement)
+        type_eng: dict = {}
+        for p in posts:
+            mt = p.get("media_type", "UNKNOWN")
+            eng = (p.get("likes", 0) or 0) + (p.get("comments", 0) or 0) + (p.get("saves", 0) or 0)
+            if mt not in type_eng:
+                type_eng[mt] = {"total_eng": 0, "count": 0}
+            type_eng[mt]["total_eng"] += eng
+            type_eng[mt]["count"] += 1
+        type_avg = {k: round(v["total_eng"] / v["count"], 1) for k, v in type_eng.items() if v["count"] > 0}
+        best_type = max(type_avg, key=type_avg.get) if type_avg else None
+        worst_type = min(type_avg, key=type_avg.get) if len(type_avg) > 1 else None
+        content_winner_desc = (
+            f"{best_type} posts averaged {type_avg.get(best_type, 0)} engagements/post "
+            + (f"vs {worst_type} posts at {type_avg.get(worst_type, 0)}/post." if worst_type else ".")
+        ) if best_type else "Single content type used this month."
 
-        # Weekly posting pattern
-        weekly_block = ", ".join([f"{w['week']}: {w['count']} posts" for w in weekly_posts]) if weekly_posts else "N/A"
+        # 3. SILENT AUDIENCE DETECTION (high likes, low comments = passive browsing, not intent)
+        total_likes    = int(data_stats.get("total_likes") or 0)
+        total_comments = int(data_stats.get("total_comments") or 0)
+        total_saves    = int(data_stats.get("total_saves") or 0)
+        comment_ratio  = round(total_comments / total_likes * 100, 1) if total_likes > 0 else 0
+        saves_ratio    = round(total_saves / total_likes * 100, 1) if total_likes > 0 else 0
+        if comment_ratio < 5 and total_likes > 0:
+            audience_signal = f"Comment-to-like ratio is {comment_ratio}% — audience is passively consuming, not actively engaging. High saves ({saves_ratio}% save rate) suggests purchase consideration behaviour."
+        elif saves_ratio > 30:
+            audience_signal = f"Save rate is {saves_ratio}% relative to likes — strong intent signal. Audience is bookmarking for future reference, typical for considered-purchase categories."
+        else:
+            audience_signal = f"Comment-to-like ratio: {comment_ratio}%. Save rate: {saves_ratio}%. Balanced engagement pattern."
 
-        # Top post
-        top_caption = (top_post.get("caption") or "")[:100].strip()
-        top_likes = top_post.get("likes", 0)
-        top_comments = top_post.get("comments", 0)
-        top_reach = top_post.get("impressions", 0)
+        # 4. REACH EFFICIENCY (reach per post vs follower base)
+        total_reach = int(data_stats.get("total_reach") or 0)
+        reach_per_post = round(total_reach / total_posts, 0) if total_posts > 0 else 0
+        reach_pct = round(reach_per_post / followers * 100, 1) if followers > 0 else 0
+        reach_efficiency_desc = (
+            f"Average reach per post: {int(reach_per_post)} ({reach_pct}% of {followers} followers). "
+            + ("Strong organic penetration." if reach_pct > 15 else
+               "Moderate penetration — paid boosting would multiply this significantly." if reach_pct > 5 else
+               "Low organic reach ratio — algorithm is not distributing content to full follower base.")
+        )
 
-        # Facebook supplementary
+        # 5. FACEBOOK vs INSTAGRAM CROSS-PLATFORM GAP
         fb = full_stats.get("facebook", {})
-        fb_posts = fb.get("total_posts", 0)
-        fb_reach = fb.get("total_reach", 0)
-        fb_eng = fb.get("engagement_rate", "N/A")
-        fb_followers = fb.get("followers", 0)
+        fb_posts_count = fb.get("total_posts", 0) or 0
+        fb_followers   = int(fb.get("followers") or 0)
+        fb_eng_rate    = fb.get("engagement_rate", "0%")
+        ig_posts_count = total_posts
+        cross_platform_desc = ""
+        if fb_followers > 0 and ig_posts_count > 0:
+            if fb_posts_count < ig_posts_count:
+                cross_platform_desc = (
+                    f"Facebook has {fb_followers:,} followers but received only {fb_posts_count} posts vs {ig_posts_count} on Instagram. "
+                    f"The Facebook audience is being underserved — repurposing Instagram content to FB would double distribution at zero extra effort."
+                )
+            elif fb_followers > followers * 2:
+                cross_platform_desc = (
+                    f"Facebook following ({fb_followers:,}) is significantly larger than Instagram ({followers:,}), "
+                    f"yet content volume is roughly equal. Facebook should be the primary amplification channel this month."
+                )
 
-        prompt = f"""You are an expert social media analyst embedded inside a brand intelligence platform used by a marketing agency.
+        # 6. TOP POST INSIGHT
+        top_caption_snippet = (top_post.get("caption") or "")[:120].strip()
+        top_likes_val   = int(top_post.get("likes") or 0)
+        top_comments_val = int(top_post.get("comments") or 0)
+        top_reach_val   = int(top_post.get("impressions") or 0)
 
-Your job: Analyse THIS MONTH's actual content and activity for the client and produce sharp, specific, honest observations. 
-Do NOT give generic advice. Do NOT compare to last month. Do NOT say things like "post more consistently" unless you can prove it from the data.
-Speak like a sharp analyst talking to a marketing agency, not a beginner tutorial.
+        # ── Assemble pattern block ────────────────────────────────────────────
+        patterns_block = f"""
+DETECTED PATTERNS (pre-computed from raw data — use these as the foundation of your insights):
+
+1. POSTING DISTRIBUTION: {cluster_desc}
+2. CONTENT TYPE PERFORMANCE: {content_winner_desc}
+3. AUDIENCE SIGNAL: {audience_signal}
+4. REACH EFFICIENCY: {reach_efficiency_desc}
+{f"5. CROSS-PLATFORM GAP: {cross_platform_desc}" if cross_platform_desc else ""}
+
+TOP POST THIS MONTH: reach={top_reach_val}, likes={top_likes_val}, comments={top_comments_val}
+Caption: "{top_caption_snippet}"
+""".strip()
+
+        prompt = f"""You are a sharp social media analyst inside a brand intelligence platform used by a marketing agency.
 
 {personality_directive}
 
-─── CLIENT ───────────────────────────────────────────────
-Brand: {client_rec.name}
-Industry: {client_rec.industry}
-Platform: {platform.capitalize()}
+BRAND: {client_rec.name} | INDUSTRY: {client_rec.industry} | PLATFORM: {platform.capitalize()}
+FOLLOWERS: {followers:,} | POSTS THIS MONTH: {total_posts} | ENGAGEMENT RATE: {data_stats.get('engagement_rate', 'N/A')}
 
-─── THIS MONTH'S POST-LEVEL DATA ─────────────────────────
-Total posts: {data_stats.get('total_posts', 'N/A')}
-Followers: {data_stats.get('followers', 'N/A')}
-Total reach: {data_stats.get('total_reach', 'N/A')}
-Engagement rate: {data_stats.get('engagement_rate', 'N/A')}
-Total likes: {data_stats.get('total_likes', 'N/A')}
-Total comments: {data_stats.get('total_comments', 'N/A')}
-Total saves: {data_stats.get('total_saves', 'N/A')}
+{patterns_block}
 
-Content type breakdown: {type_block}
-Weekly posting pattern: {weekly_block}
+YOUR TASK:
+Write exactly 3 insights based ONLY on the detected patterns above. 
+Each insight must explain: what happened → why it matters for this specific brand/industry → what the agency should do next.
 
-Individual posts this month:
-{posts_block}
+RULES:
+- Name specific numbers, content types, or caption themes from the data
+- Do NOT use phrases like "consider posting more" or "try to engage" — be direct and decisive
+- Do NOT compare to previous months
+- Do NOT write an intro or conclusion
+- Tone: Sharp analyst briefing a professional agency team
 
-Top performing post: reach={top_reach}, likes={top_likes}, comments={top_comments}
-Caption: "{top_caption}"
+FORMAT:
+**[Insight Title]**
+[2-3 sentences max. Specific. Decisive.]
 
-─── FACEBOOK (if connected) ──────────────────────────────
-FB Posts: {fb_posts} | FB Reach: {fb_reach} | FB Engagement: {fb_eng} | FB Followers: {fb_followers}
+**[Insight Title]**
+[2-3 sentences max. Specific. Decisive.]
 
-─── YOUR TASK ────────────────────────────────────────────
-Write exactly 3 sharp, specific insights about THIS month's content performance.
-Each insight must:
-1. Reference something specific from the actual post data above (content type, posting pattern, specific caption theme, or engagement ratio)
-2. Explain what it means for this brand in their industry
-3. Give one concrete, specific action the agency should take next
-
-Format:
-**Insight 1: [Title]**
-[2-3 sentences. Specific. Data-backed. Actionable.]
-
-**Insight 2: [Title]**  
-[2-3 sentences. Specific. Data-backed. Actionable.]
-
-**Insight 3: [Title]**
-[2-3 sentences. Specific. Data-backed. Actionable.]
-
-Max 200 words total. No intros, no conclusions, no generic filler."""
+**[Insight Title]**
+[2-3 sentences max. Specific. Decisive.]"""
 
         ai_response = client_ai.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
