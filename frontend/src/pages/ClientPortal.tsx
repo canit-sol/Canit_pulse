@@ -1964,6 +1964,60 @@ INSTRUCTIONS:
               />
             </div>
 
+            {/* ── AI Strategic Recommendations ── */}
+            {active?.ai_insight && (
+              <div className="mt-6 glass-panel p-6 animate-fade-in relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#113a87]/5 to-transparent rounded-bl-full pointer-events-none -mr-10 -mt-10 group-hover:scale-110 transition-transform duration-700" />
+                <div className="flex items-center gap-3 mb-6 relative z-10">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#113a87] to-indigo-600 flex items-center justify-center shadow-md">
+                    <Sparkles className="w-5 h-5 text-white animate-pulse" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-[#1a1a1a] font-heading tracking-tight">Strategic Recommendations</h2>
+                    <p className="text-[11px] font-bold text-[#113a87] uppercase tracking-widest mt-0.5">Deep Data Analysis</p>
+                  </div>
+                </div>
+
+                <div className="relative z-10">
+                  {(() => {
+                    const raw = active.ai_insight || "";
+                    const lines = raw.split("\n");
+                    const blocks: { title: string; body: string }[] = [];
+                    let current: { title: string; body: string } | null = null;
+                    for (const line of lines) {
+                      const trimmed = line.trim();
+                      const titleMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
+                      if (titleMatch) {
+                        if (current) blocks.push(current);
+                        current = { title: titleMatch[1], body: "" };
+                      } else if (current && trimmed) {
+                        current.body += (current.body ? " " : "") + trimmed;
+                      }
+                    }
+                    if (current) blocks.push(current);
+
+                    if (blocks.length === 0) {
+                      return <p className="text-sm text-gray-600 font-medium leading-relaxed whitespace-pre-line">{raw}</p>;
+                    }
+                    
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {blocks.map((block, i) => (
+                          <div key={i} className="bg-white/60 border border-[#113a87]/10 hover:border-[#113a87]/30 transition-all duration-300 rounded-2xl p-5 shadow-sm hover:shadow-md relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#113a87] to-indigo-400 opacity-50" />
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#113a87]/10 text-[#113a87] text-[10px] font-black">{i + 1}</span>
+                              <h3 className="text-sm font-black text-[#1a1a1a] uppercase tracking-tight leading-tight">{block.title}</h3>
+                            </div>
+                            <p className="text-xs text-gray-600 font-medium leading-relaxed pl-7">{block.body}</p>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
 
 
 
