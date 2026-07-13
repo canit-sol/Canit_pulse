@@ -364,25 +364,13 @@ def generate_full_report(client_id: str, current_user: AuthIdentity = Depends(re
                     f"Facebook following ({fb_followers:,}) is significantly larger than Instagram ({followers:,}), "
                     f"yet content volume is roughly equal. Facebook should be the primary amplification channel this month."
                 )
-
-        # 6. TOP POST INSIGHT
-        top_caption_snippet = (top_post.get("caption") or "")[:120].strip()
-        top_likes_val   = int(top_post.get("likes") or 0)
-        top_comments_val = int(top_post.get("comments") or 0)
-        top_reach_val   = int(top_post.get("impressions") or 0)
-
         # ── Assemble pattern block ────────────────────────────────────────────
         patterns_block = f"""
 DETECTED PATTERNS (pre-computed from raw data — use these as the foundation of your insights):
 
-1. POSTING DISTRIBUTION: {cluster_desc}
-2. CONTENT TYPE PERFORMANCE: {content_winner_desc}
-3. AUDIENCE SIGNAL: {audience_signal}
-4. REACH EFFICIENCY: {reach_efficiency_desc}
-{f"5. CROSS-PLATFORM GAP: {cross_platform_desc}" if cross_platform_desc else ""}
-
-TOP POST THIS MONTH: reach={top_reach_val}, likes={top_likes_val}, comments={top_comments_val}
-Caption: "{top_caption_snippet}"
+PATTERN 1: CONTENT TYPE PERFORMANCE: {content_winner_desc}
+PATTERN 2: AUDIENCE SIGNAL: {audience_signal}
+PATTERN 3: REACH EFFICIENCY: {reach_efficiency_desc}
 """.strip()
 
         prompt = f"""You are a sharp social media analyst inside a brand intelligence platform used by a marketing agency.
@@ -395,7 +383,7 @@ FOLLOWERS: {followers:,} | POSTS THIS MONTH: {total_posts} | ENGAGEMENT RATE: {d
 {patterns_block}
 
 YOUR TASK:
-Write exactly 3 insights based ONLY on the detected patterns above. 
+Write exactly 3 insights based EXACTLY on the 3 detected patterns above. 
 Each insight must explain: what happened → why it matters for this specific brand/industry → what the agency should do next.
 
 RULES:
@@ -405,14 +393,16 @@ RULES:
 - Do NOT write an intro or conclusion
 - Tone: Sharp analyst briefing a professional agency team
 
-FORMAT:
-**[Insight Title]**
+STRICT FORMATTING RULE: 
+You MUST use these exact 3 titles for your insights.
+
+**Content Type Performance**
 [2-3 sentences max. Specific. Decisive.]
 
-**[Insight Title]**
+**Audience Intent Signal**
 [2-3 sentences max. Specific. Decisive.]
 
-**[Insight Title]**
+**Reach Efficiency**
 [2-3 sentences max. Specific. Decisive.]"""
 
         ai_response = client_ai.chat.completions.create(
