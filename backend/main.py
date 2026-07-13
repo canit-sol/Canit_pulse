@@ -409,7 +409,9 @@ You MUST use these exact 3 titles for your insights.
             messages=[{"role": "user", "content": prompt}],
             model="qwen/qwen3-235b-a22b",
         )
-        ai_text = ai_response.choices[0].message.content
+        raw_text = ai_response.choices[0].message.content
+        # Strip out any <think> blocks that Qwen might return
+        ai_text = re.sub(r'<think>.*?</think>', '', raw_text, flags=re.DOTALL).strip()
     except Exception as e:
         print(f"AI failed: {e}")
         ai_text = "Focus on consistent posting. Engage with comments within the first hour. Use Reels for maximum reach."
