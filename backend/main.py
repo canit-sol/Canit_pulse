@@ -280,26 +280,102 @@ def generate_full_report(client_id: str, current_user: AuthIdentity = Depends(re
         ai_personality = get_config("ai_personality", "analytical")
         personality_directive = PERSONALITY_DIRECTIVES.get(ai_personality, PERSONALITY_DIRECTIVES["analytical"])
 
-        prompt = f"""You are a senior digital marketing strategist.
+        # ── Build rich post-level context ────────────────────────────────────
+        posts = data_stats.get("posts", [])
+        type_counts = data_stats.get("type_counts", {})
+        weekly_posts = data_stats.get("weekly_posts", [])
+        top_post = data_stats.get("top_post", {})
+
+        # Per-post summary: caption snippet + engagement
+        post_lines = []
+        for i, p in enumerate(posts[:10], 1):
+            caption = (p.get("caption") or p.get("message") or "")[:80].strip()
+            likes = p.get("likes", 0)
+            comments = p.get("comments", 0)
+            saves = p.get("saves", 0)
+            shares = p.get("shares", 0)
+            reach = p.get("reach", 0)
+            media = p.get("media_type", "?")
+            post_lines.append(
+                f"  Post {i} [{media}] reach={reach} likes={likes} comments={comments} saves={saves} shares={shares} | \"{caption}\""
+            )
+        posts_block = "\n".join(post_lines) if post_lines else "  No post data available."
+
+        # Content type breakdown
+        type_block = ", ".join([f"{k}: {v}" for k, v in type_counts.items()]) if type_counts else "N/A"
+
+        # Weekly posting pattern
+        weekly_block = ", ".join([f"{w['week']}: {w['count']} posts" for w in weekly_posts]) if weekly_posts else "N/A"
+
+        # Top post
+        top_caption = (top_post.get("caption") or "")[:100].strip()
+        top_likes = top_post.get("likes", 0)
+        top_comments = top_post.get("comments", 0)
+        top_reach = top_post.get("impressions", 0)
+
+        # Facebook supplementary
+        fb = full_stats.get("facebook", {})
+        fb_posts = fb.get("total_posts", 0)
+        fb_reach = fb.get("total_reach", 0)
+        fb_eng = fb.get("engagement_rate", "N/A")
+        fb_followers = fb.get("followers", 0)
+
+        prompt = f"""You are an expert social media analyst embedded inside a brand intelligence platform used by a marketing agency.
+
+Your job: Analyse THIS MONTH's actual content and activity for the client and produce sharp, specific, honest observations. 
+Do NOT give generic advice. Do NOT compare to last month. Do NOT say things like "post more consistently" unless you can prove it from the data.
+Speak like a sharp analyst talking to a marketing agency, not a beginner tutorial.
+
 {personality_directive}
 
-Client: {client_rec.name} | Industry: {client_rec.industry}
+─── CLIENT ───────────────────────────────────────────────
+Brand: {client_rec.name}
+Industry: {client_rec.industry}
+Platform: {platform.capitalize()}
 
-{platform.capitalize()} data:
-- Followers: {data_stats.get('followers', 'N/A')}
-- Posts analysed: {data_stats.get('total_posts', 'N/A')}
-- Total reach: {data_stats.get('total_reach', 'N/A')}
-- Engagement rate: {data_stats.get('engagement_rate', 'N/A')}
-- Likes: {data_stats.get('total_likes', 'N/A')}
-- Comments: {data_stats.get('total_comments', 'N/A')}
-- Saves: {data_stats.get('total_saves', 'N/A')}
+─── THIS MONTH'S POST-LEVEL DATA ─────────────────────────
+Total posts: {data_stats.get('total_posts', 'N/A')}
+Followers: {data_stats.get('followers', 'N/A')}
+Total reach: {data_stats.get('total_reach', 'N/A')}
+Engagement rate: {data_stats.get('engagement_rate', 'N/A')}
+Total likes: {data_stats.get('total_likes', 'N/A')}
+Total comments: {data_stats.get('total_comments', 'N/A')}
+Total saves: {data_stats.get('total_saves', 'N/A')}
 
-Give exactly 3 numbered, specific, actionable growth strategies based on this data.
-Be direct. No fluff. Max 120 words total."""
+Content type breakdown: {type_block}
+Weekly posting pattern: {weekly_block}
+
+Individual posts this month:
+{posts_block}
+
+Top performing post: reach={top_reach}, likes={top_likes}, comments={top_comments}
+Caption: "{top_caption}"
+
+─── FACEBOOK (if connected) ──────────────────────────────
+FB Posts: {fb_posts} | FB Reach: {fb_reach} | FB Engagement: {fb_eng} | FB Followers: {fb_followers}
+
+─── YOUR TASK ────────────────────────────────────────────
+Write exactly 3 sharp, specific insights about THIS month's content performance.
+Each insight must:
+1. Reference something specific from the actual post data above (content type, posting pattern, specific caption theme, or engagement ratio)
+2. Explain what it means for this brand in their industry
+3. Give one concrete, specific action the agency should take next
+
+Format:
+**Insight 1: [Title]**
+[2-3 sentences. Specific. Data-backed. Actionable.]
+
+**Insight 2: [Title]**  
+[2-3 sentences. Specific. Data-backed. Actionable.]
+
+**Insight 3: [Title]**
+[2-3 sentences. Specific. Data-backed. Actionable.]
+
+Max 200 words total. No intros, no conclusions, no generic filler."""
 
         ai_response = client_ai.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="qwen/qwen3.6-27b",
+            model="qwen/qwen3-235b-a22b",
         )
         ai_text = ai_response.choices[0].message.content
     except Exception as e:
