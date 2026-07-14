@@ -1266,7 +1266,7 @@ const generateUnifiedIntelligence = (brandName: string, igMetrics: any, fbMetric
 
 /* ── Main Component ────────────────────────────────── */
 
-export default function BrandIntelligence({ clientId, brandName, platform, month, year, competitorData, compLoading, onCompRefresh, fbMetrics, igMetrics, seoMetrics, historicalSnapshots, intelligenceData, intelligenceLoading }: Props) {
+export default function BrandIntelligence({ clientId, brandName, platform, month, year, competitorData, compLoading, onCompRefresh, fbMetrics, igMetrics, seoMetrics, historicalSnapshots, intelligenceData, intelligenceLoading, aiInsights }: Props) {
   const [localData, setLocalData] = useState<IntelligenceData | null>(null);
   const [localLoading, setLocalLoading] = useState(true);
 
