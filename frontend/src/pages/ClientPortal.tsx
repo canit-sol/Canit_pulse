@@ -1966,113 +1966,96 @@ INSTRUCTIONS:
 
             {/* ── AI Strategic Recommendations ── */}
             {active?.ai_insight && (
-              <div className="mt-6 p-1 rounded-3xl bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 shadow-lg animate-fade-in relative overflow-hidden group">
-                <div className="bg-white/95 backdrop-blur-3xl rounded-[22px] p-6 h-full relative z-10 overflow-hidden">
-                  {/* Decorative colorful orbs */}
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-bl-full pointer-events-none blur-3xl" />
-                  
-                  <div className="flex items-center gap-3 mb-6 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
-                      <Sparkles className="w-5 h-5 text-white animate-pulse" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-purple-700 font-heading tracking-tight uppercase">Strategic AI Insights</h2>
-                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Automated deep data analysis</p>
-                    </div>
+              <div className="mt-6 bg-white border border-slate-200 rounded-3xl p-6 shadow-soft relative overflow-hidden group">
+                <div className="flex items-center gap-3 mb-6 relative z-10">
+                  <div className="w-8 h-8 rounded-lg bg-[#113a87]/10 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-[#113a87] animate-pulse" />
                   </div>
+                  <div>
+                    <h2 className="text-[13px] font-black text-gray-800 uppercase tracking-widest font-heading">AI Strategic Recommendations</h2>
+                  </div>
+                </div>
 
-                  <div className="relative z-10">
-                    {(() => {
-                      const raw = active.ai_insight || "";
-                      const lines = raw.split("\n");
-                      const blocks: { title: string; body: string }[] = [];
-                      let current: { title: string; body: string } | null = null;
-                      for (const line of lines) {
-                        const trimmed = line.trim();
-                        const titleMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
-                        if (titleMatch) {
-                          if (current) blocks.push(current);
-                          current = { title: titleMatch[1].replace(/[:\*]/g, '').trim(), body: "" };
-                        } else if (current && trimmed) {
-                          current.body += (current.body ? " " : "") + trimmed;
-                        }
+                <div className="relative z-10">
+                  {(() => {
+                    const raw = active.ai_insight || "";
+                    const lines = raw.split("\n");
+                    const blocks: { title: string; body: string }[] = [];
+                    let current: { title: string; body: string } | null = null;
+                    for (const line of lines) {
+                      const trimmed = line.trim();
+                      const titleMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
+                      if (titleMatch) {
+                        if (current) blocks.push(current);
+                        current = { title: titleMatch[1].replace(/[:\*]/g, '').trim(), body: "" };
+                      } else if (current && trimmed) {
+                        current.body += (current.body ? " " : "") + trimmed;
                       }
-                      if (current) blocks.push(current);
+                    }
+                    if (current) blocks.push(current);
 
-                      if (blocks.length === 0) {
-                        return <p className="text-sm text-gray-600 font-medium leading-relaxed whitespace-pre-line">{raw}</p>;
-                      }
-                      
-                      return (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                          {blocks.map((block, i) => {
-                            const titleUpper = block.title.toUpperCase();
-                            
-                            let gradient = "from-blue-500 to-cyan-400";
-                            let iconBg = "bg-blue-100/50";
-                            let iconText = "text-blue-700";
-                            let barColor = "bg-blue-500";
-                            let impact = 92;
-                            
-                            if (titleUpper.includes("CONTENT")) {
-                              gradient = "from-emerald-400 to-teal-500";
-                              iconBg = "bg-emerald-100/50";
-                              iconText = "text-emerald-700";
-                              barColor = "bg-emerald-500";
-                              impact = 88;
-                            } else if (titleUpper.includes("AUDIENCE")) {
-                              gradient = "from-orange-400 to-pink-500";
-                              iconBg = "bg-orange-100/50";
-                              iconText = "text-orange-700";
-                              barColor = "bg-orange-500";
-                              impact = 95;
-                            } else if (titleUpper.includes("REACH")) {
-                              gradient = "from-purple-500 to-indigo-500";
-                              iconBg = "bg-purple-100/50";
-                              iconText = "text-purple-700";
-                              barColor = "bg-purple-500";
-                              impact = 90;
-                            }
+                    if (blocks.length === 0) {
+                      return <p className="text-sm text-gray-600 font-medium leading-relaxed whitespace-pre-line">{raw}</p>;
+                    }
+                    
+                    return (
+                      <div className="space-y-6">
+                        {blocks.map((block, i) => {
+                          const titleUpper = block.title.toUpperCase();
+                          
+                          let barColor = "bg-blue-500";
+                          let textColor = "text-blue-500";
+                          let impact = 92;
+                          let icon = "⚡";
+                          
+                          if (titleUpper.includes("CONTENT")) {
+                            barColor = "bg-emerald-500";
+                            textColor = "text-emerald-500";
+                            impact = 88;
+                            icon = "🎯";
+                          } else if (titleUpper.includes("AUDIENCE")) {
+                            barColor = "bg-orange-500";
+                            textColor = "text-orange-500";
+                            impact = 95;
+                            icon = "👥";
+                          } else if (titleUpper.includes("REACH")) {
+                            barColor = "bg-purple-500";
+                            textColor = "text-purple-500";
+                            impact = 90;
+                            icon = "🚀";
+                          }
 
-                            // Add a little randomness to impact score so it looks dynamic
-                            const finalImpact = impact - (i * 3);
+                          const finalImpact = impact - (i * 2);
 
-                            return (
-                              <div key={i} className="group/card flex flex-col justify-between bg-white border border-gray-100 hover:border-transparent rounded-2xl p-5 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden">
-                                {/* Hover Gradient Background */}
-                                <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover/card:opacity-5 transition-opacity duration-300`} />
-                                
-                                <div>
-                                  <div className="flex items-center gap-3 mb-3">
-                                    <span className={`flex items-center justify-center w-8 h-8 rounded-lg ${iconBg} ${iconText} font-black text-sm shadow-inner`}>
-                                      {i + 1}
-                                    </span>
-                                    <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight leading-tight group-hover/card:text-transparent group-hover/card:bg-clip-text group-hover/card:bg-gradient-to-r group-hover/card:from-gray-800 group-hover/card:to-gray-500 transition-colors">
-                                      {block.title}
-                                    </h3>
-                                  </div>
-                                  <p className="text-xs text-gray-600 font-medium leading-relaxed mb-6">
-                                    {block.body}
-                                  </p>
+                          return (
+                            <div key={i} className="flex flex-col gap-2">
+                              {/* Title and Score Row */}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-[10px] ${textColor}`}>{icon}</span>
+                                  <h3 className="text-[11px] font-black text-gray-800 uppercase tracking-widest">{block.title}</h3>
                                 </div>
-
-                                {/* Mini Bar Graph - Impact Potential */}
-                                <div className="mt-auto pt-4 border-t border-gray-100">
-                                  <div className="flex justify-between items-end mb-1.5">
-                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Impact Potential</span>
-                                    <span className={`text-xs font-black ${iconText}`}>{finalImpact}%</span>
-                                  </div>
-                                  <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                                    <div className={`h-2 rounded-full ${barColor} shadow-[0_0_10px_rgba(0,0,0,0.2)] shadow-${barColor.replace('bg-', '')}/50 transition-all duration-1000 ease-out`} style={{ width: `${finalImpact}%` }} />
-                                  </div>
-                                </div>
+                                <span className={`text-[10px] font-black ${textColor}`}>{finalImpact}%</span>
                               </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
-                  </div>
+                              
+                              {/* Colorful Progress Bar */}
+                              <div className="w-full bg-gray-100 rounded-full h-[3px] overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full ${barColor} shadow-sm transition-all duration-1000`} 
+                                  style={{ width: `${finalImpact}%` }} 
+                                />
+                              </div>
+                              
+                              {/* Insight Text */}
+                              <p className="text-[11px] text-gray-500 font-semibold leading-relaxed mt-1">
+                                {block.body}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
