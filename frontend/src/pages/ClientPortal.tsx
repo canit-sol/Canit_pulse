@@ -1623,15 +1623,23 @@ INSTRUCTIONS:
 
   let aiStrategyData: any = null;
   if (active?.ai_insight) {
+    console.log("[AI Strategy Debug] raw ai_insight:", active.ai_insight.substring(0, 300));
     try {
       const data = JSON.parse(active?.ai_insight);
+      console.log("[AI Strategy Debug] parsed keys:", Object.keys(data));
+      console.log("[AI Strategy Debug] has overall_score:", !!data.overall_score);
       // Fallback for old schema vs new schema
       if (data.overall_score) {
         aiStrategyData = data;
+        console.log("[AI Strategy Debug] ✅ aiStrategyData SET");
+      } else {
+        console.log("[AI Strategy Debug] ❌ No overall_score found - old format?");
       }
     } catch (e) {
-      console.log("Could not parse ai_insight as JSON");
+      console.log("Could not parse ai_insight as JSON:", e);
     }
+  } else {
+    console.log("[AI Strategy Debug] active?.ai_insight is falsy:", active?.ai_insight);
   }
 
   return (

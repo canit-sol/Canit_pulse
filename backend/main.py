@@ -452,6 +452,7 @@ RULES:
         }
 
         try:
+            print(f"[AI Strategy] Calling Groq with json_schema for client {client_id}...")
             ai_response = client_ai.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
                 model="qwen/qwen3-235b-a22b",
@@ -466,9 +467,11 @@ RULES:
                 }
             )
             raw_text = ai_response.choices[0].message.content
+            print(f"[AI Strategy] Groq json_schema SUCCESS. Length: {len(raw_text)}")
         except Exception as e:
             # Fallback for models that might not support strict json_schema yet
-            print(f"Strict json_schema failed, trying json_object fallback: {e}")
+            print(f"[AI Strategy] Strict json_schema failed: {e}")
+            print(f"[AI Strategy] Trying json_object fallback...")
             prompt += "\nOutput ONLY valid JSON matching the schema. No reasoning, no preamble, no markdown fences."
             try:
                 ai_response = client_ai.chat.completions.create(
@@ -478,9 +481,17 @@ RULES:
                     response_format={"type": "json_object"}
                 )
                 raw_text = ai_response.choices[0].message.content
+                print(f"[AI Strategy] json_object fallback SUCCESS. Length: {len(raw_text)}")
             except Exception as inner_e:
-                print(f"Fallback AI failed: {inner_e}")
-                raw_text = '{"insights": [{"category": "performance", "title": "Data Unavailable", "detail": "Unable to generate insights.", "metric": "N/A"}]}'
+                print(f"[AI Strategy] Fallback AI also failed: {inner_e}")
+                raw_text = json.dumps({
+                    "overall_score": {"score": 0, "trend": "N/A", "label": "Unavailable", "description": "AI analysis could not be generated."},
+                    "ai_noticed": ["Data unavailable for analysis."],
+                    "recommended_actions": ["Try regenerating the report."],
+                    "risk_detection": ["Unable to detect risks at this time."],
+                    "opportunity_radar": {"title": "N/A", "impact": "N/A", "reason": "Data unavailable."},
+                    "next_month_prediction": {"reach_trend": "N/A", "engagement_trend": "N/A", "confidence": 0, "reasoning": "Insufficient data."}
+                })
 
         # Defensive parse step
         def parse_ai_json(raw: str):
@@ -488,16 +499,36 @@ RULES:
             raw = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL).strip()
             raw = re.sub(r'^```json\s*|\s*```$', '', raw.strip())
             try:
-                return json.loads(raw)
-            except:
-                return {"insights": []}
+                parsed = json.loads(raw)
+                print(f"[AI Strategy] Parsed JSON keys: {list(parsed.keys())}")
+                return parsed
+            except Exception as parse_err:
+                print(f"[AI Strategy] JSON parse failed: {parse_err}")
+                print(f"[AI Strategy] Raw text was: {raw[:500]}")
+                return {
+                    "overall_score": {"score": 0, "trend": "N/A", "label": "Parse Error", "description": "Could not parse AI response."},
+                    "ai_noticed": ["Parse error occurred."],
+                    "recommended_actions": ["Regenerate the report."],
+                    "risk_detection": ["N/A"],
+                    "opportunity_radar": {"title": "N/A", "impact": "N/A", "reason": "N/A"},
+                    "next_month_prediction": {"reach_trend": "N/A", "engagement_trend": "N/A", "confidence": 0, "reasoning": "N/A"}
+                }
 
         parsed_json = parse_ai_json(raw_text)
         ai_text = json.dumps(parsed_json) # Save structured JSON string to DB
+        print(f"[AI Strategy] Final ai_text saved. Has overall_score: {'overall_score' in parsed_json}")
         
     except Exception as e:
-        print(f"Top level AI fail: {e}")
-        ai_text = json.dumps({"insights": []})
+        print(f"[AI Strategy] Top level AI fail: {e}")
+        import traceback; traceback.print_exc()
+        ai_text = json.dumps({
+            "overall_score": {"score": 0, "trend": "N/A", "label": "Error", "description": "Top-level error in AI generation."},
+            "ai_noticed": ["Error occurred during analysis."],
+            "recommended_actions": ["Please try again."],
+            "risk_detection": ["N/A"],
+            "opportunity_radar": {"title": "N/A", "impact": "N/A", "reason": "N/A"},
+            "next_month_prediction": {"reach_trend": "N/A", "engagement_trend": "N/A", "confidence": 0, "reasoning": "N/A"}
+        })
 
     # UPSERT — one report per client per month
     current_month = datetime.now().strftime("%B")
