@@ -12,7 +12,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import BrandIntelligence from "@/components/BrandIntelligence";
 import PrintReportView from "../components/PrintReportView";
 import DeliverablesPanel from "@/components/DeliverablesPanel";
-import { AIInsightsGrid } from "@/components/AIInsightsGrid";
+import { AIStrategyCenter } from "@/components/AIStrategyCenter";
 import AdPerformanceView from "@/components/AdPerformanceView";
 import { getAccessToken, clearAuth } from "../lib/auth";
 import { Download, AlertCircle, Play } from "lucide-react";
@@ -1621,11 +1621,14 @@ INSTRUCTIONS:
     </div>
   );
 
-  let parsedInsights: any[] = [];
+  let aiStrategyData: any = null;
   if (active?.ai_insight) {
     try {
       const data = JSON.parse(active?.ai_insight);
-      parsedInsights = data.insights || [];
+      // Fallback for old schema vs new schema
+      if (data.overall_score) {
+        aiStrategyData = data;
+      }
     } catch (e) {
       console.log("Could not parse ai_insight as JSON");
     }
@@ -2098,14 +2101,14 @@ INSTRUCTIONS:
                         </div>
 
                         {/* Bottom: AI recommendation snippet */}
-                        <div className="joyride-ai-snippet mt-4">
-                          {parsedInsights.length > 0 ? (
-                            <AIInsightsGrid insights={parsedInsights} />
+                        <div className="joyride-ai-snippet mt-6">
+                          {aiStrategyData ? (
+                            <AIStrategyCenter data={aiStrategyData} />
                           ) : (
                             <div className="p-3 bg-gradient-to-r from-pink-500/5 to-purple-500/10 border border-pink-500/20 rounded-xl flex items-start gap-2.5">
                               <Bot className="w-4 h-4 text-pink-600 shrink-0 mt-0.5" />
                               <p className="text-[10px] text-pink-800 font-medium leading-relaxed">
-                                <span className="font-extrabold">AI Platform Advice:</span> Reels and Multi-Image Carousels are driving 84% of brand saves this period. Focus on carousel infographics to maximize audience bookmarking rates.
+                                <span className="font-extrabold">AI Strategy Center:</span> Loading or generating executive insights...
                               </p>
                             </div>
                           )}
@@ -2428,14 +2431,14 @@ INSTRUCTIONS:
                         </div>
 
                         {/* Bottom: AI recommendation snippet */}
-                        <div className="joyride-ai-snippet mt-4">
-                          {parsedInsights.length > 0 ? (
-                            <AIInsightsGrid insights={parsedInsights} />
+                        <div className="joyride-ai-snippet mt-6">
+                          {aiStrategyData ? (
+                            <AIStrategyCenter data={aiStrategyData} />
                           ) : (
                             <div className="p-3 bg-gradient-to-r from-blue-500/5 to-indigo-500/10 border border-blue-500/20 rounded-xl flex items-start gap-2.5">
                               <Bot className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                               <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
-                                <span className="font-extrabold">AI Platform Advice:</span> Audience retention drops after 3 seconds on video posts. We recommend front-loading key value propositions or hooks to increase completion rates by an estimated 22%.
+                                <span className="font-extrabold">AI Strategy Center:</span> Loading or generating executive insights...
                               </p>
                             </div>
                           )}
@@ -2808,6 +2811,13 @@ INSTRUCTIONS:
                         </div>
                       )}
                     </div>
+
+                    {/* AI Strategy Center for YouTube */}
+                    {aiStrategyData && (
+                      <div className="mt-8">
+                        <AIStrategyCenter data={aiStrategyData} />
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -3111,6 +3121,13 @@ INSTRUCTIONS:
                         </div>
                       )}
                     </div>
+
+                    {/* AI Strategy Center for SEO/Blogs */}
+                    {aiStrategyData && (
+                      <div className="mt-8">
+                        <AIStrategyCenter data={aiStrategyData} />
+                      </div>
+                    )}
                   </div>
                 )}
             </div>

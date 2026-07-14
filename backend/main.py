@@ -373,11 +373,8 @@ PATTERN 2: AUDIENCE SIGNAL: {audience_signal}
 PATTERN 3: REACH EFFICIENCY: {reach_efficiency_desc}
 """.strip()
 
-        prompt = f"""You are a sharp social media analyst inside a brand intelligence platform used by a marketing agency.
-
-{personality_directive}
-
-        prompt = f"""You are a sharp social media analyst inside a brand intelligence platform used by a marketing agency.
+        prompt = f"""You are a Senior Digital Marketing Strategist inside an enterprise brand intelligence platform.
+Your goal is to analyze the performance of this brand and generate an executive-level AI Strategy Center report.
 
 {personality_directive}
 
@@ -387,35 +384,70 @@ FOLLOWERS: {followers:,} | POSTS THIS MONTH: {total_posts} | ENGAGEMENT RATE: {d
 {patterns_block}
 
 YOUR TASK:
-Write exactly 3 strategic recommendations based EXACTLY on the 3 detected patterns above. 
-Each recommendation must explain: what happened → why it matters for this specific brand/industry → what the agency should do next.
+Act as a Senior Strategist analyzing the raw data. You must provide a structured JSON response containing:
+1. 'overall_score': A score out of 100, the trend (e.g., '+8'), a label (e.g., 'Excellent'), and a 1-sentence description.
+2. 'ai_noticed': 3-4 bullet points of what happened and why it happened based on the data.
+3. 'recommended_actions': 3-4 direct actions the agency should take next (e.g., 'Increase Reel frequency', 'Post between 6 PM-8 PM').
+4. 'risk_detection': 2-3 bullet points identifying negative trends or risks (e.g., 'Your posting consistency has dropped').
+5. 'opportunity_radar': A specific high-value opportunity, including title, impact (e.g., 'Very High'), and reason.
+6. 'next_month_prediction': Predicting next month's performance, including reach_trend (e.g., '+18%'), engagement_trend (e.g., '+11%'), confidence out of 100, and the reasoning.
 
 RULES:
-- Name specific numbers, content types, or caption themes from the data
-- Do NOT use phrases like "consider posting more" or "try to engage" — be direct and decisive
-- Tone: Sharp analyst briefing a professional agency team
-- Ensure output matches the required JSON structure exactly.
+- Every recommendation must be derived from the specific data provided above.
+- NO generic advice like 'post more content'. Reference specific content types, metrics, or strategies.
+- Tone: Executive, sharp, authoritative analyst.
+- You MUST output ONLY valid JSON matching the exact schema provided.
 """
 
         schema = {
             "type": "object",
             "properties": {
-                "insights": {
+                "overall_score": {
+                    "type": "object",
+                    "properties": {
+                        "score": { "type": "integer" },
+                        "trend": { "type": "string" },
+                        "label": { "type": "string" },
+                        "description": { "type": "string" }
+                    },
+                    "required": ["score", "trend", "label", "description"],
+                    "additionalProperties": False
+                },
+                "ai_noticed": {
                     "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "category": { "type": "string", "enum": ["performance", "growth", "risk"] },
-                            "title": { "type": "string" },
-                            "detail": { "type": "string" },
-                            "metric": { "type": "string" }
-                        },
-                        "required": ["category", "title", "detail", "metric"],
-                        "additionalProperties": False
-                    }
+                    "items": { "type": "string" }
+                },
+                "recommended_actions": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                },
+                "risk_detection": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                },
+                "opportunity_radar": {
+                    "type": "object",
+                    "properties": {
+                        "title": { "type": "string" },
+                        "impact": { "type": "string" },
+                        "reason": { "type": "string" }
+                    },
+                    "required": ["title", "impact", "reason"],
+                    "additionalProperties": False
+                },
+                "next_month_prediction": {
+                    "type": "object",
+                    "properties": {
+                        "reach_trend": { "type": "string" },
+                        "engagement_trend": { "type": "string" },
+                        "confidence": { "type": "integer" },
+                        "reasoning": { "type": "string" }
+                    },
+                    "required": ["reach_trend", "engagement_trend", "confidence", "reasoning"],
+                    "additionalProperties": False
                 }
             },
-            "required": ["insights"],
+            "required": ["overall_score", "ai_noticed", "recommended_actions", "risk_detection", "opportunity_radar", "next_month_prediction"],
             "additionalProperties": False
         }
 
