@@ -1621,6 +1621,16 @@ INSTRUCTIONS:
     </div>
   );
 
+  let parsedInsights: any[] = [];
+  if (active?.ai_insight) {
+    try {
+      const data = JSON.parse(active?.ai_insight);
+      parsedInsights = data.insights || [];
+    } catch (e) {
+      console.log("Could not parse ai_insight as JSON");
+    }
+  }
+
   return (
     <div className="min-h-screen bg-transparent pb-28">
       <TourGuide
@@ -1950,33 +1960,19 @@ INSTRUCTIONS:
 
             {/* ── AI Brand Intelligence (unified workspace) ── */}
             <div className="tour-brand-intel joyride-ai-brand-intelligence mt-6">
-              {(() => {
-                let parsedInsights = [];
-                if (active?.ai_insight) {
-                  try {
-                    const data = JSON.parse(active?.ai_insight);
-                    parsedInsights = data.insights || [];
-                  } catch (e) {
-                    console.log("Could not parse ai_insight as JSON");
-                  }
-                }
-                return (
-                  <BrandIntelligence
-                    clientId={id}
-                    brandName={brandName}
-                    month={active?.month}
-                    year={active?.year}
-                    platform={activePlatform === "blogs" ? "instagram" : activePlatform}
-                    competitorData={automaticCompetitors}
-                    compLoading={compLoading}
-                    onCompRefresh={() => { if (id) fetchAutomaticCompetitorsData(id, true); }}
-                    fbMetrics={stableFbMetrics}
-                    igMetrics={ig}
-                    seoMetrics={seoData}
-                    aiInsights={parsedInsights}
-                  />
-                );
-              })()}
+              <BrandIntelligence
+                clientId={id}
+                brandName={brandName}
+                month={active?.month}
+                year={active?.year}
+                platform={activePlatform === "blogs" ? "instagram" : activePlatform}
+                competitorData={automaticCompetitors}
+                compLoading={compLoading}
+                onCompRefresh={() => { if (id) fetchAutomaticCompetitorsData(id, true); }}
+                fbMetrics={stableFbMetrics}
+                igMetrics={ig}
+                seoMetrics={seoData}
+              />
             </div>
 
 
@@ -2102,11 +2098,17 @@ INSTRUCTIONS:
                         </div>
 
                         {/* Bottom: AI recommendation snippet */}
-                        <div className="joyride-ai-snippet mt-4 p-3 bg-gradient-to-r from-pink-500/5 to-purple-500/10 border border-pink-500/20 rounded-xl flex items-start gap-2.5">
-                          <Bot className="w-4 h-4 text-pink-600 shrink-0 mt-0.5" />
-                          <p className="text-[10px] text-pink-800 font-medium leading-relaxed">
-                            <span className="font-extrabold">AI Platform Advice:</span> Reels and Multi-Image Carousels are driving 84% of brand saves this period. Focus on carousel infographics to maximize audience bookmarking rates.
-                          </p>
+                        <div className="joyride-ai-snippet mt-4">
+                          {parsedInsights.length > 0 ? (
+                            <AIInsightsGrid insights={parsedInsights} />
+                          ) : (
+                            <div className="p-3 bg-gradient-to-r from-pink-500/5 to-purple-500/10 border border-pink-500/20 rounded-xl flex items-start gap-2.5">
+                              <Bot className="w-4 h-4 text-pink-600 shrink-0 mt-0.5" />
+                              <p className="text-[10px] text-pink-800 font-medium leading-relaxed">
+                                <span className="font-extrabold">AI Platform Advice:</span> Reels and Multi-Image Carousels are driving 84% of brand saves this period. Focus on carousel infographics to maximize audience bookmarking rates.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -2415,10 +2417,7 @@ INSTRUCTIONS:
                                   </span>
                                 </div>
                                 <div className="flex justify-between items-center text-[10px] pt-1 border-t border-gray-100/60">
-                                  <span className="text-gray-400 font-bold">Share Velocity Rate:</span>
-                                  <span className="font-extrabold text-emerald-500">
-                                    {((Number(fbShares || 0) / Number(fbMetric("total_reach") || 1)) * 100).toFixed(2)}%
-                                  </span>
+</p>
                                 </div>
                               </div>
                             </div>
@@ -2426,11 +2425,17 @@ INSTRUCTIONS:
                         </div>
 
                         {/* Bottom: AI recommendation snippet */}
-                        <div className="joyride-ai-snippet mt-4 p-3 bg-gradient-to-r from-blue-500/5 to-indigo-500/10 border border-blue-500/20 rounded-xl flex items-start gap-2.5">
-                          <Bot className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                          <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
-                            <span className="font-extrabold">AI Platform Advice:</span> Link updates redirecting to published articles perform 2.4x better than text-only updates. Align blogs calendar releases with Facebook posts.
-                          </p>
+                        <div className="joyride-ai-snippet mt-4">
+                          {parsedInsights.length > 0 ? (
+                            <AIInsightsGrid insights={parsedInsights} />
+                          ) : (
+                            <div className="p-3 bg-gradient-to-r from-blue-500/5 to-indigo-500/10 border border-blue-500/20 rounded-xl flex items-start gap-2.5">
+                              <Bot className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                              <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
+                                <span className="font-extrabold">AI Platform Advice:</span> Audience retention drops after 3 seconds on video posts. We recommend front-loading key value propositions or hooks to increase completion rates by an estimated 22%.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
 

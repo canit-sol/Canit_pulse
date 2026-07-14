@@ -1478,17 +1478,6 @@ export default function BrandIntelligence({ clientId, brandName, platform, month
         </IntelCard>
       </div>
 
-      {/* ── ROW 4: AI Strategic Recommendations ── */}
-      {aiInsights && aiInsights.length > 0 && (
-        <div className="mt-4">
-          <IntelCard icon={Sparkles} title="AI Strategic Recommendations">
-            <div className="pt-2">
-              <AIInsightsGrid insights={aiInsights} />
-            </div>
-          </IntelCard>
-        </div>
-      )}
-
       </div>
     </div>
   );
