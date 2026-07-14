@@ -2008,6 +2008,12 @@ INSTRUCTIONS:
               />
             </div>
 
+            {/* ── AI Strategy Center (standalone section) ── */}
+            {aiStrategyData && (
+              <div className="mt-6">
+                <AIStrategyCenter data={aiStrategyData} />
+              </div>
+            )}
 
 
             {/* ── Dynamic Content Workspace ── */}
@@ -2138,12 +2144,7 @@ INSTRUCTIONS:
                           </p>
                         </div>
 
-                        {/* AI Strategy Center */}
-                        {aiStrategyData && (
-                          <div className="mt-6">
-                            <AIStrategyCenter data={aiStrategyData} />
-                          </div>
-                        )}
+
                       </div>
 
                       {/* Content Calendar (lg:col-span-1) */}
@@ -2469,12 +2470,7 @@ INSTRUCTIONS:
                           </p>
                         </div>
 
-                        {/* AI Strategy Center */}
-                        {aiStrategyData && (
-                          <div className="mt-6">
-                            <AIStrategyCenter data={aiStrategyData} />
-                          </div>
-                        )}
+
                       </div>
 
                       {/* Content Calendar (lg:col-span-1) */}
@@ -2844,12 +2840,7 @@ INSTRUCTIONS:
                       )}
                     </div>
 
-                    {/* AI Strategy Center for YouTube */}
-                    {aiStrategyData && (
-                      <div className="mt-8">
-                        <AIStrategyCenter data={aiStrategyData} />
-                      </div>
-                    )}
+
                   </div>
                 )}
 
@@ -3154,12 +3145,7 @@ INSTRUCTIONS:
                       )}
                     </div>
 
-                    {/* AI Strategy Center for SEO/Blogs */}
-                    {aiStrategyData && (
-                      <div className="mt-8">
-                        <AIStrategyCenter data={aiStrategyData} />
-                      </div>
-                    )}
+
                   </div>
                 )}
             </div>
