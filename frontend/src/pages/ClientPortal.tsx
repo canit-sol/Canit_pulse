@@ -2417,7 +2417,10 @@ INSTRUCTIONS:
                                   </span>
                                 </div>
                                 <div className="flex justify-between items-center text-[10px] pt-1 border-t border-gray-100/60">
-</p>
+                                  <span className="text-gray-400 font-bold">Share Velocity Rate:</span>
+                                  <span className="font-extrabold text-emerald-500">
+                                    {((Number(fbShares || 0) / Number(fbMetric("total_reach") || 1)) * 100).toFixed(2)}%
+                                  </span>
                                 </div>
                               </div>
                             </div>
