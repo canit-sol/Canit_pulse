@@ -461,7 +461,6 @@ RULES:
             ai_response = client_ai.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
                 model="llama-3.3-70b-versatile",
-                reasoning_format="hidden",
                 response_format={"type": "json_object"}
             )
             raw_text = ai_response.choices[0].message.content
