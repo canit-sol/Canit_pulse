@@ -10,6 +10,7 @@ import {
   Globe, TrendingDown, Cpu, Flame,
 } from "lucide-react";
 import { authHeaders } from "../lib/auth";
+import { AIInsightsGrid } from "@/components/AIInsightsGrid";
 
 /* ── Types ─────────────────────────────────────────── */
 
@@ -57,6 +58,7 @@ interface Props {
   historicalSnapshots?: any[];
   intelligenceData?: IntelligenceData | null;
   intelligenceLoading?: boolean;
+  aiInsights?: any[]; // The parsed JSON AI Strategic Recommendations
 }
 
 /* ── Animated Score Ring ───────────────────────────── */
@@ -1475,6 +1477,17 @@ export default function BrandIntelligence({ clientId, brandName, platform, month
           <PredictiveCard predictions={predictions} gauges={gauges} />
         </IntelCard>
       </div>
+
+      {/* ── ROW 4: AI Strategic Recommendations ── */}
+      {aiInsights && aiInsights.length > 0 && (
+        <div className="mt-4">
+          <IntelCard icon={Sparkles} title="AI Strategic Recommendations">
+            <div className="pt-2">
+              <AIInsightsGrid insights={aiInsights} />
+            </div>
+          </IntelCard>
+        </div>
+      )}
 
       </div>
     </div>

@@ -1950,54 +1950,34 @@ INSTRUCTIONS:
 
             {/* ── AI Brand Intelligence (unified workspace) ── */}
             <div className="tour-brand-intel joyride-ai-brand-intelligence mt-6">
-              <BrandIntelligence
-                clientId={id}
-                brandName={brandName}
-                month={active?.month}
-                year={active?.year}
-                platform={activePlatform === "blogs" ? "instagram" : activePlatform}
-                competitorData={automaticCompetitors}
-                compLoading={compLoading}
-                onCompRefresh={() => { if (id) fetchAutomaticCompetitorsData(id, true); }}
-                fbMetrics={stableFbMetrics}
-                igMetrics={ig}
-                seoMetrics={seoData}
-              />
-            </div>
-
-            {/* ── AI Strategic Recommendations ── */}
-            {active?.ai_insight && (
-              <div className="mt-8 mb-4">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-[#113a87]/10 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-[#113a87]" />
-                  </div>
-                  <div>
-                    <h2 className="text-[14px] font-black text-gray-900 uppercase tracking-widest font-heading">AI Strategic Recommendations</h2>
-                  </div>
-                </div>
-                
-                {(() => {
-                  let parsedInsights = [];
+              {(() => {
+                let parsedInsights = [];
+                if (active?.ai_insight) {
                   try {
-                    const data = JSON.parse(active.ai_insight);
+                    const data = JSON.parse(active?.ai_insight);
                     parsedInsights = data.insights || [];
                   } catch (e) {
-                    // Fallback for old string format before JSON was implemented
-                    console.log("Could not parse ai_insight as JSON, using old format");
-                    return (
-                      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-soft">
-                         <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">{active.ai_insight}</p>
-                      </div>
-                    );
+                    console.log("Could not parse ai_insight as JSON");
                   }
-
-                  if (parsedInsights.length === 0) return null;
-
-                  return <AIInsightsGrid insights={parsedInsights} />;
-                })()}
-              </div>
-            )}
+                }
+                return (
+                  <BrandIntelligence
+                    clientId={id}
+                    brandName={brandName}
+                    month={active?.month}
+                    year={active?.year}
+                    platform={activePlatform === "blogs" ? "instagram" : activePlatform}
+                    competitorData={automaticCompetitors}
+                    compLoading={compLoading}
+                    onCompRefresh={() => { if (id) fetchAutomaticCompetitorsData(id, true); }}
+                    fbMetrics={stableFbMetrics}
+                    igMetrics={ig}
+                    seoMetrics={seoData}
+                    aiInsights={parsedInsights}
+                  />
+                );
+              })()}
+            </div>
 
 
 
