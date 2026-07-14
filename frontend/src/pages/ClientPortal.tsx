@@ -12,6 +12,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import BrandIntelligence from "@/components/BrandIntelligence";
 import PrintReportView from "../components/PrintReportView";
 import DeliverablesPanel from "@/components/DeliverablesPanel";
+import { AIInsightsGrid } from "@/components/AIInsightsGrid";
 import AdPerformanceView from "@/components/AdPerformanceView";
 import { getAccessToken, clearAuth } from "../lib/auth";
 import { Download, AlertCircle, Play } from "lucide-react";
@@ -1966,97 +1967,35 @@ INSTRUCTIONS:
 
             {/* ── AI Strategic Recommendations ── */}
             {active?.ai_insight && (
-              <div className="mt-6 bg-white border border-slate-200 rounded-3xl p-6 shadow-soft relative overflow-hidden group">
-                <div className="flex items-center gap-3 mb-6 relative z-10">
+              <div className="mt-8 mb-4">
+                <div className="flex items-center gap-3 mb-4">
                   <div className="w-8 h-8 rounded-lg bg-[#113a87]/10 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-[#113a87] animate-pulse" />
+                    <Sparkles className="w-4 h-4 text-[#113a87]" />
                   </div>
                   <div>
-                    <h2 className="text-[13px] font-black text-gray-800 uppercase tracking-widest font-heading">AI Strategic Recommendations</h2>
+                    <h2 className="text-[14px] font-black text-gray-900 uppercase tracking-widest font-heading">AI Strategic Recommendations</h2>
                   </div>
                 </div>
-
-                <div className="relative z-10">
-                  {(() => {
-                    const raw = active.ai_insight || "";
-                    const lines = raw.split("\n");
-                    const blocks: { title: string; body: string }[] = [];
-                    let current: { title: string; body: string } | null = null;
-                    for (const line of lines) {
-                      const trimmed = line.trim();
-                      const titleMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
-                      if (titleMatch) {
-                        if (current) blocks.push(current);
-                        current = { title: titleMatch[1].replace(/[:\*]/g, '').trim(), body: "" };
-                      } else if (current && trimmed) {
-                        current.body += (current.body ? " " : "") + trimmed;
-                      }
-                    }
-                    if (current) blocks.push(current);
-
-                    if (blocks.length === 0) {
-                      return <p className="text-sm text-gray-600 font-medium leading-relaxed whitespace-pre-line">{raw}</p>;
-                    }
-                    
+                
+                {(() => {
+                  let parsedInsights = [];
+                  try {
+                    const data = JSON.parse(active.ai_insight);
+                    parsedInsights = data.insights || [];
+                  } catch (e) {
+                    // Fallback for old string format before JSON was implemented
+                    console.log("Could not parse ai_insight as JSON, using old format");
                     return (
-                      <div className="space-y-6">
-                        {blocks.map((block, i) => {
-                          const titleUpper = block.title.toUpperCase();
-                          
-                          let barColor = "bg-blue-500";
-                          let textColor = "text-blue-500";
-                          let impact = 92;
-                          let icon = "⚡";
-                          
-                          if (titleUpper.includes("CONTENT")) {
-                            barColor = "bg-emerald-500";
-                            textColor = "text-emerald-500";
-                            impact = 88;
-                            icon = "🎯";
-                          } else if (titleUpper.includes("AUDIENCE")) {
-                            barColor = "bg-orange-500";
-                            textColor = "text-orange-500";
-                            impact = 95;
-                            icon = "👥";
-                          } else if (titleUpper.includes("REACH")) {
-                            barColor = "bg-purple-500";
-                            textColor = "text-purple-500";
-                            impact = 90;
-                            icon = "🚀";
-                          }
-
-                          const finalImpact = impact - (i * 2);
-
-                          return (
-                            <div key={i} className="flex flex-col gap-2">
-                              {/* Title and Score Row */}
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-[10px] ${textColor}`}>{icon}</span>
-                                  <h3 className="text-[11px] font-black text-gray-800 uppercase tracking-widest">{block.title}</h3>
-                                </div>
-                                <span className={`text-[10px] font-black ${textColor}`}>{finalImpact}%</span>
-                              </div>
-                              
-                              {/* Colorful Progress Bar */}
-                              <div className="w-full bg-gray-100 rounded-full h-[3px] overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full ${barColor} shadow-sm transition-all duration-1000`} 
-                                  style={{ width: `${finalImpact}%` }} 
-                                />
-                              </div>
-                              
-                              {/* Insight Text */}
-                              <p className="text-[11px] text-gray-500 font-semibold leading-relaxed mt-1">
-                                {block.body}
-                              </p>
-                            </div>
-                          );
-                        })}
+                      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-soft">
+                         <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">{active.ai_insight}</p>
                       </div>
                     );
-                  })()}
-                </div>
+                  }
+
+                  if (parsedInsights.length === 0) return null;
+
+                  return <AIInsightsGrid insights={parsedInsights} />;
+                })()}
               </div>
             )}
 

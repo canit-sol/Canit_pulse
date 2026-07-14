@@ -377,44 +377,95 @@ PATTERN 3: REACH EFFICIENCY: {reach_efficiency_desc}
 
 {personality_directive}
 
+        prompt = f"""You are a sharp social media analyst inside a brand intelligence platform used by a marketing agency.
+
+{personality_directive}
+
 BRAND: {client_rec.name} | INDUSTRY: {client_rec.industry} | PLATFORM: {platform.capitalize()}
 FOLLOWERS: {followers:,} | POSTS THIS MONTH: {total_posts} | ENGAGEMENT RATE: {data_stats.get('engagement_rate', 'N/A')}
 
 {patterns_block}
 
 YOUR TASK:
-Write exactly 3 insights based EXACTLY on the 3 detected patterns above. 
-Each insight must explain: what happened → why it matters for this specific brand/industry → what the agency should do next.
+Write exactly 3 strategic recommendations based EXACTLY on the 3 detected patterns above. 
+Each recommendation must explain: what happened → why it matters for this specific brand/industry → what the agency should do next.
 
 RULES:
 - Name specific numbers, content types, or caption themes from the data
 - Do NOT use phrases like "consider posting more" or "try to engage" — be direct and decisive
-- Do NOT compare to previous months
-- Do NOT write an intro or conclusion
 - Tone: Sharp analyst briefing a professional agency team
+- Ensure output matches the required JSON structure exactly.
+"""
 
-STRICT FORMATTING RULE: 
-You MUST use these exact 3 titles for your insights.
+        schema = {
+            "type": "object",
+            "properties": {
+                "insights": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "category": { "type": "string", "enum": ["performance", "growth", "risk"] },
+                            "title": { "type": "string" },
+                            "detail": { "type": "string" },
+                            "metric": { "type": "string" }
+                        },
+                        "required": ["category", "title", "detail", "metric"],
+                        "additionalProperties": False
+                    }
+                }
+            },
+            "required": ["insights"],
+            "additionalProperties": False
+        }
 
-**Content Type Performance**
-[2-3 sentences max. Specific. Decisive.]
+        try:
+            ai_response = client_ai.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model="qwen/qwen3-235b-a22b",
+                reasoning_format="hidden",
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "ai_insights_schema",
+                        "strict": True,
+                        "schema": schema
+                    }
+                }
+            )
+            raw_text = ai_response.choices[0].message.content
+        except Exception as e:
+            # Fallback for models that might not support strict json_schema yet
+            print(f"Strict json_schema failed, trying json_object fallback: {e}")
+            prompt += "\nOutput ONLY valid JSON matching the schema. No reasoning, no preamble, no markdown fences."
+            try:
+                ai_response = client_ai.chat.completions.create(
+                    messages=[{"role": "user", "content": prompt}],
+                    model="qwen/qwen3-235b-a22b",
+                    reasoning_format="hidden",
+                    response_format={"type": "json_object"}
+                )
+                raw_text = ai_response.choices[0].message.content
+            except Exception as inner_e:
+                print(f"Fallback AI failed: {inner_e}")
+                raw_text = '{"insights": [{"category": "performance", "title": "Data Unavailable", "detail": "Unable to generate insights.", "metric": "N/A"}]}'
 
-**Audience Intent Signal**
-[2-3 sentences max. Specific. Decisive.]
+        # Defensive parse step
+        def parse_ai_json(raw: str):
+            import re, json
+            raw = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL).strip()
+            raw = re.sub(r'^```json\s*|\s*```$', '', raw.strip())
+            try:
+                return json.loads(raw)
+            except:
+                return {"insights": []}
 
-**Reach Efficiency**
-[2-3 sentences max. Specific. Decisive.]"""
-
-        ai_response = client_ai.chat.completions.create(
-            messages=[{"role": "user", "content": prompt}],
-            model="qwen/qwen3-235b-a22b",
-        )
-        raw_text = ai_response.choices[0].message.content
-        # Strip out any <think> blocks that Qwen might return
-        ai_text = re.sub(r'<think>.*?</think>', '', raw_text, flags=re.DOTALL).strip()
+        parsed_json = parse_ai_json(raw_text)
+        ai_text = json.dumps(parsed_json) # Save structured JSON string to DB
+        
     except Exception as e:
-        print(f"AI failed: {e}")
-        ai_text = "Focus on consistent posting. Engage with comments within the first hour. Use Reels for maximum reach."
+        print(f"Top level AI fail: {e}")
+        ai_text = json.dumps({"insights": []})
 
     # UPSERT — one report per client per month
     current_month = datetime.now().strftime("%B")
