@@ -452,46 +452,32 @@ RULES:
         }
 
         try:
-            print(f"[AI Strategy] Calling Groq with json_schema for client {client_id}...")
+            print(f"[AI Strategy] Calling Groq with json_object for client {client_id}...")
+            
+            # Explicitly append the JSON structure requirement to the prompt
+            schema_str = json.dumps(schema, indent=2)
+            prompt += f"\n\nYou MUST return ONLY a JSON object matching this exact schema structure:\n{schema_str}\nDo not include any text outside the JSON."
+            
             ai_response = client_ai.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
-                model="qwen/qwen3-235b-a22b",
+                model="llama-3.3-70b-versatile",
                 reasoning_format="hidden",
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "ai_insights_schema",
-                        "strict": True,
-                        "schema": schema
-                    }
-                }
+                response_format={"type": "json_object"}
             )
             raw_text = ai_response.choices[0].message.content
-            print(f"[AI Strategy] Groq json_schema SUCCESS. Length: {len(raw_text)}")
+            print(f"[AI Strategy] Groq json_object SUCCESS. Length: {len(raw_text)}")
         except Exception as e:
-            # Fallback for models that might not support strict json_schema yet
-            print(f"[AI Strategy] Strict json_schema failed: {e}")
-            print(f"[AI Strategy] Trying json_object fallback...")
-            prompt += "\nOutput ONLY valid JSON matching the schema. No reasoning, no preamble, no markdown fences."
-            try:
-                ai_response = client_ai.chat.completions.create(
-                    messages=[{"role": "user", "content": prompt}],
-                    model="qwen/qwen3-235b-a22b",
-                    reasoning_format="hidden",
-                    response_format={"type": "json_object"}
-                )
-                raw_text = ai_response.choices[0].message.content
-                print(f"[AI Strategy] json_object fallback SUCCESS. Length: {len(raw_text)}")
-            except Exception as inner_e:
-                print(f"[AI Strategy] Fallback AI also failed: {inner_e}")
-                raw_text = json.dumps({
-                    "overall_score": {"score": 0, "trend": "N/A", "label": "Unavailable", "description": "AI analysis could not be generated."},
-                    "ai_noticed": ["Data unavailable for analysis."],
-                    "recommended_actions": ["Try regenerating the report."],
-                    "risk_detection": ["Unable to detect risks at this time."],
-                    "opportunity_radar": {"title": "N/A", "impact": "N/A", "reason": "Data unavailable."},
-                    "next_month_prediction": {"reach_trend": "N/A", "engagement_trend": "N/A", "confidence": 0, "reasoning": "Insufficient data."}
-                })
+            print(f"[AI Strategy] Groq API call failed: {e}")
+            import traceback; traceback.print_exc()
+            # We ONLY return the placeholder if the API completely fails
+            raw_text = json.dumps({
+                "overall_score": {"score": 0, "trend": "0", "label": "API Error", "description": f"Failed to generate insights: {e}"},
+                "ai_noticed": ["The AI service is temporarily unavailable.", "Please check the server console for exact error details."],
+                "recommended_actions": ["Try regenerating the report in a few minutes.", "Contact support if the issue persists."],
+                "risk_detection": ["Unable to run risk analysis."],
+                "opportunity_radar": {"title": "Service Error", "impact": "N/A", "reason": "API call failed."},
+                "next_month_prediction": {"reach_trend": "N/A", "engagement_trend": "N/A", "confidence": 0, "reasoning": "Data unavailable."}
+            })
 
         # Defensive parse step
         def parse_ai_json(raw: str):
