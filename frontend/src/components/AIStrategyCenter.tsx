@@ -99,19 +99,22 @@ export function AIStrategyCenter({ data }: Props) {
               </div>
               <div className="space-y-4">
                 {data.pulse_recommends.map((item, idx) => (
-                  <div key={idx} className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 shadow-sm transition-all hover:bg-slate-100/50">
-                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-3">
-                      <span className="w-fit shrink-0 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#113a87] text-white shadow-sm">
+                  <div key={idx} className="bg-white rounded-xl p-5 border border-slate-200/80 shadow-sm transition-all hover:shadow-md relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-[#113a87]" />
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-[#113a87] text-white">
                         {item.priority_badge}
                       </span>
-                      <span className="text-[10px] font-bold text-[#113a87] xl:text-right leading-relaxed bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100">
-                        <span className="text-[#113a87]/60 mr-1">IMPACT:</span> 
-                        {item.expected_impact}
-                      </span>
                     </div>
-                    <div className="flex items-start gap-2.5 mt-1">
+                    <div className="flex items-start gap-3 mb-3">
                       <CheckCircle2 className="w-4 h-4 text-[#113a87] shrink-0 mt-0.5" />
-                      <p className="text-[13px] text-slate-800 font-semibold leading-relaxed tracking-wide">{item.recommended_action}</p>
+                      <p className="text-[13px] text-slate-800 font-bold leading-relaxed">{item.recommended_action}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 ml-7">
+                      <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] mr-2">Expected Impact:</span>
+                        {item.expected_impact}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -146,16 +149,16 @@ export function AIStrategyCenter({ data }: Props) {
               <h4 className="text-base font-black text-slate-900 mb-2">{data.growth_opportunity.title}</h4>
               <p className="text-[13px] text-slate-600 font-medium leading-relaxed mb-4">{data.growth_opportunity.observation}</p>
               
-              <div className="bg-white rounded-xl p-4 border border-amber-200 shadow-sm mb-4">
-                <p className="text-[13px] text-amber-900 font-semibold leading-relaxed">
-                  <span className="text-[10px] font-black uppercase text-amber-600 tracking-wider block mb-1">Action Plan</span>
+              <div className="bg-white rounded-xl p-5 border border-amber-200/80 shadow-sm mb-4">
+                <span className="text-[10px] font-black uppercase text-amber-600 tracking-wider block mb-1.5">Action Plan</span>
+                <p className="text-[13px] text-slate-800 font-semibold leading-relaxed">
                   {data.growth_opportunity.action}
                 </p>
               </div>
               
-              <div className="flex items-center gap-2 bg-amber-100/50 p-2.5 rounded-lg border border-amber-200/50">
-                <span className="text-[10px] text-amber-700/70 font-bold uppercase tracking-wider">Expected Impact:</span>
-                <span className="text-[11px] text-amber-900 font-black">{data.growth_opportunity.expected_impact}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-50 p-3.5 rounded-xl border border-amber-200/50">
+                <span className="text-[10px] text-amber-700/80 font-bold uppercase tracking-wider shrink-0">Expected Impact:</span>
+                <span className="text-[12px] text-amber-900 font-bold leading-tight">{data.growth_opportunity.expected_impact}</span>
               </div>
             </div>
           </div>
