@@ -63,42 +63,8 @@ export function AIStrategyCenter({ data }: Props) {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
-        {/* Left: Overall Score */}
-        <div className="lg:col-span-3">
-          <div className={`rounded-2xl p-5 border ${scoreBorder} ${scoreBg} flex flex-col items-center justify-center text-center h-full`}>
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Marketing Score</p>
-            
-            <div className="relative flex items-center justify-center mb-3">
-              <svg className="w-28 h-28 transform -rotate-90">
-                <circle cx="56" cy="56" r="50" stroke="#e5e7eb" strokeWidth="7" fill="transparent" />
-                <circle 
-                  cx="56" cy="56" r="50" 
-                  stroke={scoreColor}
-                  strokeWidth="7" 
-                  fill="transparent" 
-                  strokeDasharray="314" 
-                  strokeDashoffset={314 - (314 * score) / 100}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="absolute flex flex-col items-center justify-center">
-                <span className={`text-3xl font-black ${scoreLabelColor}`}>{score}</span>
-                <span className="text-[9px] text-gray-400 font-bold">/ 100</span>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${scoreBg} ${scoreLabelColor} border ${scoreBorder}`}>
-                {data.overall_score.trend.startsWith('+') ? '▲' : data.overall_score.trend === '0' ? '—' : '▼'} {data.overall_score.trend}
-              </span>
-              <span className="text-xs font-black text-[#1a1a1a]">{data.overall_score.label}</span>
-            </div>
-            <p className="text-[10px] text-gray-500 leading-relaxed mt-1">{data.overall_score.description}</p>
-          </div>
-        </div>
-
         {/* Middle: Noticed + Actions */}
-        <div className="lg:col-span-5 flex flex-col gap-4">
+        <div className="lg:col-span-7 flex flex-col gap-4">
           
           {/* What AI Noticed */}
           <div className="rounded-2xl p-4 border border-slate-200/80 bg-slate-50/50 flex-1">
@@ -138,20 +104,16 @@ export function AIStrategyCenter({ data }: Props) {
         </div>
 
         {/* Right: Opportunity + Risk */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
+        <div className="lg:col-span-5 flex flex-col gap-4">
           
           {/* Opportunity Radar */}
-          <div className="rounded-2xl p-4 border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/50">
+          <div className="rounded-2xl p-4 border border-slate-200/80 bg-white">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded-md bg-amber-100 flex items-center justify-center">
                   <Target className="w-3 h-3 text-amber-600" />
                 </div>
                 <h3 className="text-[11px] font-black text-amber-800 uppercase tracking-wider">Opportunity</h3>
-              </div>
-              <div className="flex text-amber-400 gap-0.5">
-                <Sparkles className="w-3 h-3" />
-                <Sparkles className="w-3 h-3" />
               </div>
             </div>
             
