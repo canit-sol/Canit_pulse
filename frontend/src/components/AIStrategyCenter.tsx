@@ -161,7 +161,7 @@ export function AIStrategyCenter({ data }: Props) {
           </div>
 
           {/* Watch Closely */}
-          <div className="rounded-2xl p-6 border border-rose-100 bg-gradient-to-br from-rose-50/40 to-white shadow-sm flex-1">
+          <div className="rounded-2xl p-6 border border-rose-100 bg-gradient-to-br from-rose-50/40 to-white shadow-sm h-fit">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-7 h-7 rounded-lg bg-rose-100 flex items-center justify-center shadow-sm">
                 <ShieldAlert className="w-4 h-4 text-rose-500" />
