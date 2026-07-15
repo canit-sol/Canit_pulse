@@ -95,11 +95,14 @@ export function AIStrategyCenter({ data }: Props) {
             <div className="space-y-3">
               {data.pulse_recommends.map((item, idx) => (
                 <div key={idx} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white border border-slate-200 text-[#113a87]">
+                  <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2 mb-2">
+                    <span className="w-fit shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white border border-slate-200 text-[#113a87]">
                       {item.priority_badge}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400">IMPACT: {item.expected_impact}</span>
+                    <span className="text-[9px] font-bold text-slate-400 xl:text-right leading-relaxed">
+                      <span className="text-slate-300 mr-1">IMPACT:</span> 
+                      {item.expected_impact}
+                    </span>
                   </div>
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
@@ -162,9 +165,9 @@ export function AIStrategyCenter({ data }: Props) {
             <div className="space-y-4">
               {data.watch_closely.map((item, idx) => (
                 <div key={idx} className="relative pl-3 border-l-2 border-rose-200">
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-start justify-between gap-3 mb-1.5">
                     <p className="text-xs text-slate-800 font-bold leading-relaxed">{item.observation}</p>
-                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${
+                    <span className={`shrink-0 text-[9px] font-black uppercase px-2 py-0.5 rounded border ${
                       item.risk_level === 'High' ? 'bg-rose-50 text-rose-600 border-rose-200' :
                       item.risk_level === 'Medium' ? 'bg-amber-50 text-amber-600 border-amber-200' :
                       'bg-slate-50 text-slate-600 border-slate-200'
