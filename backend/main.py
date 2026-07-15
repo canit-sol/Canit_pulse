@@ -384,70 +384,76 @@ FOLLOWERS: {followers:,} | POSTS THIS MONTH: {total_posts} | ENGAGEMENT RATE: {d
 {patterns_block}
 
 YOUR TASK:
-Act as a Senior Strategist analyzing the raw data. You must provide a structured JSON response containing:
-1. 'overall_score': A score out of 100, the trend (e.g., '+8'), a label (e.g., 'Excellent'), and a 1-sentence description.
-2. 'ai_noticed': 3-4 bullet points of what happened and why it happened based on the data.
-3. 'recommended_actions': 3-4 direct actions the agency should take next (e.g., 'Increase Reel frequency', 'Post between 6 PM-8 PM').
-4. 'risk_detection': 2-3 bullet points identifying negative trends or risks (e.g., 'Your posting consistency has dropped').
-5. 'opportunity_radar': A specific high-value opportunity, including title, impact (e.g., 'Very High'), and reason.
-6. 'next_month_prediction': Predicting next month's performance, including reach_trend (e.g., '+18%'), engagement_trend (e.g., '+11%'), confidence out of 100, and the reasoning.
+Act as a Senior Digital Marketing Strategist analyzing the raw data. You must provide a structured JSON response containing:
+1. 'pulse_sees': Array of 3-4 objects detailing what happened and why it matters.
+2. 'pulse_recommends': Array of 3-4 objects detailing actions, expected impact, and priority badge (e.g., 'High Priority', 'Quick Win').
+3. 'growth_opportunity': An object for a major opportunity with title, observation, action, expected impact, and confidence score (0-100).
+4. 'watch_closely': Array of 2-3 objects for negative trends/risks with observation, why it matters, action, and risk level ('Low', 'Medium', 'High').
 
 RULES:
 - Every recommendation must be derived from the specific data provided above.
-- NO generic advice like 'post more content'. Reference specific content types, metrics, or strategies.
-- Tone: Executive, sharp, authoritative analyst.
+- NO generic advice. Reference specific content types, metrics, or strategies.
+- Tone: Senior Digital Marketing Strategist. Assertive, professional, natural language.
+- AVOID robotic phrases like "engagement indicates" or "image posts have been". Instead, use natural language such as "Your audience clearly prefers image-based content. Double down on this format to maximize engagement."
 - You MUST output ONLY valid JSON matching the exact schema provided.
 """
 
         schema = {
             "type": "object",
             "properties": {
-                "overall_score": {
-                    "type": "object",
-                    "properties": {
-                        "score": { "type": "integer" },
-                        "trend": { "type": "string" },
-                        "label": { "type": "string" },
-                        "description": { "type": "string" }
-                    },
-                    "required": ["score", "trend", "label", "description"],
-                    "additionalProperties": False
-                },
-                "ai_noticed": {
+                "pulse_sees": {
                     "type": "array",
-                    "items": { "type": "string" }
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "observation": { "type": "string" },
+                            "why_it_matters": { "type": "string" }
+                        },
+                        "required": ["observation", "why_it_matters"],
+                        "additionalProperties": False
+                    }
                 },
-                "recommended_actions": {
+                "pulse_recommends": {
                     "type": "array",
-                    "items": { "type": "string" }
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "recommended_action": { "type": "string" },
+                            "expected_impact": { "type": "string" },
+                            "priority_badge": { "type": "string" }
+                        },
+                        "required": ["recommended_action", "expected_impact", "priority_badge"],
+                        "additionalProperties": False
+                    }
                 },
-                "risk_detection": {
-                    "type": "array",
-                    "items": { "type": "string" }
-                },
-                "opportunity_radar": {
+                "growth_opportunity": {
                     "type": "object",
                     "properties": {
                         "title": { "type": "string" },
-                        "impact": { "type": "string" },
-                        "reason": { "type": "string" }
+                        "observation": { "type": "string" },
+                        "action": { "type": "string" },
+                        "expected_impact": { "type": "string" },
+                        "confidence_score": { "type": "integer" }
                     },
-                    "required": ["title", "impact", "reason"],
+                    "required": ["title", "observation", "action", "expected_impact", "confidence_score"],
                     "additionalProperties": False
                 },
-                "next_month_prediction": {
-                    "type": "object",
-                    "properties": {
-                        "reach_trend": { "type": "string" },
-                        "engagement_trend": { "type": "string" },
-                        "confidence": { "type": "integer" },
-                        "reasoning": { "type": "string" }
-                    },
-                    "required": ["reach_trend", "engagement_trend", "confidence", "reasoning"],
-                    "additionalProperties": False
+                "watch_closely": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "observation": { "type": "string" },
+                            "why_it_matters": { "type": "string" },
+                            "recommended_action": { "type": "string" },
+                            "risk_level": { "type": "string" }
+                        },
+                        "required": ["observation", "why_it_matters", "recommended_action", "risk_level"],
+                        "additionalProperties": False
+                    }
                 }
             },
-            "required": ["overall_score", "ai_noticed", "recommended_actions", "risk_detection", "opportunity_radar", "next_month_prediction"],
+            "required": ["pulse_sees", "pulse_recommends", "growth_opportunity", "watch_closely"],
             "additionalProperties": False
         }
 

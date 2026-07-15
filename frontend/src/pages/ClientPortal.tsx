@@ -1625,42 +1625,65 @@ INSTRUCTIONS:
   if (active?.ai_insight) {
     try {
       const data = JSON.parse(active.ai_insight);
-      if (data.overall_score) {
-        // New format — use directly
+      if (data.pulse_sees) {
+        // New Premium Pulse Intelligence format
         aiStrategyData = data;
-      } else if (data.insights && Array.isArray(data.insights) && data.insights.length > 0) {
-        // Old format — convert old insights array into new Strategy Center layout
-        const ins = data.insights;
-        const perfItems = ins.filter((i: any) => i.category === "performance");
-        const growthItems = ins.filter((i: any) => i.category === "growth");
-        const riskItems = ins.filter((i: any) => i.category === "risk");
+      } else if (data.overall_score) {
+        // Transitional format -> map to new
         aiStrategyData = {
-          overall_score: {
-            score: perfItems.length > 0 ? 72 : 60,
-            trend: growthItems.length > 0 ? "+5" : "0",
-            label: perfItems.length > 0 ? "Good" : "Moderate",
-            description: perfItems[0]?.detail || ins[0]?.detail || "Analysis based on this month's data."
+          pulse_sees: data.ai_noticed?.map((item: string) => ({
+            observation: item,
+            why_it_matters: "Based on recent historical data."
+          })) || [],
+          pulse_recommends: data.recommended_actions?.map((item: string) => ({
+            recommended_action: item,
+            expected_impact: "Moderate Improvement",
+            priority_badge: "Suggested"
+          })) || [],
+          growth_opportunity: {
+            title: data.opportunity_radar?.title || "Growth Opportunity",
+            observation: data.opportunity_radar?.reason || "Observed trend.",
+            action: "Capitalize on this trend.",
+            expected_impact: data.opportunity_radar?.impact || "High",
+            confidence_score: data.next_month_prediction?.confidence || 80
           },
-          ai_noticed: ins.map((i: any) => `${i.title}: ${i.detail}`).slice(0, 4),
-          recommended_actions: ins.map((i: any) => i.detail).slice(0, 3),
-          risk_detection: riskItems.length > 0
-            ? riskItems.map((i: any) => i.detail)
-            : ["No critical risks detected this period."],
-          opportunity_radar: {
-            title: growthItems[0]?.title || ins[0]?.title || "Growth Opportunity",
-            impact: "High",
-            reason: growthItems[0]?.detail || ins[0]?.detail || "Based on current trends."
+          watch_closely: data.risk_detection?.map((item: string) => ({
+            observation: item,
+            why_it_matters: "Potential negative impact on reach/engagement.",
+            recommended_action: "Monitor closely.",
+            risk_level: "Medium"
+          })) || []
+        };
+      } else if (data.insights && Array.isArray(data.insights)) {
+        // Oldest format -> map to new
+        const ins = data.insights;
+        aiStrategyData = {
+          pulse_sees: ins.slice(0, 3).map((i: any) => ({
+            observation: i.title,
+            why_it_matters: i.detail
+          })),
+          pulse_recommends: ins.slice(0, 3).map((i: any) => ({
+            recommended_action: i.detail,
+            expected_impact: "Improves overall performance",
+            priority_badge: "Actionable"
+          })),
+          growth_opportunity: {
+            title: ins[0]?.title || "Content Opportunity",
+            observation: ins[0]?.detail || "Trend noticed.",
+            action: "Expand on this format.",
+            expected_impact: "High",
+            confidence_score: 75
           },
-          next_month_prediction: {
-            reach_trend: "+12%",
-            engagement_trend: "+8%",
-            confidence: 68,
-            reasoning: ins[ins.length - 1]?.detail || "Prediction based on historical patterns."
-          }
+          watch_closely: ins.filter((i: any) => i.category === "risk").map((i: any) => ({
+            observation: i.title,
+            why_it_matters: i.detail,
+            recommended_action: "Review content strategy.",
+            risk_level: "High"
+          }))
         };
       }
     } catch (e) {
-      // Not JSON — ignore (plain text insight)
+      console.error("Failed to parse AI Insight:", e);
     }
   }
 
