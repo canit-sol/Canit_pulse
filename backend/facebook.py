@@ -329,9 +329,9 @@ def _fetch_real_data(page_id: str, token: str, month: int, year: int, ad_account
                     file_options={"content-type": content_type, "x-upsert": "true"}
                 )
                 cached_url = supabase.storage.from_(bucket).get_public_url(file_path)
-                print(f"  ✓ Cached thumbnail for FB post {post_id}")
+                print(f"  [SUCCESS] Cached thumbnail for FB post {post_id}")
             except Exception as e:
-                print(f"  ⚠ Failed to cache FB post {post_id} thumbnail: {e}")
+                print(f"  [ERROR] Failed to cache FB post {post_id} thumbnail: {e}")
 
         # ── Paid boost lookup via caption prefix ────────────────────────────
         message   = post.get("message", "") or ""
@@ -547,7 +547,7 @@ def _get_page_insights(page_id: str, token: str, month: int, year: int) -> tuple
                 page_reach = _si(vals[-1].get("value", 0))
         else:
             if "error" in res_reach:
-                print(f"⚠️ [PAGE REACH INSIGHTS] Error: {res_reach['error'].get('message', 'Unknown')}")
+                print(f"  [PAGE REACH INSIGHTS ERROR]: {res_reach['error'].get('message', 'Unknown')}")
     except Exception as exc:
         print(f"[PAGE REACH INSIGHTS] Failed: {exc}")
 
@@ -576,7 +576,7 @@ def _get_page_insights(page_id: str, token: str, month: int, year: int) -> tuple
                         organic_impressions += v
         else:
             if "error" in res_imp:
-                print(f"⚠️ [PAGE IMP INSIGHTS] Error: {res_imp['error'].get('message', 'Unknown')}")
+                print(f"  [PAGE IMP INSIGHTS ERROR]: {res_imp['error'].get('message', 'Unknown')}")
     except Exception as exc:
         print(f"[PAGE IMP INSIGHTS] Failed: {exc}")
 

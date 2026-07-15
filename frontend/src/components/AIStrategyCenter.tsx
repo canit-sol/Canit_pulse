@@ -84,34 +84,34 @@ export function AIStrategyCenter({ data }: Props) {
           </div>
 
           {/* Pulse Recommends - HERO CARD */}
-          <div className="rounded-2xl p-6 border-0 bg-gradient-to-br from-[#113a87] to-[#172852] text-white shadow-xl relative overflow-hidden">
+          <div className="rounded-2xl p-6 border-2 border-[#113a87]/10 bg-white shadow-sm relative overflow-hidden">
             {/* Background decoration */}
-            <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-10">
+            <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-[0.03]">
               <Zap className="w-40 h-40" />
             </div>
             
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-7 h-7 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center border border-white/10">
-                  <Zap className="w-4 h-4 text-white" />
+                <div className="w-7 h-7 rounded-lg bg-[#113a87]/10 flex items-center justify-center">
+                  <Zap className="w-4 h-4 text-[#113a87]" />
                 </div>
-                <h3 className="text-xs font-black text-white uppercase tracking-widest">Pulse Recommends</h3>
+                <h3 className="text-xs font-black text-[#113a87] uppercase tracking-widest">Pulse Recommends</h3>
               </div>
               <div className="space-y-4">
                 {data.pulse_recommends.map((item, idx) => (
-                  <div key={idx} className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 shadow-sm transition-all hover:bg-white/15">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                      <span className="w-fit shrink-0 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-white text-[#113a87] shadow-sm">
+                  <div key={idx} className="bg-slate-50 rounded-xl p-4 border border-slate-200/60 shadow-sm transition-all hover:bg-slate-100/50">
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-3">
+                      <span className="w-fit shrink-0 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#113a87] text-white shadow-sm">
                         {item.priority_badge}
                       </span>
-                      <span className="text-[10px] font-bold text-blue-100 sm:text-right leading-relaxed bg-[#113a87]/30 px-2.5 py-1 rounded-md border border-white/10">
-                        <span className="opacity-70 mr-1">IMPACT:</span> 
+                      <span className="text-[10px] font-bold text-[#113a87] xl:text-right leading-relaxed bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100">
+                        <span className="text-[#113a87]/60 mr-1">IMPACT:</span> 
                         {item.expected_impact}
                       </span>
                     </div>
                     <div className="flex items-start gap-2.5 mt-1">
-                      <CheckCircle2 className="w-4 h-4 text-sky-300 shrink-0 mt-0.5" />
-                      <p className="text-[13px] text-white font-semibold leading-relaxed tracking-wide">{item.recommended_action}</p>
+                      <CheckCircle2 className="w-4 h-4 text-[#113a87] shrink-0 mt-0.5" />
+                      <p className="text-[13px] text-slate-800 font-semibold leading-relaxed tracking-wide">{item.recommended_action}</p>
                     </div>
                   </div>
                 ))}
