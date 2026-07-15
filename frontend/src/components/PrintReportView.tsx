@@ -909,14 +909,49 @@ export default function PrintReportView({
             </div>
 
             {/* AI Generated Report Insight Box */}
-            <div className="bg-gradient-to-br from-[#113a87]/5 to-[#113a87]/10 border border-[#113a87]/15 rounded-2xl p-6 space-y-3">
+            <div className="bg-gradient-to-br from-[#113a87]/5 to-[#113a87]/10 border border-[#113a87]/15 rounded-2xl p-6 space-y-4">
               <h3 className="text-xs font-black text-[#113a87] uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 animate-pulse" /> Core Performance Insight
+                <Sparkles className="w-4 h-4 animate-pulse" /> AI Performance Analysis
               </h3>
-              <p className="text-xs text-gray-700 font-semibold leading-relaxed whitespace-pre-line italic">
-                {aiInsight || "Analyzing the current cycle, we recommend shifting a portion of budget towards video contents to match growing platform algorithm preferences. Engagement velocity indicates that educational content types show three times higher share rates compared to generic product displays. Focus on maintaining a regular publishing interval to consolidate organic domain authority."}
-              </p>
+              {(() => {
+                const raw = aiInsight || "";
+                // Split by lines that start with ** (insight titles)
+                const lines = raw.split("\n");
+                const blocks: { title: string; body: string }[] = [];
+                let current: { title: string; body: string } | null = null;
+                for (const line of lines) {
+                  const trimmed = line.trim();
+                  const titleMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
+                  if (titleMatch) {
+                    if (current) blocks.push(current);
+                    current = { title: titleMatch[1], body: "" };
+                  } else if (current && trimmed) {
+                    current.body += (current.body ? " " : "") + trimmed;
+                  }
+                }
+                if (current) blocks.push(current);
+
+                if (blocks.length === 0) {
+                  // Fallback: render as plain text
+                  return (
+                    <p className="text-xs text-gray-700 font-semibold leading-relaxed whitespace-pre-line italic">
+                      {raw || "Analyzing the current cycle, we recommend shifting a portion of budget towards video contents to match growing platform algorithm preferences."}
+                    </p>
+                  );
+                }
+                return (
+                  <div className="space-y-3">
+                    {blocks.map((block, i) => (
+                      <div key={i} className="bg-white/70 border border-[#113a87]/10 rounded-xl p-3.5">
+                        <p className="text-[11px] font-black text-[#113a87] uppercase tracking-wide mb-1">{block.title}</p>
+                        <p className="text-[11px] text-gray-700 font-medium leading-relaxed">{block.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
+
 
             {/* Checklist of actionable SEO and content next steps */}
             <div className="border border-gray-100 rounded-2xl p-5 space-y-4 bg-gray-50/50">

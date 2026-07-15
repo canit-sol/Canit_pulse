@@ -34,10 +34,10 @@ def _upload_post_thumbnail(post_id: str, image_url: str) -> str:
             file_options={"content-type": content_type, "x-upsert": "true"}
         )
         cached = supabase.storage.from_(bucket).get_public_url(file_path)
-        print(f"  ✓ Cached thumbnail for post {post_id}")
+        print(f"  [SUCCESS] Cached thumbnail for post {post_id}")
         return cached
     except Exception as e:
-        print(f"  ⚠ Failed to cache post {post_id} thumbnail: {e}")
+        print(f"  [WARNING] Failed to cache post {post_id} thumbnail: {e}")
         return ""
 
 def get_client_instagram_stats(client_keys: dict, month=None, year=None) -> dict:
@@ -74,7 +74,7 @@ def get_client_instagram_stats(client_keys: dict, month=None, year=None) -> dict
     try:
         return _fetch_real_data(ig_user_id, token, handle, target_month, target_year, ad_account_id)
     except Exception as e:
-        print(f"❌ IG API failed for {handle}: {e}")
+        print(f"[ERROR] IG API failed for {handle}: {e}")
         return {
             "platform": "instagram",
             "status": "error",
@@ -130,7 +130,7 @@ def _fetch_real_data(ig_id, token, handle, month, year, ad_account_id) -> dict:
                 print(f"[IG REACH INSIGHTS] Fetched rolling monthly reach: {instagram_reach_unique_month}")
         else:
             if "error" in reach_res:
-                print(f"⚠️ [IG REACH INSIGHTS] Error: {reach_res['error'].get('message', 'Unknown')}")
+                print(f"[WARNING] [IG REACH INSIGHTS] Error: {reach_res['error'].get('message', 'Unknown')}")
     except Exception as exc:
         print(f"[IG REACH INSIGHTS] Failed: {exc}")
 
@@ -441,7 +441,7 @@ def _fetch_all_paid_data(ad_account_id: str, token: str, month: int, year: int) 
                     mapped_stats[match_key]["likes"] += int(action.get("value", 0))
 
     except Exception as e:
-        print(f"❌ [PAID DEBUG] IG Nuclear Mapping Failed: {e}")
+        print(f"[ERROR] [PAID DEBUG] IG Nuclear Mapping Failed: {e}")
         debug_msg += f"Error: {str(e)}"
 
     print(f"[PAID DEBUG] IG Final returned paid data -> Global: {global_stats}")

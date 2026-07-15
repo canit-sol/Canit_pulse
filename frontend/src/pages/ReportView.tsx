@@ -139,13 +139,40 @@ export default function ReportView() {
                 <Sparkles className="w-4 h-4 text-[#113a87]" />
               </div>
               <div>
-                <h2 className="font-black text-[#1a1a1a] leading-none">AI Strategy</h2>
-                <p className="text-xs text-gray-400 font-medium">Llama-3 analysis</p>
+                <h2 className="font-black text-[#1a1a1a] leading-none">AI Analysis</h2>
+                <p className="text-xs text-gray-400 font-medium">Data-driven performance insights</p>
               </div>
             </div>
-            <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap font-medium">
-              {report?.ai_insight || "No insight available."}
-            </p>
+            {(() => {
+              const raw = report?.ai_insight || "";
+              const lines = raw.split("\n");
+              const blocks: { title: string; body: string }[] = [];
+              let current: { title: string; body: string } | null = null;
+              for (const line of lines) {
+                const trimmed = line.trim();
+                const titleMatch = trimmed.match(/^\*\*(.+?)\*\*$/);
+                if (titleMatch) {
+                  if (current) blocks.push(current);
+                  current = { title: titleMatch[1], body: "" };
+                } else if (current && trimmed) {
+                  current.body += (current.body ? " " : "") + trimmed;
+                }
+              }
+              if (current) blocks.push(current);
+              if (blocks.length === 0) {
+                return <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap font-medium">{raw || "No insight available."}</p>;
+              }
+              return (
+                <div className="space-y-3">
+                  {blocks.map((block, i) => (
+                    <div key={i} className="bg-[#113a87]/5 border border-[#113a87]/10 rounded-xl p-4">
+                      <p className="text-[11px] font-black text-[#113a87] uppercase tracking-wide mb-1">{block.title}</p>
+                      <p className="text-sm text-gray-700 font-medium leading-relaxed">{block.body}</p>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
 
           <div className="bg-[#113a87]/90 backdrop-blur-md rounded-2xl p-7 text-white shadow-lg border border-[#113a87]/30">
