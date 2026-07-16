@@ -57,7 +57,7 @@ export function AIStrategyCenter({ data }: Props) {
         </div>
       </div>
 
-      <div className="columns-1 xl:columns-2 gap-6 space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         
         {/* What Pulse Sees */}
         <div className="rounded-2xl p-6 border border-slate-200/60 bg-gradient-to-br from-slate-50 to-white shadow-sm break-inside-avoid">
