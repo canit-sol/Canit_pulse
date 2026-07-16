@@ -99,22 +99,21 @@ export function AIStrategyCenter({ data }: Props) {
               </div>
               <div className="space-y-4">
                 {data.pulse_recommends.map((item, idx) => (
-                  <div key={idx} className="bg-white rounded-xl p-5 border border-slate-200/80 shadow-sm transition-all hover:shadow-md relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-[#113a87]" />
-                    <div className="flex items-start gap-3 mb-3 mt-1">
+                  <div key={idx} className="bg-white rounded-xl p-4 border border-slate-200/60 shadow-sm">
+                    <div className="flex items-start gap-3">
                       <CheckCircle2 className="w-4 h-4 text-[#113a87] shrink-0 mt-0.5" />
-                      <p className="text-[13px] text-slate-800 font-bold leading-relaxed">
-                        <span className="inline-block mr-2.5 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-sm bg-[#113a87] text-white align-text-bottom">
-                          {item.priority_badge}
-                        </span>
-                        {item.recommended_action}
-                      </p>
-                    </div>
-                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 ml-7">
-                      <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
-                        <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] mr-2">Expected Impact:</span>
-                        {item.expected_impact}
-                      </p>
+                      <div>
+                        <p className="text-[13px] text-slate-800 font-bold leading-relaxed mb-1.5">
+                          <span className="inline-block mr-2.5 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-sm bg-[#113a87] text-white align-text-bottom">
+                            {item.priority_badge}
+                          </span>
+                          {item.recommended_action}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                          <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px] mr-1.5">Expected Impact:</span>
+                          {item.expected_impact}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ))}
