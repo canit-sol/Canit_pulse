@@ -2032,11 +2032,13 @@ INSTRUCTIONS:
             </div>
 
             {/* ── AI Strategy Center (standalone section) ── */}
+            {/* DISABLED FOR CURRENT VERSION - Re-enable for next production release
             {aiStrategyData && (
               <div className="mt-6">
                 <AIStrategyCenter data={aiStrategyData} />
               </div>
             )}
+            */}
 
 
             {/* ── Dynamic Content Workspace ── */}
