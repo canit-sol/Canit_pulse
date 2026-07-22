@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Loader2, ClipboardList, Check, Star, X } from "lucide-react";
+import { Loader2, ClipboardList, Check, Star, X, Copy } from "lucide-react";
 import { usePermissions } from "../hooks/usePermissions";
 import { getAccessToken } from "../lib/auth";
 
@@ -44,6 +44,7 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
   const [feedbackLoading, setFeedbackLoading] = useState(true);
   const notesSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const feedbackSaveTimer = useRef<NodeJS.Timeout | null>(null);
+  const [copying, setCopying] = useState(false);
 
   const saveTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
 
@@ -232,6 +233,45 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
       .catch(err => {
         console.error("Background create failed", err);
       });
+  };
+
+  const handleCopyFromLastMonth = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canEdit) return;
+    
+    if (!window.confirm("Copy deliverables from the previous month? This will start them all as unchecked.")) {
+      return;
+    }
+    
+    setCopying(true);
+    try {
+      const res = await fetch(`/api/deliverables/copy`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getAccessToken()}`,
+        },
+        body: JSON.stringify({
+          clientId,
+          currentMonth: month,
+          currentYear: year,
+        }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        const itemsWithKeys = data.map((x: any) => ({ ...x, localKey: x.id }));
+        setItems(itemsWithKeys);
+      } else {
+        const errorData = await res.json();
+        alert(`Could not copy: ${errorData.detail || "Unknown error"}`);
+      }
+    } catch (err) {
+      console.error("Copy failed", err);
+      alert("An error occurred while copying.");
+    } finally {
+      setCopying(false);
+    }
   };
 
   const triggerDebouncedSave = (id: string, title: string) => {
@@ -472,7 +512,17 @@ export default function DeliverablesPanel({ clientId, month, year }: { clientId:
               </div>
               <p className="text-slate-500 font-bold text-sm">No deliverables yet</p>
               {canEdit ? (
-                <p className="text-slate-400 text-[11px] mt-1.5 font-medium">Click anywhere inside the box to start typing.</p>
+                <>
+                  <p className="text-slate-400 text-[11px] mt-1.5 font-medium mb-4">Click anywhere inside the box to start typing.</p>
+                  <button
+                    onClick={handleCopyFromLastMonth}
+                    disabled={copying}
+                    className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-white hover:bg-violet-50 text-violet-600 text-xs font-bold rounded-xl border border-violet-100 shadow-sm transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                  >
+                    {copying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+                    Copy from last month
+                  </button>
+                </>
               ) : (
                 <p className="text-slate-400 text-[11px] mt-1.5 font-medium">No deliverables scheduled for this month yet.</p>
               )}

@@ -3085,6 +3085,76 @@ def create_deliverable(
         "internal_notes": d.internal_notes, "assigned_to": d.assigned_to,
     }
 
+@router.post("/deliverables/copy")
+def copy_deliverables(
+    req: dict,
+    current_user: AuthIdentity = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    from services.permissions import can_create_client
+    if not can_create_client(current_user.role):
+        raise HTTPException(status_code=403, detail="Only admins and CSMs can copy deliverables.")
+
+    clientId = req.get("clientId")
+    currentMonth = req.get("currentMonth")
+    currentYear = req.get("currentYear")
+    
+    if not clientId or not currentMonth or not currentYear:
+        raise HTTPException(status_code=400, detail="Missing required fields.")
+
+    from database import Deliverable
+    
+    existing = db.query(Deliverable).filter(
+        Deliverable.client_id == clientId,
+        Deliverable.month == currentMonth,
+        Deliverable.year == currentYear
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=409, detail="Deliverables already exist for the current month.")
+
+    try:
+        curr_idx = MONTH_NAMES.index(currentMonth)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid month name.")
+        
+    prev_idx = (curr_idx - 1) % 12
+    prevMonth = MONTH_NAMES[prev_idx]
+    prevYear = str(int(currentYear) - 1) if prev_idx == 11 else currentYear
+    
+    prev_deliverables = db.query(Deliverable).filter(
+        Deliverable.client_id == clientId,
+        Deliverable.month == prevMonth,
+        Deliverable.year == prevYear
+    ).order_by(Deliverable.created_at).all()
+    
+    if not prev_deliverables:
+        raise HTTPException(status_code=404, detail=f"No deliverables found in {prevMonth} {prevYear} to copy.")
+        
+    new_items = []
+    for pd in prev_deliverables:
+        new_d = Deliverable(
+            id=str(uuid.uuid4()),
+            client_id=clientId,
+            month=currentMonth,
+            year=currentYear,
+            title=pd.title,
+            platform=pd.platform,
+            status="todo",
+            internal_notes=pd.internal_notes,
+            assigned_to=pd.assigned_to,
+        )
+        db.add(new_d)
+        new_items.append(new_d)
+        
+    db.commit()
+    
+    return [{
+        "id": d.id, "client_id": d.client_id, "month": d.month, "year": d.year,
+        "title": d.title, "platform": d.platform, "status": d.status,
+        "internal_notes": d.internal_notes, "assigned_to": d.assigned_to,
+    } for d in new_items]
+
 @router.put("/deliverables/{deliverable_id}")
 def update_deliverable(
     deliverable_id: str,
