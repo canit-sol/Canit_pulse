@@ -1753,20 +1753,8 @@ INSTRUCTIONS:
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 md:gap-4 shrink-0">
-          <button
-            onClick={() => {
-              tourOriginRef.current = activePlatform;
-              setTourKey(k => k + 1);
-              setRunTour(true);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#2563EB]/20 bg-[#2563EB]/5 text-[#2563EB] hover:bg-[#2563EB]/10 active:scale-95 transition-all text-xs font-bold shadow-sm"
-            title="Take Guided Onboarding Tour"
-          >
-            <span className="hidden sm:inline">Take Tour</span>
-            <span className="sm:hidden">Tour</span>
-          </button>
 
+        <div className="flex items-center gap-2 md:gap-4 shrink-0">
           {reports.length > 0 && (
             <div className="tour-month-selector joyride-month-selector relative flex items-center bg-slate-50 border border-[#E7EDF5] rounded-xl p-0.5 shadow-sm select-none">
               <button 
