@@ -148,17 +148,39 @@ def _fetch_real_data(ig_id, token, handle, month, year, ad_account_id) -> dict:
     global_paid = paid_data["global"]
     mapped_paid = paid_data["mapped"]
 
-    # --- 3. ORGANIC MEDIA FETCH & MERGE ---
-    media_res = requests.get(f"{BASE_URL}/{ig_id}/media", params={
+    # --- 3. ORGANIC MEDIA FETCH & MERGE (WITH PAGINATION) ---
+    all_media = []
+    next_url = f"{BASE_URL}/{ig_id}/media"
+    params = {
         "fields": "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count",
         "limit": 100,
         "access_token": token
-    }).json()
-
-    if "error" in media_res:
-        raise Exception(f"Media error: {media_res['error']['message']}")
-
-    all_media = media_res.get("data", [])
+    }
+    
+    from datetime import timezone
+    cutoff_date = datetime(year, month, 1, 0, 0, 0, tzinfo=timezone.utc)
+    
+    pages_fetched = 0
+    while next_url and pages_fetched < 10:  # Fetch up to 1000 posts max to be safe and fast
+        res = requests.get(next_url, params=params if pages_fetched == 0 else None).json()
+        if "error" in res:
+            raise Exception(f"Media error: {res['error']['message']}")
+            
+        page_data = res.get("data", [])
+        if not page_data:
+            break
+            
+        all_media.extend(page_data)
+        
+        # Check if the oldest post in this batch is already older than the target month
+        last_post_ts = page_data[-1].get("timestamp", "")
+        if last_post_ts:
+            last_post_date = datetime.fromisoformat(last_post_ts.replace("Z", "+00:00"))
+            if last_post_date < cutoff_date:
+                break
+                
+        next_url = res.get("paging", {}).get("next")
+        pages_fetched += 1
     month_posts = []
 
     organic_reach_total = 0
