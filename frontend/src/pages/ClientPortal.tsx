@@ -618,6 +618,33 @@ export default function ClientPortal() {
   const [seoMetrics, setSeoMetrics] = useState<any>(null);
   const [seoPdfUrl, setSeoPdfUrl] = useState<string | null>(null);
   const [seoReports, setSeoReports] = useState<any[]>([]);
+
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncReport = async () => {
+    if (!active || !isInternalStaff) return;
+    setSyncing(true);
+    try {
+      const res = await fetch(`/api/clients/${id}/refresh-report?month=${active.month}&year=${active.year}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
+      });
+      if (res.ok) {
+        // Refetch everything to get the updated database row
+        fetchData();
+      } else {
+        const err = await res.json();
+        alert(`Failed to sync: ${err.detail || "Unknown error"}`);
+      }
+    } catch (err) {
+      console.error("Sync failed", err);
+      alert("Failed to sync latest social media data.");
+    } finally {
+      setSyncing(false);
+    }
+  };
   const [clientLogoUrl, setClientLogoUrl] = useState<string | null>(null);
   const [logoError, setLogoError] = useState(false);
   const [youtubeChannelId, setYoutubeChannelId] = useState<string | null>(null);
@@ -1816,7 +1843,12 @@ INSTRUCTIONS:
               )}
             </div>
           )}
-          <button onClick={fetchData} className="p-2 rounded-xl text-gray-400 hover:text-[#113a87] hover:bg-[#113a87]/5 transition-all">
+          <button 
+            onClick={isInternalStaff ? handleSyncReport : fetchData} 
+            disabled={syncing}
+            className={`p-2 rounded-xl text-gray-400 hover:text-[#113a87] hover:bg-[#113a87]/5 transition-all active:scale-95 ${syncing ? "animate-spin text-[#113a87]" : ""}`}
+            title={isInternalStaff ? "Sync Latest Data from Meta/YouTube APIs" : "Refresh Local Cache"}
+          >
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
