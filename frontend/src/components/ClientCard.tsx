@@ -1,4 +1,4 @@
-import { Loader2, BarChart2, FileCheck, UploadCloud } from "lucide-react";
+import { Loader2, BarChart2, FileCheck, UploadCloud, TrendingUp } from "lucide-react";
 
 interface ClientCardProps {
   id: string;
@@ -9,6 +9,7 @@ interface ClientCardProps {
   isInstagramConnected: boolean;   // true when ig_user_id is set (Instagram Business linked)
   isFacebookConnected?: boolean;
   isYoutubeConnected?: boolean;
+  isGoogleAdsConnected?: boolean;
   isGenerating: boolean;
   onGenerate: () => void;
   onClick: () => void;
@@ -19,6 +20,7 @@ interface ClientCardProps {
   onConnectYoutube?: (clientId: string) => void;
   onConnectInstagram?: (clientId: string) => void;
   onConnectFacebook?: (clientId: string) => void;
+  onConnectGoogleAds?: (clientId: string) => void;
   isUploadingSeo?: boolean;
   isHr?: boolean;
   seoReports?: any[];
@@ -52,6 +54,7 @@ export default function ClientCard({
   isInstagramConnected,
   isFacebookConnected,
   isYoutubeConnected,
+  isGoogleAdsConnected,
   isGenerating,
   onGenerate,
   onClick,
@@ -61,6 +64,7 @@ export default function ClientCard({
   onConnectYoutube,
   onConnectInstagram,
   onConnectFacebook,
+  onConnectGoogleAds,
   isUploadingSeo,
   isHr = false,
   seoReports,
@@ -195,6 +199,43 @@ export default function ClientCard({
             <span
               className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white
                 ${isYoutubeConnected ? "bg-green-400 shadow-sm" : "bg-gray-300"}`}
+            />
+          </div>
+
+          {/* Google Ads Connection Dock */}
+          <div className="relative">
+            {isHrRole ? (
+              <div
+                className={`w-[32px] h-[32px] rounded-xl flex items-center justify-center shadow-sm ${
+                  isGoogleAdsConnected 
+                    ? "bg-[#EAB308] text-white" 
+                    : "bg-gray-100/50 text-gray-400"
+                }`}
+                title={isGoogleAdsConnected ? "Google Ads connected" : "Google Ads not connected"}
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+              </div>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onConnectGoogleAds) {
+                    onConnectGoogleAds(id);
+                  }
+                }}
+                className={`w-[32px] h-[32px] rounded-xl flex items-center justify-center shadow-sm transition-all duration-300 ${
+                  isGoogleAdsConnected 
+                    ? "bg-[#EAB308] text-white hover:opacity-90 hover:scale-105" 
+                    : "bg-gray-100/50 hover:bg-gray-100/80 text-gray-400 hover:text-gray-600"
+                }`}
+                title={isGoogleAdsConnected ? "Google Ads connected — click to change" : "Connect Google Ads Account"}
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <span
+              className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white
+                ${isGoogleAdsConnected ? "bg-green-400 shadow-sm" : "bg-gray-300"}`}
             />
           </div>
 

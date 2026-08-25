@@ -25,7 +25,10 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     print("WARNING: DATABASE_URL is missing! Falling back to in-memory SQLite.")
     DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(DATABASE_URL)
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 
 # Ensure the 'platform' column exists on the clients table. This runs on app start.
 def _ensure_platform_column():
@@ -186,6 +189,29 @@ try:
 except Exception as e:
     print(f"[DB] _ensure_ad_columns skipped: {e}")
 
+def _ensure_google_ads_columns():
+    insp = inspect(engine)
+    if 'clients' in insp.get_table_names():
+        cols = [c['name'] for c in insp.get_columns('clients')]
+        if 'google_ads_customer_id' not in cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE clients ADD COLUMN google_ads_customer_id VARCHAR;"))
+                conn.commit()
+                print("Added missing 'google_ads_customer_id' column to clients table.")
+                
+    if 'campaign_metrics' in insp.get_table_names():
+        cols = [c['name'] for c in insp.get_columns('campaign_metrics')]
+        if 'platform' not in cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE campaign_metrics ADD COLUMN platform VARCHAR DEFAULT 'meta';"))
+                conn.commit()
+                print("Added missing 'platform' column to campaign_metrics table.")
+
+try:
+    _ensure_google_ads_columns()
+except Exception as e:
+    print(f"[DB] _ensure_google_ads_columns skipped: {e}")
+
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 Base = declarative_base()
@@ -234,6 +260,7 @@ class Client(Base):
     x_user_id        = Column(String, nullable=True)    
     x_token          = Column(String, nullable=True)    
     youtube_channel_id = Column(String, nullable=True)
+    google_ads_customer_id = Column(String, nullable=True)
     platform         = Column(String, default="instagram")
     
     # Meta Ads Reporting
@@ -495,6 +522,7 @@ class CampaignMetric(Base):
     likes          = Column(Integer, default=0)
     status         = Column(String, default="ACTIVE")
     objective      = Column(String, default="")
+    platform       = Column(String, default="meta")
     
     created_at     = Column(DateTime, default=datetime.utcnow)
 

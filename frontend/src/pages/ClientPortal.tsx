@@ -85,6 +85,7 @@ const SHOW_FACEBOOK_TAB = true;
 const PLATFORMS = [
   { id: "deliverables", label: "Deliverables", Icon: ClipboardList, color: "#7C3AED", bg: "bg-violet-50", active_bg: "bg-[#7C3AED]" },
   { id: "ad-performance", label: "Meta Ads", Icon: IndianRupee, color: "#059669", bg: "bg-emerald-50", active_bg: "bg-[#059669]" },
+  { id: "google-ads", label: "Google Ads", Icon: IndianRupee, color: "#EAB308", bg: "bg-yellow-50", active_bg: "bg-[#EAB308]" },
   { id: "instagram", label: "Instagram",  Icon: InstagramIcon,     color: "#E1306C", bg: "bg-pink-50",   active_bg: "bg-gradient-to-r from-[#E1306C] to-[#833AB4]" },
   ...(SHOW_FACEBOOK_TAB
     ? [{ id: "facebook", label: "Facebook", Icon: FacebookIcon, color: "#1877F2", bg: "bg-blue-50", active_bg: "bg-[#1877F2]" }]
@@ -519,6 +520,18 @@ const platformThemes: Record<string, {
     iconColor: "text-[#047857]",
     accentBar: "bg-[#6EE7B7]",
     badge: "bg-[#059669]",
+  },
+  "google-ads": {
+    gradient: "linear-gradient(135deg, #fef3c7, #fbbf24, #d97706)",
+    bg: "bg-gradient-to-br from-yellow-400 via-amber-500 to-orange-500",
+    cardBg: "bg-gradient-to-br from-[#FFFDF5] to-[#FFF9E6]",
+    cardBorder: "border-[#FFF0C2]",
+    valueColor: "text-[#B7791F]",
+    labelColor: "text-slate-500",
+    iconBg: "bg-[#FEF3C7]",
+    iconColor: "text-[#B7791F]",
+    accentBar: "bg-[#FDE68A]",
+    badge: "bg-[#EAB308]",
   },
   youtube: {
     gradient: "linear-gradient(135deg, #fecaca, #f87171, #dc2626)",
@@ -1938,7 +1951,11 @@ INSTRUCTIONS:
               </div>
             ) : activePlatform === "ad-performance" ? (
               <div className="mt-8">
-                <AdPerformanceView theme={platformThemes["ad-performance"]} month={active?.month} year={active?.year ? String(active.year) : undefined} />
+                <AdPerformanceView platform="meta" theme={platformThemes["ad-performance"]} month={active?.month} year={active?.year ? String(active.year) : undefined} />
+              </div>
+            ) : activePlatform === "google-ads" ? (
+              <div className="mt-8">
+                <AdPerformanceView platform="google" theme={platformThemes["google-ads"]} month={active?.month} year={active?.year ? String(active.year) : undefined} />
               </div>
             ) : (
             <>
@@ -3197,8 +3214,8 @@ INSTRUCTIONS:
           </div>
           </>
           )}
-            {/* Industry Related News Section — hidden for deliverables and ad-performance */}
-            {activePlatform !== "deliverables" && activePlatform !== "ad-performance" && (
+            {/* Industry Related News Section — hidden for deliverables, ad-performance, and google-ads */}
+            {activePlatform !== "deliverables" && activePlatform !== "ad-performance" && activePlatform !== "google-ads" && (
               <div className="tour-industry-news joyride-industry-news">
                 <IndustryNewsSection industry={industry} clientId={id} />
               </div>

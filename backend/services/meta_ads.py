@@ -102,6 +102,7 @@ def sync_campaign_metrics_for_client(client_id: str, db: Session, start: str = N
         # so re-syncing a range fully replaces old data for that range
         db.query(CampaignMetric).filter(
             CampaignMetric.client_id == client_id,
+            CampaignMetric.platform != "google",
             CampaignMetric.date >= start_date_obj,
             CampaignMetric.date <= target_date
         ).delete()
@@ -151,11 +152,12 @@ def sync_campaign_metrics_for_client(client_id: str, db: Session, start: str = N
                 visits=visits_val,
                 likes=likes_val,
                 status=c_status,
-                objective=c_objective
+                objective=c_objective,
+                platform="meta"
             ))
 
         db.commit()
-        return True, f"Synced {len(campaigns)} campaigns for {start} → {end}."
+        return True, f"Synced {len(campaigns)} campaigns for {start} to {end}."
 
     except Exception as e:
         error_msg = f"Internal Exception: {str(e)}"

@@ -12,7 +12,7 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-export default function AdPerformanceView({ theme, month, year }: { theme: any, month?: string, year?: string }) {
+export default function AdPerformanceView({ platform = "meta", theme, month, year }: { platform?: string, theme: any, month?: string, year?: string }) {
   const { id } = useParams();
   const token = getAccessToken();
   const [data, setData] = useState<any>(null);
@@ -42,7 +42,7 @@ export default function AdPerformanceView({ theme, month, year }: { theme: any, 
     try {
       const start = dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : '';
       const end = dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : '';
-      const res = await fetch(`/api/clients/${id}/ad-performance?start=${start}&end=${end}&t=${Date.now()}`, {
+      const res = await fetch(`/api/clients/${id}/ad-performance?start=${start}&end=${end}&platform=${platform}&t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const json = await res.json();
@@ -58,15 +58,17 @@ export default function AdPerformanceView({ theme, month, year }: { theme: any, 
   };
 
   useEffect(() => {
+    setLoading(true);
+    setData(null);
     fetchPerformance();
-  }, [id, token, dateRange]);
+  }, [id, token, dateRange, platform]);
 
   const handleSync = async () => {
     setSyncing(true);
     try {
       const start = dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : '';
       const end = dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : '';
-      await fetch(`/api/clients/${id}/sync-ads?start=${start}&end=${end}`, {
+      await fetch(`/api/clients/${id}/sync-ads?start=${start}&end=${end}&platform=${platform}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -98,7 +100,12 @@ export default function AdPerformanceView({ theme, month, year }: { theme: any, 
   };
 
   if (loading) {
-    return <div className="p-12 text-center text-gray-400 font-bold animate-pulse">Loading Ad Performance...</div>;
+    return (
+      <div className="p-12 text-center text-slate-400 font-bold animate-pulse font-heading flex flex-col items-center justify-center gap-3">
+        <div className="w-7 h-7 rounded-full border-2 border-slate-200 border-t-[#113a87] animate-spin" />
+        <span className="text-xs uppercase tracking-wider">Loading {platform === "google" ? "Google Ads" : "Meta Ads"} Performance...</span>
+      </div>
+    );
   }
 
   if (!data) return null;
@@ -111,14 +118,16 @@ export default function AdPerformanceView({ theme, month, year }: { theme: any, 
             <AlertTriangle className="w-5 h-5 text-red-600" />
           </div>
           <div className="flex-1">
-            <h4 className="font-bold text-red-900">Meta Account Disconnected</h4>
+            <h4 className="font-bold text-red-900">
+              {platform === "google" ? "Google Ads Account Disconnected / Not Connected" : "Meta Account Disconnected"}
+            </h4>
             <p className="text-sm text-red-700 mt-1">{data.ad_account_error}</p>
           </div>
           <button 
             className="px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 transition"
-            onClick={() => alert("Please navigate to Client Settings to reconnect the Meta Account.")}
+            onClick={() => alert(`Please navigate to Client Settings to reconnect the ${platform === "google" ? "Google Ads" : "Meta"} Account.`)}
           >
-            Reconnect Meta
+            {platform === "google" ? "Reconnect Google Ads" : "Reconnect Meta"}
           </button>
         </div>
       )}
@@ -209,7 +218,7 @@ export default function AdPerformanceView({ theme, month, year }: { theme: any, 
               <BarChart3 className="w-6 h-6 text-emerald-500" />
             </div>
             <p className="font-bold text-slate-600">No campaigns found</p>
-            <p className="text-sm text-slate-400 mt-1">Click sync or verify your Meta Ads connection.</p>
+            <p className="text-sm text-slate-400 mt-1">Click sync or verify your {platform === "google" ? "Google Ads" : "Meta Ads"} connection.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -219,23 +228,23 @@ export default function AdPerformanceView({ theme, month, year }: { theme: any, 
 
               const statusStyle = isBoosted ? "bg-purple-100 text-purple-700" : ({
                 ACTIVE:      "bg-emerald-100 text-emerald-700",
+                ENABLED:     "bg-emerald-100 text-emerald-700",
                 PAUSED:      "bg-amber-100 text-amber-700",
                 ARCHIVED:    "bg-slate-100 text-slate-500",
+                REMOVED:     "bg-slate-100 text-slate-500",
                 DELETED:     "bg-red-100 text-red-500",
                 WITH_ISSUES: "bg-red-100 text-red-600",
                 IN_PROCESS:  "bg-blue-100 text-blue-600",
               } as Record<string, string>)[camp.status] ?? "bg-slate-100 text-slate-400";
 
               const statusLabel = isBoosted ? "Boosted" : camp.status;
-              const isLeadCampaign = camp.objective === "OUTCOME_LEADS";
-              const isAwareness = camp.objective === "OUTCOME_AWARENESS";
 
               return (
               <div key={camp.campaign_id} className={`bg-white rounded-xl border p-5 shadow-sm hover:shadow-md transition group ${
                 isBoosted ? 'border-purple-100' : 'border-slate-100'
               }`}>
-                <div className="flex justify-between items-start mb-3">
-                  <h5 className="font-bold text-slate-800 text-sm leading-tight pr-4 line-clamp-2" title={camp.campaign_name}>
+                <div className="flex justify-between items-start mb-3 gap-2">
+                  <h5 className="font-bold text-slate-800 text-sm leading-snug break-words" title={camp.campaign_name}>
                     {camp.campaign_name}
                   </h5>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${statusStyle}`}>
@@ -247,26 +256,30 @@ export default function AdPerformanceView({ theme, month, year }: { theme: any, 
                   ₹{camp.spend.toLocaleString('en-IN')} <span className="text-[10px] font-bold text-slate-400 uppercase">Spent</span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-50">
-                  <div className="text-center">
-                    <div className="text-xs font-black text-slate-700">
-                      {isLeadCampaign ? camp.leads : isAwareness ? camp.reach?.toLocaleString() : camp.clicks?.toLocaleString()}
-                    </div>
-                    <div className="text-[9px] font-bold text-slate-400 uppercase">
-                      {isLeadCampaign ? "Leads" : isAwareness ? "Reach" : "Clicks"}
-                    </div>
+                <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-100">
+                  <div className="text-center pb-2 border-b border-slate-100">
+                    <div className="text-xs font-black text-slate-700">{camp.clicks?.toLocaleString() ?? 0}</div>
+                    <div className="text-[9px] font-bold text-slate-400 uppercase">Clicks</div>
                   </div>
-                  <div className="text-center border-l border-slate-100">
-                    <div className="text-xs font-black text-slate-700">
-                      {isLeadCampaign ? `₹${camp.cpl}` : `₹${camp.cpc}`}
-                    </div>
-                    <div className="text-[9px] font-bold text-slate-400 uppercase">
-                      {isLeadCampaign ? "CPL" : "CPC"}
-                    </div>
+                  <div className="text-center pb-2 border-b border-l border-slate-100">
+                    <div className="text-xs font-black text-slate-700">₹{camp.cpc ?? 0}</div>
+                    <div className="text-[9px] font-bold text-slate-400 uppercase">CPC</div>
                   </div>
-                  <div className="text-center border-l border-slate-100">
-                    <div className="text-xs font-black text-slate-700">{camp.ctr}%</div>
+                  <div className="text-center pb-2 border-b border-l border-slate-100">
+                    <div className="text-xs font-black text-slate-700">{camp.impressions?.toLocaleString() ?? 0}</div>
+                    <div className="text-[9px] font-bold text-slate-400 uppercase">Impressions</div>
+                  </div>
+                  <div className="text-center pt-2">
+                    <div className="text-xs font-black text-slate-700">{camp.ctr ?? 0}%</div>
                     <div className="text-[9px] font-bold text-slate-400 uppercase">CTR</div>
+                  </div>
+                  <div className="text-center pt-2 border-l border-slate-100">
+                    <div className="text-xs font-black text-slate-700">{camp.leads?.toLocaleString() ?? 0}</div>
+                    <div className="text-[9px] font-bold text-slate-400 uppercase">Leads</div>
+                  </div>
+                  <div className="text-center pt-2 border-l border-slate-100">
+                    <div className="text-xs font-black text-slate-700">₹{camp.cpl ?? 0}</div>
+                    <div className="text-[9px] font-bold text-slate-400 uppercase">CPL</div>
                   </div>
                 </div>
               </div>

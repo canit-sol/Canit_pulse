@@ -95,6 +95,7 @@ def generate_report(
             "fb_page_token": client.fb_page_token,
             "x_user_id": client.x_user_id,
             "x_token": client.x_token,
+            "google_ads_customer_id": client.google_ads_customer_id,
             "client_id": client.id,
         }
         month_map = {
@@ -536,6 +537,7 @@ def debug_client_facebook_data(client_id: str, month: str = None, year: str = No
 # ── AD PERFORMANCE DASHBOARD ─────────────────────────────
 
 from services.meta_ads import sync_campaign_metrics_for_client
+from services.google_ads import sync_google_campaigns_for_client
 from database import CampaignMetric
 
 @router_v3.get("/clients/{client_id}/ad-performance")
@@ -543,6 +545,7 @@ def get_ad_performance(
     client_id: str,
     start: str = None,
     end: str = None,
+    platform: str = "meta",
     db: Session = Depends(get_db)
 ):
     import time
@@ -594,10 +597,13 @@ def get_ad_performance(
         except Exception as e:
             print("Failed to parse end date:", e)
 
-    # Filter campaign snapshots by the requested date range
+    # Filter campaign snapshots by the requested date range and platform
+    platform_filter = (CampaignMetric.platform != "google") if platform == "meta" else (CampaignMetric.platform == platform)
+    
     if start_date and end_date:
         metrics = db.query(CampaignMetric).filter(
             CampaignMetric.client_id == client_id,
+            platform_filter,
             CampaignMetric.date >= start_date,
             CampaignMetric.date <= end_date
         ).all()
@@ -607,6 +613,7 @@ def get_ad_performance(
         end_date = today
         metrics = db.query(CampaignMetric).filter(
             CampaignMetric.client_id == client_id,
+            platform_filter,
             CampaignMetric.date >= start_date,
             CampaignMetric.date <= end_date
         ).all()
@@ -623,11 +630,14 @@ def get_ad_performance(
     total_clicks = sum(c.clicks for c in campaigns)
     # Only sum leads from actual lead-objective campaigns
     # For awareness/engagement/traffic, the leads_val holds reach/engagement — don't aggregate those
-    LEAD_OBJECTIVES = {"OUTCOME_LEADS", "OUTCOME_CONVERSIONS", ""}
-    total_leads = sum(
-        c.leads for c in campaigns
-        if getattr(c, "objective", "") in LEAD_OBJECTIVES
-    )
+    if platform == "google":
+        total_leads = sum(c.leads for c in campaigns)
+    else:
+        LEAD_OBJECTIVES = {"OUTCOME_LEADS", "OUTCOME_CONVERSIONS", ""}
+        total_leads = sum(
+            c.leads for c in campaigns
+            if getattr(c, "objective", "") in LEAD_OBJECTIVES
+        )
     total_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
     total_cpl = (total_spend / total_leads) if total_leads > 0 else 0
     
@@ -699,12 +709,15 @@ def update_ad_budget(client_id: str, req: AdBudgetRequest, db: Session = Depends
     return {"success": True, "budget": client.monthly_ad_budget}
 
 @router_v3.post("/clients/{client_id}/sync-ads")
-def manual_sync_ads(client_id: str, start: str = None, end: str = None, db: Session = Depends(get_db)):
+def manual_sync_ads(client_id: str, start: str = None, end: str = None, platform: str = "meta", db: Session = Depends(get_db)):
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="Client not found.")
     
-    success, msg = sync_campaign_metrics_for_client(client_id, db, start, end)
+    if platform == "google":
+        success, msg = sync_google_campaigns_for_client(client_id, db, start, end)
+    else:
+        success, msg = sync_campaign_metrics_for_client(client_id, db, start, end)
     return {"success": success, "message": msg}
 
 

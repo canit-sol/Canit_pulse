@@ -120,6 +120,78 @@ export default function AdminDashboard() {
     setYoutubePreviewLoading(false);
   };
 
+  // Google Ads Customer ID connection states
+  const [googleAdsPickerClientId, setGoogleAdsPickerClientId] = useState<string | null>(null);
+  const [googleAdsPickerClientName, setGoogleAdsPickerClientName] = useState<string>("");
+  const [googleAdsCustomerIdInput, setGoogleAdsCustomerIdInput] = useState<string>("");
+  const [googleAdsLinking, setGoogleAdsLinking] = useState<boolean>(false);
+  const [googleAdsLinkSuccess, setGoogleAdsLinkSuccess] = useState<boolean>(false);
+
+  const openConnectGoogleAdsModal = (clientId: string, clientName: string) => {
+    setGoogleAdsPickerClientId(clientId);
+    setGoogleAdsPickerClientName(clientName);
+    const currentCustomerId = clients.find(c => c.id === clientId)?.google_ads_customer_id || "";
+    setGoogleAdsCustomerIdInput(currentCustomerId);
+    setGoogleAdsLinkSuccess(false);
+    setGoogleAdsLinking(false);
+  };
+
+  const handleLinkGoogleAds = async () => {
+    if (!googleAdsPickerClientId) return;
+    setGoogleAdsLinking(true);
+    try {
+      const res = await fetch(`/api/clients/${googleAdsPickerClientId}/connect-google-ads`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          google_ads_customer_id: googleAdsCustomerIdInput.trim()
+        })
+      });
+      if (res.ok) {
+        setGoogleAdsLinkSuccess(true);
+        fetchClients();
+        setTimeout(() => {
+          setGoogleAdsPickerClientId(null);
+        }, 1500);
+      } else {
+        const err = await res.json();
+        alert(`Error connecting Google Ads: ${err.detail || "Unknown error"}`);
+      }
+    } catch {
+      alert("Network error while connecting Google Ads.");
+    } finally {
+      setGoogleAdsLinking(false);
+    }
+  };
+
+  const handleDisconnectGoogleAds = async () => {
+    if (!googleAdsPickerClientId) return;
+    setGoogleAdsLinking(true);
+    try {
+      const res = await fetch(`/api/clients/${googleAdsPickerClientId}/connect-google-ads`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          google_ads_customer_id: null
+        })
+      });
+      if (res.ok) {
+        setGoogleAdsLinkSuccess(true);
+        fetchClients();
+        setTimeout(() => {
+          setGoogleAdsPickerClientId(null);
+        }, 1500);
+      } else {
+        const err = await res.json();
+        alert(`Error disconnecting Google Ads: ${err.detail || "Unknown error"}`);
+      }
+    } catch {
+      alert("Network error while disconnecting Google Ads.");
+    } finally {
+      setGoogleAdsLinking(false);
+    }
+  };
+
   const handleVerifyYoutubeChannel = async () => {
     if (!youtubeChannelIdInput.trim()) {
       setYoutubePreviewError("Please enter a YouTube Channel ID.");
@@ -789,6 +861,7 @@ export default function AdminDashboard() {
                   isInstagramConnected={!!client.ig_user_id}
                   isFacebookConnected={!!client.fb_page_id}
                   isYoutubeConnected={!!client.youtube_channel_id}
+                  isGoogleAdsConnected={!!client.google_ads_customer_id}
                   isGenerating={generating === client.id}
                   onGenerate={() => handleGenerateReport(client.id)}
                   onClick={() => navigate(`/client/${client.id}`)}
@@ -796,6 +869,7 @@ export default function AdminDashboard() {
                   seoPdfUploadedAt={client.seo_pdf_uploaded_at}
                   onUploadSeoPdf={() => openMonthlySeoUploadModal(client.id, client.name)}
                   onConnectYoutube={() => openConnectYoutubeModal(client.id, client.name)}
+                  onConnectGoogleAds={() => openConnectGoogleAdsModal(client.id, client.name)}
                   onConnectInstagram={() => openPagePicker(client.id, client.name)}
                   onConnectFacebook={() => openPagePicker(client.id, client.name)}
                   isUploadingSeo={uploadingClientId === client.id}
@@ -1682,6 +1756,94 @@ export default function AdminDashboard() {
                         className="px-4 py-2.5 bg-red-50/80 hover:bg-red-100/80 border border-red-200/30 text-red-600 text-xs font-bold rounded-xl transition duration-200 font-heading"
                       >
                         {youtubeLinkingChannelId === "disconnect" ? "Disconnecting..." : "Disconnect Channel"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Link Google Ads Account Modal ── */}
+      {googleAdsPickerClientId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/15 backdrop-blur-[4px]" onClick={() => setGoogleAdsPickerClientId(null)}>
+          <div className="glass-panel w-full max-w-md p-8 md:p-9 rounded-[32px] shadow-2xl relative animate-fade-in" onClick={e => e.stopPropagation()}>
+            {!googleAdsLinkSuccess && (
+              <button
+                onClick={() => setGoogleAdsPickerClientId(null)}
+                className="absolute top-7 right-7 text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={googleAdsLinking}
+              >
+                <X size={20} />
+              </button>
+            )}
+
+            {googleAdsLinkSuccess ? (
+              /* Success State */
+              <div className="flex flex-col items-center justify-center py-8 gap-4">
+                <CheckCircle2 className="w-16 h-16 text-green-500" />
+                <h2 className="text-2xl font-bold text-[#1a1a1a] font-heading">
+                  Google Ads Account linked!
+                </h2>
+                <p className="text-gray-400 text-sm text-center font-medium font-body font-normal">
+                  Google Ads account has been linked to <strong>{googleAdsPickerClientName}</strong>.
+                  You can now view campaigns and sync stats.
+                </p>
+                <button
+                  onClick={() => setGoogleAdsPickerClientId(null)}
+                  className="mt-4 px-6 py-2.5 bg-[#113a87] text-white text-sm font-bold rounded-xl hover:bg-[#1e56b8] transition duration-200 font-heading"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-[#1a1a1a] mb-1 font-heading">
+                    Link Google Ads Account
+                  </h2>
+                  <p className="text-gray-400 text-sm font-medium font-body">
+                    Enter the Google Ads Customer ID manually to connect to <strong>{googleAdsPickerClientName}</strong>.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-1.5 px-0.5 font-heading">
+                      Google Ads Customer ID (XXX-XXX-XXXX)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 123-456-7890"
+                      value={googleAdsCustomerIdInput}
+                      onChange={(e) => {
+                        setGoogleAdsCustomerIdInput(e.target.value);
+                      }}
+                      className="w-full px-4 py-3 rounded-2xl bg-white/40 border border-white/60 outline-none focus:bg-white/60 focus:border-[#EAB308] focus:ring-4 focus:ring-[#EAB308]/8 transition-all font-medium text-sm placeholder:text-gray-300 bg-white"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleLinkGoogleAds}
+                    disabled={googleAdsLinking}
+                    className="w-full bg-[#EAB308] hover:bg-[#d9a306] text-white py-3.5 rounded-2xl font-bold transition-all duration-300 font-heading text-sm flex items-center justify-center gap-2 shadow-sm hover:shadow-md disabled:opacity-55"
+                  >
+                    {googleAdsLinking && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {googleAdsLinking ? "Connecting..." : "Confirm & Link"}
+                  </button>
+
+                  {/* Disconnect Option */}
+                  {clients.find(c => c.id === googleAdsPickerClientId)?.google_ads_customer_id && (
+                    <div className="pt-4 border-t border-white/40 flex justify-end">
+                      <button
+                        onClick={handleDisconnectGoogleAds}
+                        disabled={googleAdsLinking}
+                        className="px-4 py-2.5 bg-red-50/80 hover:bg-red-100/80 border border-red-200/30 text-red-600 text-xs font-bold rounded-xl transition duration-200 font-heading"
+                      >
+                        {googleAdsLinking ? "Disconnecting..." : "Disconnect Google Ads"}
                       </button>
                     </div>
                   )}

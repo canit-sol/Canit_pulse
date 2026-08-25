@@ -706,6 +706,30 @@ def connect_youtube_channel(
         "youtube_channel_id": client.youtube_channel_id
     }
 
+class LinkGoogleAdsRequest(BaseModel):
+    google_ads_customer_id: Optional[str] = None
+
+@router.post("/clients/{client_id}/connect-google-ads")
+def connect_google_ads(
+    client_id: str,
+    data: LinkGoogleAdsRequest,
+    current_user: AuthIdentity = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    from services.permissions import can_edit_client
+    if not can_edit_client(current_user.role):
+        raise HTTPException(status_code=403, detail="Not authorized to edit clients.")
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found.")
+    
+    client.google_ads_customer_id = data.google_ads_customer_id.strip() if data.google_ads_customer_id else None
+    db.commit()
+    return {
+        "message": "Google Ads account connected successfully.",
+        "client_id": client_id,
+        "google_ads_customer_id": client.google_ads_customer_id
+    }
 
 # ── CLIENT MANAGEMENT ───────────────────────────────────
 
@@ -958,6 +982,7 @@ def list_clients(current_user: AuthIdentity = Depends(require_admin), db: Sessio
                 "fb_page_id": c.fb_page_id,
                 "ig_user_id": c.ig_user_id,
                 "youtube_channel_id": c.youtube_channel_id,
+                "google_ads_customer_id": c.google_ads_customer_id,
                 "instagram_id": c.ig_user_id,
                 "facebook_page_id": c.fb_page_id,
                 "access_username": access.username if access else None,
@@ -987,6 +1012,7 @@ def get_client(client_id: str, current_user: AuthIdentity = Depends(require_clie
         "fb_page_id": client.fb_page_id,
         "ig_user_id": client.ig_user_id,
         "youtube_channel_id": client.youtube_channel_id,
+        "google_ads_customer_id": client.google_ads_customer_id,
         "client_logo_url": client.client_logo_url,
         "access_username": access.username if access else None,
         "access_active": access.is_active if access else False,
