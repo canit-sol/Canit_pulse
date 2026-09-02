@@ -93,6 +93,9 @@ def _fetch_real_data(ig_id, token, handle, month, year, ad_account_id) -> dict:
     if "error" in info_res:
         raise Exception(f"Profile error: {info_res['error']['message']}")
 
+    if info_res.get("username"):
+        handle = info_res["username"]
+
     followers = info_res.get("followers_count", 0)
 
     # --- 1b. FETCH MONTHLY UNIQUE REACH (period=days_28) ---
@@ -157,8 +160,10 @@ def _fetch_real_data(ig_id, token, handle, month, year, ad_account_id) -> dict:
         "access_token": token
     }
     
-    from datetime import timezone
-    cutoff_date = datetime(year, month, 1, 0, 0, 0, tzinfo=timezone.utc)
+    from datetime import timezone, timedelta
+    IST = timezone(timedelta(hours=5, minutes=30))
+    # Cutoff date with a 3-day buffer to account for timezone and boundary posts
+    cutoff_date = datetime(year, month, 1, 0, 0, 0, tzinfo=timezone.utc) - timedelta(days=3)
     
     pages_fetched = 0
     while next_url and pages_fetched < 10:  # Fetch up to 1000 posts max to be safe and fast
@@ -172,7 +177,7 @@ def _fetch_real_data(ig_id, token, handle, month, year, ad_account_id) -> dict:
             
         all_media.extend(page_data)
         
-        # Check if the oldest post in this batch is already older than the target month
+        # Check if the oldest post in this batch is already older than the target month cutoff
         last_post_ts = page_data[-1].get("timestamp", "")
         if last_post_ts:
             last_post_date = datetime.fromisoformat(last_post_ts.replace("Z", "+00:00"))
@@ -194,8 +199,9 @@ def _fetch_real_data(ig_id, token, handle, month, year, ad_account_id) -> dict:
         if not ts:
             continue
         post_date = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        post_date_local = post_date.astimezone(IST)
 
-        if post_date.month == month and post_date.year == year:
+        if post_date_local.month == month and post_date_local.year == year:
             media_type = post.get("media_type", "IMAGE")
             insights = _get_post_insights(post["id"], token, media_type)
 
