@@ -635,7 +635,9 @@ def refresh_report_for_month(client_id: str, current_user: AuthIdentity = Depend
     ).first()
 
     if existing:
-        existing.ig_data = full_stats
+        from sqlalchemy.orm.attributes import flag_modified
+        existing.ig_data = dict(full_stats)
+        flag_modified(existing, "ig_data")
         existing.created_at = datetime.utcnow()
         db.commit()
         post_count = platform_data.get("total_posts", 0) if platform_data.get("status") == "success" else 0
