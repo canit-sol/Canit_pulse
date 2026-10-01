@@ -2033,33 +2033,37 @@ def get_brand_intelligence(
             content_intel["avg_gap_days"] = round(sum(_gaps) / len(_gaps), 1)
             content_intel["total_posts"] = post_count
 
-    # ── 8. MARKETING IMPACT (earliest vs latest report) ──
+    # ── 8. MARKETING IMPACT (prior period or baseline vs current) ──
     marketing_impact = {"has_baseline": False, "metrics": []}
-    oldest_reports = db.query(Report).filter(
-        Report.client_id == client_id,
-        Report.created_at <= latest.created_at
-    ).order_by(Report.created_at.asc()).all()
-    oldest = oldest_reports[0] if oldest_reports else latest
+    baseline_rep = prev_report
+    if not baseline_rep:
+        oldest_reports = db.query(Report).filter(
+            Report.client_id == client_id,
+            Report.created_at <= latest.created_at
+        ).order_by(Report.created_at.asc()).all()
+        baseline_rep = oldest_reports[0] if oldest_reports else latest
 
-    if oldest:
-        oldest_raw = oldest.ig_data
-        if isinstance(oldest_raw, str):
-            oldest_raw = json_mod.loads(oldest_raw)
+    if baseline_rep:
+        baseline_raw = baseline_rep.ig_data
+        if isinstance(baseline_raw, str):
+            baseline_raw = json_mod.loads(baseline_raw)
             
-        if "platforms" in oldest_raw:
-            oldest_ig = oldest_raw["platforms"].get(platform, {})
+        if "platforms" in baseline_raw:
+            base_ig = baseline_raw["platforms"].get(platform, {})
         else:
-            oldest_ig = oldest_raw.get("instagram", oldest_raw) if platform == "instagram" else {}
+            base_ig = baseline_raw.get("instagram", baseline_raw) if platform == "instagram" else {}
 
-        base_reach = _safe_int(oldest_ig.get("total_reach", 0))
-        base_followers = _safe_int(oldest_ig.get("followers", 0)) or 1
-        base_eng = _safe_float(oldest_ig.get("engagement_rate", 0))
-        base_posts_list = oldest_ig.get("posts", []) if isinstance(oldest_ig.get("posts"), list) else []
-        base_post_count = len(base_posts_list) or _safe_int(oldest_ig.get("total_posts", 0))
+        base_reach = _safe_int(base_ig.get("total_reach", 0))
+        base_followers = _safe_int(base_ig.get("followers", 0)) or 1
+        base_eng = _safe_float(base_ig.get("engagement_rate", 0))
+        base_posts_list = base_ig.get("posts", []) if isinstance(base_ig.get("posts"), list) else []
+        base_post_count = len(base_posts_list) or _safe_int(base_ig.get("total_posts", 0))
+        base_likes = _safe_int(base_ig.get("total_likes", 0))
+        base_comments = _safe_int(base_ig.get("total_comments", 0))
 
         marketing_impact["has_baseline"] = True
         
-        if latest.id == oldest.id:
+        if latest.id == baseline_rep.id:
             # Single active period (or fell back to the same active report): use high-fidelity positive simulated growth trends
             marketing_impact["baseline_period"] = "Baseline Month"
             marketing_impact["current_period"] = f"{latest.month} {latest.year}"
@@ -2071,7 +2075,7 @@ def get_brand_intelligence(
                 {"label": "Content Efficiency", "value": 10.5, "unit": "%", "positive": True}
             ]
         else:
-            marketing_impact["baseline_period"] = f"{oldest.month} {oldest.year}"
+            marketing_impact["baseline_period"] = f"{baseline_rep.month} {baseline_rep.year}"
             marketing_impact["current_period"] = f"{latest.month} {latest.year}"
 
             if base_reach > 0:
@@ -2090,7 +2094,15 @@ def get_brand_intelligence(
                 freq_change = round(((post_count - base_post_count) / base_post_count) * 100, 1)
                 marketing_impact["metrics"].append({"label": "Content Velocity", "value": freq_change, "unit": "%", "positive": freq_change >= 0})
 
-            if base_reach > 0 and base_post_count > 0:
+            base_post_eng = sum(_safe_int(p.get("like_count", p.get("likes", 0))) + _safe_int(p.get("comments_count", p.get("comments", 0))) for p in base_posts_list)
+            curr_post_eng = sum(_safe_int(p.get("like_count", p.get("likes", 0))) + _safe_int(p.get("comments_count", p.get("comments", 0))) for p in posts)
+
+            if base_post_eng > 0 and curr_post_eng > 0 and base_post_count > 0:
+                base_eff = base_post_eng / base_post_count
+                curr_eff = curr_post_eng / max(post_count, 1)
+                eff_change = round(((curr_eff - base_eff) / base_eff) * 100, 1)
+                marketing_impact["metrics"].append({"label": "Content Efficiency", "value": eff_change, "unit": "%", "positive": eff_change >= 0})
+            elif base_reach > 0 and base_post_count > 0:
                 base_efficiency = base_reach / base_post_count
                 current_efficiency = total_reach / max(post_count, 1)
                 eff_change = round(((current_efficiency - base_efficiency) / base_efficiency) * 100, 1)
