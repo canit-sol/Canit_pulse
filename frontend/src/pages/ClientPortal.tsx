@@ -563,19 +563,22 @@ function PostItem({ post }: { post: any }) {
       : "Post";
 
   const src = post.media_base64 || post.media_url;
+  const likes = Number(post.likes ?? post.like_count ?? 0);
+  const comments = Number(post.comments ?? post.comments_count ?? 0);
+  const reach = Number(post.reach ?? post.impressions ?? 0);
 
   return (
     <a
       href={post.permalink}
       target="_blank"
       rel="noreferrer"
-      className="relative aspect-square rounded-2xl overflow-hidden bg-white block border border-slate-200/80 shadow-soft hover:border-slate-300 hover:shadow-glass transition duration-200"
+      className="group relative aspect-square rounded-2xl overflow-hidden bg-white block border border-slate-200/80 shadow-soft hover:border-slate-300 hover:shadow-glass transition duration-200"
     >
       {src && !imageError ? (
         <img
           src={src}
           alt={post.caption || "Post"}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           onError={() => setImageError(true)}
         />
       ) : (
@@ -585,10 +588,36 @@ function PostItem({ post }: { post: any }) {
         </div>
       )}
 
-      <div className="absolute top-2 right-2">
-        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full text-white ${badgeColor}`}>
+      {/* Top badges */}
+      <div className="absolute top-2 left-2 right-2 flex items-center justify-between pointer-events-none z-10">
+        {post.is_boosted ? (
+          <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full text-white bg-gradient-to-r from-amber-500 to-orange-500 shadow-sm">
+            Paid
+          </span>
+        ) : <div />}
+        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full text-white shadow-sm ${badgeColor}`}>
           {badgeLabel}
         </span>
+      </div>
+
+      {/* Bottom Scores Bar */}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-6 pb-2 px-2.5 flex items-center justify-between text-white text-[10px] font-bold z-10">
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-0.5" title={`${likes} Likes`}>
+            <Heart className="w-3 h-3 text-pink-400 fill-pink-400" />
+            <span>{likes > 999 ? `${(likes / 1000).toFixed(1)}k` : likes}</span>
+          </span>
+          <span className="flex items-center gap-0.5" title={`${comments} Comments`}>
+            <MessageCircle className="w-3 h-3 text-blue-400 fill-blue-400" />
+            <span>{comments}</span>
+          </span>
+        </div>
+        {reach > 0 && (
+          <span className="flex items-center gap-0.5 text-gray-200" title={`${reach.toLocaleString()} Reach`}>
+            <Eye className="w-3 h-3 text-purple-300" />
+            <span>{reach > 999 ? `${(reach / 1000).toFixed(1)}k` : reach}</span>
+          </span>
+        )}
       </div>
     </a>
   );
