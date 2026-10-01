@@ -1275,7 +1275,8 @@ export default function BrandIntelligence({ clientId, brandName, platform, month
 
   useEffect(() => {
     if (intelligenceData !== undefined) return;
-    if (!clientId) { setLocalLoading(false); return; }
+    if (!clientId || !month || !year) return;
+    let isCancelled = false;
     setLocalLoading(true);
 
     if (platform === "unified") {
@@ -1292,6 +1293,7 @@ export default function BrandIntelligence({ clientId, brandName, platform, month
     fetch(`/api/clients/${clientId}/intelligence?${queryParams.toString()}`, { headers: authHeaders() })
       .then(r => r.json())
       .then(d => {
+        if (isCancelled) return;
         if (!d || !d.has_data) {
           if (platform === "facebook" && fbMetrics && fbMetrics.connected) {
             setLocalData(generateFacebookIntelligence(brandName, fbMetrics, month, year, historicalSnapshots));
@@ -1305,6 +1307,7 @@ export default function BrandIntelligence({ clientId, brandName, platform, month
         }
       })
       .catch((err) => {
+        if (isCancelled) return;
         console.error(err);
         if (platform === "facebook" && fbMetrics && fbMetrics.connected) {
           setLocalData(generateFacebookIntelligence(brandName, fbMetrics, month, year));
@@ -1314,7 +1317,13 @@ export default function BrandIntelligence({ clientId, brandName, platform, month
           setLocalData(null);
         }
       })
-      .finally(() => setLocalLoading(false));
+      .finally(() => {
+        if (!isCancelled) setLocalLoading(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [clientId, platform, month, year, brandName]);
 
   /* ── No data ── */

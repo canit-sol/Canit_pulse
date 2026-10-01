@@ -982,10 +982,13 @@ export default function ClientPortal() {
       .catch(console.error);
   };
 
-  const fetchBrandIntel = () => {
+  const fetchBrandIntel = (targetMonth?: string, targetYear?: string) => {
     if (!token || !id) return;
     setBrandIntelLoading(true);
-    fetch(`/api/clients/${id}/intelligence?platform=instagram`, {
+    const m = targetMonth || active?.month;
+    const y = targetYear || active?.year;
+    const query = m && y ? `&month=${m}&year=${y}` : '';
+    fetch(`/api/clients/${id}/intelligence?platform=instagram${query}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -2007,11 +2010,11 @@ INSTRUCTIONS:
                     ? "All time views"
                     : (activePlatform === "facebook" ? "Facebook" : "Active platform"),
                   extra: activePlatform === "instagram" && ig.bifurcation_available && ig.organic ? (
-                    <p className={`text-[10px] mt-1 px-0.5 font-semibold ${theme.valueColor} opacity-80`}>
+                    <p className={`text-xs mt-1.5 px-0.5 font-bold ${theme.valueColor} tracking-tight`}>
                       {ig.organic.total_reach} organic · {ig.paid?.total_reach ?? "0"} paid
                     </p>
                   ) : activePlatform === "facebook" && fb.bifurcation_available && fb.organic ? (
-                    <p className={`text-[10px] mt-1 px-0.5 font-semibold ${theme.valueColor} opacity-80`}>
+                    <p className={`text-xs mt-1.5 px-0.5 font-bold ${theme.valueColor} tracking-tight`}>
                       {fb.organic.total_reach} organic · {fb.paid?.total_reach ?? "0"} paid
                     </p>
                   ) : null
@@ -2032,11 +2035,11 @@ INSTRUCTIONS:
                   value: activePlatform === "facebook" && liveFBLoading ? undefined : currentData.engagement_rate,
                   sub: "Avg. rate",
                   extra: activePlatform === "instagram" && ig.organic ? (
-                    <p className={`text-[10px] mt-1 px-0.5 font-semibold ${theme.valueColor} opacity-80`}>
+                    <p className={`text-xs mt-1.5 px-0.5 font-bold ${theme.valueColor} tracking-tight`}>
                       {ig.organic.engagement_rate || "0%"} organic · {ig.engagement_rate} total
                     </p>
                   ) : activePlatform === "facebook" && fb.organic ? (
-                    <p className={`text-[10px] mt-1 px-0.5 font-semibold ${theme.valueColor} opacity-80`}>
+                    <p className={`text-xs mt-1.5 px-0.5 font-bold ${theme.valueColor} tracking-tight`}>
                       {fb.organic.engagement_rate || "0%"} organic · {fb.engagement_rate} total
                     </p>
                   ) : null
