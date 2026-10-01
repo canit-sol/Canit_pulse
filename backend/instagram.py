@@ -200,8 +200,12 @@ def _fetch_real_data(ig_id, token, handle, month, year, ad_account_id) -> dict:
             continue
         post_date = datetime.fromisoformat(ts.replace("Z", "+00:00"))
         post_date_local = post_date.astimezone(IST)
+        is_target_month = (post_date_local.month == month and post_date_local.year == year)
+        next_month = (month % 12) + 1
+        next_year = year if month < 12 else year + 1
+        is_end_of_cycle = (post_date_local.year == next_year and post_date_local.month == next_month and post_date_local.day == 1)
 
-        if post_date_local.month == month and post_date_local.year == year:
+        if is_target_month or is_end_of_cycle:
             media_type = post.get("media_type", "IMAGE")
             insights = _get_post_insights(post["id"], token, media_type)
 
