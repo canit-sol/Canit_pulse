@@ -13,54 +13,6 @@ const MONTH_NAMES = [
 ];
 
 export default function AdPerformanceView({ platform = "meta", theme, month, year }: { platform?: string, theme: any, month?: string, year?: string }) {
-  if (platform === "google") {
-    return (
-      <div className="bg-white border border-slate-200/90 rounded-3xl p-8 md:p-14 shadow-soft relative overflow-hidden" style={{ background: "linear-gradient(180deg, #FEFCE8 0%, #FFFFFF 100%)" }}>
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-72 h-72 bg-amber-200/30 rounded-full blur-3xl pointer-events-none" />
-        <div className="max-w-2xl mx-auto text-center space-y-6 relative z-10">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/20 text-white">
-            <IndianRupee className="w-8 h-8 stroke-[2.5]" />
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-2xl md:text-3xl font-black text-slate-900 font-heading tracking-tight">
-              Google Ads Intelligence — Coming Soon
-            </h3>
-            <p className="text-sm md:text-base text-slate-500 font-medium leading-relaxed max-w-lg mx-auto">
-              Unified Google Ads integration is currently in active development. Real-time Search & Display campaign tracking, keyword ROAS, and automated conversion intelligence will be available here soon.
-            </p>
-          </div>
-
-          {/* Preview Feature Pills */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 text-left">
-            <div className="bg-white/80 backdrop-blur-sm border border-amber-100/80 rounded-2xl p-4 shadow-sm">
-              <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 font-bold mb-2">
-                <TrendingUp className="w-4 h-4" />
-              </div>
-              <h4 className="text-xs font-black text-slate-800">Search & Display</h4>
-              <p className="text-[11px] text-slate-400 font-medium mt-1 leading-snug">Track impressions, clicks, CPC, and CTR across campaigns.</p>
-            </div>
-
-            <div className="bg-white/80 backdrop-blur-sm border border-amber-100/80 rounded-2xl p-4 shadow-sm">
-              <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 font-bold mb-2">
-                <Target className="w-4 h-4" />
-              </div>
-              <h4 className="text-xs font-black text-slate-800">Keyword ROAS</h4>
-              <p className="text-[11px] text-slate-400 font-medium mt-1 leading-snug">Measure lead cost and return on ad spend per keyword.</p>
-            </div>
-
-            <div className="bg-white/80 backdrop-blur-sm border border-amber-100/80 rounded-2xl p-4 shadow-sm">
-              <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 font-bold mb-2">
-                <BarChart3 className="w-4 h-4" />
-              </div>
-              <h4 className="text-xs font-black text-slate-800">Unified Analytics</h4>
-              <p className="text-[11px] text-slate-400 font-medium mt-1 leading-snug">Compare Meta Ads vs Google Ads performance in one view.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
   const { id } = useParams();
   const token = getAccessToken();
   const [data, setData] = useState<any>(null);
