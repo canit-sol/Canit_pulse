@@ -1,9 +1,7 @@
 import os
-import requests
 from datetime import datetime, date, timedelta
 from sqlalchemy.orm import Session
 import uuid
-import json
 
 from database import Client, CampaignMetric, get_config
 
@@ -35,8 +33,8 @@ def get_google_ads_client(customer_id: str = None):
 
 def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = None, end: str = None):
     """
-    Syncs live Google Ads campaign performance for a client for the given date range.
-    Pulls spend, impressions, clicks, CPC, and conversions directly from Google Ads API.
+    Syncs live Google Ads campaign performance for a client broken down by day (segments.date).
+    Stores accurate daily metrics so month filtering in Pulse is 100% accurate.
     """
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
@@ -80,20 +78,20 @@ def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = N
 
     google_client = get_google_ads_client(customer_id) if customer_id else None
 
-    # If credentials or customer_id are missing, return early with message
     if not customer_id or not google_client:
         return False, "Google Ads credentials or Customer ID not configured."
 
     try:
         ga_service = google_client.get_service("GoogleAdsService")
 
-        # GAQL query for date range
+        # GAQL query with daily breakdown via segments.date
         query = f"""
             SELECT
                 campaign.id,
                 campaign.name,
                 campaign.status,
                 campaign.advertising_channel_type,
+                segments.date,
                 metrics.impressions,
                 metrics.clicks,
                 metrics.cost_micros,
@@ -101,13 +99,13 @@ def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = N
                 metrics.average_cpc
             FROM campaign
             WHERE segments.date BETWEEN '{start}' AND '{end}'
-            ORDER BY metrics.cost_micros DESC
+            ORDER BY segments.date DESC
         """
 
         response = ga_service.search(customer_id=customer_id, query=query)
         results = list(response)
 
-        # If 0 metrics found in date range, also pull all active/paused campaigns so user sees campaign list
+        # Fallback if 0 activity: pull all campaigns list with 0 spend so user sees their campaign catalog
         if not results:
             fallback_query = """
                 SELECT
@@ -125,7 +123,7 @@ def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = N
                     camp = row.campaign
                     adv_type = camp.advertising_channel_type.name if hasattr(camp.advertising_channel_type, "name") else str(camp.advertising_channel_type)
                     objective = "OUTCOME_LEADS" if adv_type in ("SEARCH", "MULTI_CHANNEL") else "OUTCOME_TRAFFIC"
-                    
+
                     db.add(CampaignMetric(
                         id=str(uuid.uuid4()),
                         client_id=client_id,
@@ -147,13 +145,15 @@ def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = N
                 db.commit()
                 client.ad_account_error = None
                 db.commit()
-                return True, f"Synced {len(list(fallback_resp))} campaigns (0 spend in selected date range)."
+                return True, f"Synced {len(list(fallback_resp))} campaigns with 0 spend for {start} to {end}."
             except Exception as e:
                 print(f"[Google Ads] Fallback query error: {e}")
 
+        # Insert each daily segment with its exact date
         for row in results:
             camp = row.campaign
             metrics_row = row.metrics
+            row_date = datetime.strptime(row.segments.date, "%Y-%m-%d").date()
 
             spend_val = round(metrics_row.cost_micros / 1_000_000, 2)
             clicks_val = int(metrics_row.clicks)
@@ -171,9 +171,9 @@ def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = N
             db.add(CampaignMetric(
                 id=str(uuid.uuid4()),
                 client_id=client_id,
-                campaign_id=f"google_{camp.id}",
+                campaign_id=f"google_{camp.id}_{row.segments.date}",
                 campaign_name=camp.name,
-                date=target_date,
+                date=row_date,
                 spend=spend_val,
                 reach=impressions_val,
                 impressions=impressions_val,
@@ -189,7 +189,7 @@ def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = N
 
         client.ad_account_error = None
         db.commit()
-        return True, f"Successfully synced {len(results)} Google Ads campaigns."
+        return True, f"Successfully synced {len(results)} daily Google Ads records."
 
     except Exception as e:
         error_msg = str(e)

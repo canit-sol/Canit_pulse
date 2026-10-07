@@ -618,28 +618,101 @@ def get_ad_performance(
             CampaignMetric.date <= end_date
         ).all()
         
-    # Keep only the latest snapshot per campaign_id within the range
-    seen = {}
-    for m in sorted(metrics, key=lambda x: x.date):
-        seen[m.campaign_id] = m
-    campaigns = list(seen.values())
-
-    
-    total_spend = sum(c.spend for c in campaigns)
-    total_reach = sum(c.reach for c in campaigns)
-    total_clicks = sum(c.clicks for c in campaigns)
-    # Only sum leads from actual lead-objective campaigns
-    # For awareness/engagement/traffic, the leads_val holds reach/engagement — don't aggregate those
     if platform == "google":
-        total_leads = sum(c.leads for c in campaigns)
+        grouped = {}
+        for m in sorted(metrics, key=lambda x: x.date):
+            c_key = m.campaign_name
+            if c_key not in grouped:
+                grouped[c_key] = {
+                    "campaign_id": m.campaign_id,
+                    "campaign_name": m.campaign_name,
+                    "spend": 0.0,
+                    "reach": 0,
+                    "impressions": 0,
+                    "clicks": 0,
+                    "leads": 0,
+                    "status": m.status,
+                    "date": str(m.date),
+                    "objective": m.objective or "OUTCOME_LEADS"
+                }
+            grouped[c_key]["spend"] += (m.spend or 0.0)
+            grouped[c_key]["reach"] += (m.reach or 0)
+            grouped[c_key]["impressions"] += (m.impressions or 0)
+            grouped[c_key]["clicks"] += (m.clicks or 0)
+            grouped[c_key]["leads"] += (m.leads or 0)
+            grouped[c_key]["status"] = m.status
+            grouped[c_key]["date"] = str(m.date)
+
+        campaigns_formatted = []
+        for g in sorted(grouped.values(), key=lambda x: x["spend"], reverse=True):
+            s = round(g["spend"], 2)
+            c = g["clicks"]
+            imp = g["impressions"]
+            l = g["leads"]
+            ctr = round((c / imp * 100), 2) if imp > 0 else 0.0
+            cpc = round((s / c), 2) if c > 0 else 0.0
+            cpl = round((s / l), 2) if l > 0 else 0.0
+            campaigns_formatted.append({
+                "campaign_id": g["campaign_id"],
+                "campaign_name": g["campaign_name"],
+                "spend": s,
+                "reach": g["reach"],
+                "impressions": imp,
+                "clicks": c,
+                "ctr": ctr,
+                "cpc": cpc,
+                "leads": l,
+                "cpl": cpl,
+                "visits": 0,
+                "likes": 0,
+                "status": g["status"],
+                "date": g["date"],
+                "objective": g["objective"]
+            })
+
+        total_spend = round(sum(c["spend"] for c in campaigns_formatted), 2)
+        total_reach = sum(c["reach"] for c in campaigns_formatted)
+        total_clicks = sum(c["clicks"] for c in campaigns_formatted)
+        total_leads = sum(c["leads"] for c in campaigns_formatted)
+        total_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
+        total_cpl = (total_spend / total_leads) if total_leads > 0 else 0
+        campaigns_payload = campaigns_formatted
     else:
+        # Keep only the latest snapshot per campaign_id within the range for Meta
+        seen = {}
+        for m in sorted(metrics, key=lambda x: x.date):
+            seen[m.campaign_id] = m
+        campaigns = list(seen.values())
+
+        total_spend = sum(c.spend for c in campaigns)
+        total_reach = sum(c.reach for c in campaigns)
+        total_clicks = sum(c.clicks for c in campaigns)
         LEAD_OBJECTIVES = {"OUTCOME_LEADS", "OUTCOME_CONVERSIONS", ""}
         total_leads = sum(
             c.leads for c in campaigns
             if getattr(c, "objective", "") in LEAD_OBJECTIVES
         )
-    total_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
-    total_cpl = (total_spend / total_leads) if total_leads > 0 else 0
+        total_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
+        total_cpl = (total_spend / total_leads) if total_leads > 0 else 0
+        campaigns_payload = [
+            {
+                "campaign_id": c.campaign_id,
+                "campaign_name": c.campaign_name,
+                "spend": c.spend,
+                "reach": c.reach,
+                "impressions": c.impressions,
+                "clicks": c.clicks,
+                "ctr": round(c.ctr, 2),
+                "cpc": round(c.cpc, 2),
+                "leads": c.leads,
+                "cpl": round(c.cpl, 2),
+                "visits": c.visits,
+                "likes": c.likes,
+                "status": c.status,
+                "date": str(c.date),
+                "objective": c.objective or ""
+            } for c in campaigns
+        ]
     
     # Query budget from ad_budgets for target month, fallback to client.monthly_ad_budget
     budget = 0.0
@@ -672,25 +745,7 @@ def get_ad_performance(
             "cpl": round(total_cpl, 2),
         },
         "ad_account_error": client.ad_account_error,
-        "campaigns": [
-            {
-                "campaign_id": c.campaign_id,
-                "campaign_name": c.campaign_name,
-                "spend": c.spend,
-                "reach": c.reach,
-                "impressions": c.impressions,
-                "clicks": c.clicks,
-                "ctr": round(c.ctr, 2),
-                "cpc": round(c.cpc, 2),
-                "leads": c.leads,
-                "cpl": round(c.cpl, 2),
-                "visits": c.visits,
-                "likes": c.likes,
-                "status": c.status,
-                "date": str(c.date),
-                "objective": c.objective or ""
-            } for c in campaigns
-        ]
+        "campaigns": campaigns_payload
     }
     log_egress(f"GET /api/v3/clients/{client_id}/ad-performance", start_time, len(campaigns), result)
     return result

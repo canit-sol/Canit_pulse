@@ -1915,7 +1915,21 @@ INSTRUCTIONS:
           <h2 className="text-xl md:text-2xl font-black text-[#1a1a1a]">
             {active ? `${active.month} ${active.year}` : "No reports yet"}
           </h2>
-          <p className="text-gray-400 text-xs md:text-sm mt-0.5">Unified Meta analytics platform</p>
+          <p className="text-gray-400 text-xs md:text-sm mt-0.5">
+            {activePlatform === "google-ads"
+              ? "Unified Google Ads intelligence platform"
+              : activePlatform === "ad-performance"
+              ? "Unified Meta Ads intelligence platform"
+              : activePlatform === "instagram"
+              ? "Unified Instagram brand performance"
+              : activePlatform === "facebook"
+              ? "Unified Facebook engagement platform"
+              : activePlatform === "youtube"
+              ? "Unified YouTube video performance"
+              : activePlatform === "blogs"
+              ? "Unified SEO & content intelligence"
+              : "Unified brand intelligence platform"}
+          </p>
         </div>
 
         {!active ? (
@@ -1968,12 +1982,6 @@ INSTRUCTIONS:
                             isActive ? `${platformTheme.badge} text-white` : "bg-slate-200 text-slate-600 hidden md:inline"
                           }`}>
                             {youtubeVideos.length}
-                          </span>
-                        ) : pid === "google-ads" ? (
-                          <span className={`ml-1 text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider transition-all ${
-                            isActive ? "bg-amber-500 text-white" : "bg-amber-100 text-amber-700 border border-amber-200/60 hidden md:inline"
-                          }`}>
-                            Soon
                           </span>
                         ) : null}
                       </button>
