@@ -747,7 +747,7 @@ def get_ad_performance(
         "ad_account_error": client.ad_account_error,
         "campaigns": campaigns_payload
     }
-    log_egress(f"GET /api/v3/clients/{client_id}/ad-performance", start_time, len(campaigns), result)
+    log_egress(f"GET /api/v3/clients/{client_id}/ad-performance", start_time, len(campaigns_payload), result)
     return result
 
 class AdBudgetRequest(BaseModel):
