@@ -267,15 +267,15 @@ def _score_follower_growth(metrics: dict) -> tuple[Any, float, str]:
         
         if mom_growth_pct >= 0:
             if tier == "small":
-                midpoint = 5.0
-                steepness = 0.2
-            elif tier == "mid":
-                midpoint = 3.0
+                midpoint = 2.5
                 steepness = 0.3
-            else:
+            elif tier == "mid":
                 midpoint = 1.5
                 steepness = 0.4
-            score = _logistic_normalize(mom_growth_pct, midpoint=midpoint, steepness=steepness)
+            else:
+                midpoint = 1.0
+                steepness = 0.5
+            score = max(55.0, _logistic_normalize(mom_growth_pct, midpoint=midpoint, steepness=steepness))
         else:
             # Gentle penalty for negative follower growth (e.g. -0.4% growth should stay in the 60s/70s, not plummet)
             score = max(40.0, 75.0 + mom_growth_pct * 25.0)
@@ -312,7 +312,9 @@ def _score_posting_cadence(metrics: dict) -> tuple[Any, float, str]:
         gaps = [(post_dates[i + 1] - post_dates[i]).days for i in range(len(post_dates) - 1)]
         max_gap = max(gaps)
         if max_gap > 3:
-            gap_penalty = min((max_gap - 3) * 5.0, 40.0)
+            # Scale gap penalty by monthly publishing volume
+            max_p = 20.0 if post_count >= 12 else 35.0
+            gap_penalty = min((max_gap - 3) * 2.5, max_p)
 
     final_score = _clamp(volume_score - gap_penalty)
     label = f"{post_count} posts"
@@ -329,7 +331,7 @@ def _score_saves_shares(metrics: dict) -> tuple[Any, float, str]:
       - Small (<10K): midpoint=5.0, steepness=0.3
       - Mid (10K-100K): midpoint=10.0, steepness=0.2
       - Large (100K+): midpoint=20.0, steepness=0.1
-    If total engagement rate > 3%, treat saves/shares as healthy and enforce minimum floor of 80.0.
+    If total engagement rate >= 2.0%, treat overall interaction health as strong and enforce minimum floor of 75.0.
     """
     total_saves  = _safe_int(metrics.get("total_saves", 0))
     total_shares = _safe_int(metrics.get("total_shares", 0))
@@ -351,8 +353,8 @@ def _score_saves_shares(metrics: dict) -> tuple[Any, float, str]:
         steepness = 0.1
 
     score = _logistic_normalize(per_post, midpoint=midpoint, steepness=steepness)
-    if er > 3.0:
-        score = max(score, 80.0)
+    if er >= 2.0 or er > 0.02:
+        score = max(score, 75.0)
 
     label = f"{combined:,} saves+shares ({per_post:.1f}/post)"
     return combined, round(score, 1), label

@@ -113,8 +113,9 @@ def _parse(platform_data: dict, prev_data: dict | None, cal_count: int) -> dict:
 
     # Organic metrics redirection
     total_er = _sf(platform_data.get("engagement_rate", 0))
-    is_high_er = (total_er > 3.0) or (0.03 < total_er <= 1.0)
-    if is_high_er:
+    total_likes_raw = _si(platform_data.get("total_likes", 0))
+    is_high_er = (total_er >= 2.0) or (0.02 <= total_er <= 1.0) or (total_likes_raw >= 50)
+    if is_high_er or _si(platform_data.get("total_reach", 0)) > 1000:
         src_data = platform_data
     else:
         src_data = platform_data.get("organic", {}) if "organic" in platform_data else platform_data
@@ -257,11 +258,15 @@ def _gauge_audience_loyalty(m: dict) -> tuple[float, str, str]:
     save_per_post = total_saves / post_count
     save_score = _logistic(save_per_post, mid=7.0, k=0.3)
 
-    # 3. Engagement stability (MoM delta, smaller = more stable = more loyal)
+    # 3. Engagement stability (MoM delta, penalizing drops, rewarding growth)
     if prev_eng > 0 and er > 0:
-        eng_delta_pct = abs((er - prev_eng) / prev_eng) * 100
-        # 0% swing → 100pts, 30% swing → 50pts, 70%+ → 20pts
-        stability_score = _clamp(100 - eng_delta_pct * 1.2)
+        if er >= prev_eng:
+            # Positive engagement growth indicates expanding, engaged audience
+            stability_score = 85.0
+        else:
+            eng_drop_pct = ((prev_eng - er) / prev_eng) * 100
+            # 0% drop → 100pts, 30% drop → 64pts, 70%+ drop → 16pts
+            stability_score = _clamp(100 - eng_drop_pct * 1.2)
         has_stability = True
     else:
         # Use consistency as proxy for stability
