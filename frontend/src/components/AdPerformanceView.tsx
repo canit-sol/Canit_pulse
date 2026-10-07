@@ -18,11 +18,6 @@ export default function AdPerformanceView({ platform = "meta", theme, month, yea
       <div className="bg-white border border-slate-200/90 rounded-3xl p-8 md:p-14 shadow-soft relative overflow-hidden" style={{ background: "linear-gradient(180deg, #FEFCE8 0%, #FFFFFF 100%)" }}>
         <div className="absolute top-0 right-0 -mt-8 -mr-8 w-72 h-72 bg-amber-200/30 rounded-full blur-3xl pointer-events-none" />
         <div className="max-w-2xl mx-auto text-center space-y-6 relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 text-xs font-black uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
-            Feature In Development
-          </div>
-          
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/20 text-white">
             <IndianRupee className="w-8 h-8 stroke-[2.5]" />
           </div>
@@ -61,13 +56,6 @@ export default function AdPerformanceView({ platform = "meta", theme, month, yea
               <h4 className="text-xs font-black text-slate-800">Unified Analytics</h4>
               <p className="text-[11px] text-slate-400 font-medium mt-1 leading-snug">Compare Meta Ads vs Google Ads performance in one view.</p>
             </div>
-          </div>
-
-          <div className="pt-2">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-              Target release: Next deployment update · Stay tuned!
-            </span>
           </div>
         </div>
       </div>
