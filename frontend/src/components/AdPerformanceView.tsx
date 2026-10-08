@@ -38,7 +38,10 @@ export default function AdPerformanceView({ platform = "meta", theme, month, yea
     }
   }, [month, year]);
 
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
   const fetchPerformance = async () => {
+    setFetchError(null);
     try {
       const start = dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : '';
       const end = dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : '';
@@ -48,10 +51,13 @@ export default function AdPerformanceView({ platform = "meta", theme, month, yea
       const json = await res.json();
       if (json.success) {
         setData(json);
-        setBudgetInput(json.budget.toString());
+        setBudgetInput(String(json.budget || ""));
+      } else {
+        setFetchError(json.detail || json.message || "Failed to load performance data.");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setFetchError(e?.message || "Failed to connect to analytics server.");
     } finally {
       setLoading(false);
     }
@@ -60,6 +66,7 @@ export default function AdPerformanceView({ platform = "meta", theme, month, yea
   useEffect(() => {
     setLoading(true);
     setData(null);
+    setFetchError(null);
     fetchPerformance();
   }, [id, token, dateRange, platform]);
 
@@ -108,7 +115,26 @@ export default function AdPerformanceView({ platform = "meta", theme, month, yea
     );
   }
 
-  if (!data) return null;
+  if (fetchError || !data) {
+    return (
+      <div className="p-12 text-center bg-white border border-slate-200/80 rounded-2xl space-y-4 shadow-sm">
+        <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+          <BarChart3 className="w-6 h-6" />
+        </div>
+        <div className="space-y-1">
+          <h4 className="font-bold text-slate-800 text-base">No campaign records loaded</h4>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">{fetchError || "Connecting to live ads server..."}</p>
+        </div>
+        <button
+          onClick={() => { setLoading(true); fetchPerformance(); }}
+          className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition inline-flex items-center gap-2"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          Retry Connection
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -138,30 +164,30 @@ export default function AdPerformanceView({ platform = "meta", theme, month, yea
         <div className={`col-span-1 md:col-span-2 rounded-xl p-5 border ${theme.cardBg} ${theme.cardBorder} shadow-sm`}>
           <div className="text-sm font-bold text-slate-500 uppercase tracking-widest font-heading mb-1">Total Spent</div>
           <div className={`text-[36px] font-black leading-none tracking-tight ${theme.valueColor}`}>
-            ₹{data.total_spend.toLocaleString('en-IN')}
+            ₹{(data.total_spend ?? 0).toLocaleString('en-IN')}
           </div>
         </div>
 
         {/* Aggregate KPI Cards */}
         <div className={`rounded-xl p-5 border bg-white border-slate-100 shadow-sm flex flex-col justify-between`}>
           <div className="flex justify-between items-center">
-            <div className="text-[28px] font-black text-slate-800">{data.metrics.leads.toLocaleString()}</div>
+            <div className="text-[28px] font-black text-slate-800">{(data.metrics?.leads ?? 0).toLocaleString()}</div>
             <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center"><Target className="w-4 h-4 text-orange-500"/></div>
           </div>
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Total Leads</div>
           <div className="mt-4 text-sm font-semibold text-slate-400">
-            CPL: <span className="text-orange-500 font-bold">₹{data.metrics.cpl}</span>
+            CPL: <span className="text-orange-500 font-bold">₹{data.metrics?.cpl ?? 0}</span>
           </div>
         </div>
 
         <div className={`rounded-xl p-5 border bg-white border-slate-100 shadow-sm flex flex-col justify-between`}>
           <div className="flex justify-between items-center">
-            <div className="text-[28px] font-black text-slate-800">{data.metrics.clicks.toLocaleString()}</div>
+            <div className="text-[28px] font-black text-slate-800">{(data.metrics?.clicks ?? 0).toLocaleString()}</div>
             <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center"><TrendingUp className="w-4 h-4 text-blue-500"/></div>
           </div>
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Total Clicks</div>
           <div className="mt-4 text-sm font-semibold text-slate-400">
-            CPC: <span className="text-blue-500 font-bold">₹{data.metrics.cpc}</span>
+            CPC: <span className="text-blue-500 font-bold">₹{data.metrics?.cpc ?? 0}</span>
           </div>
         </div>
       </div>
