@@ -617,7 +617,32 @@ def get_ad_performance(
             CampaignMetric.date >= start_date,
             CampaignMetric.date <= end_date
         ).all()
-        
+
+    if platform == "google" and getattr(client, "google_ads_customer_id", None):
+        # Auto-fetch if no metrics exist in range, or if viewing current month and today's data is missing
+        today = datetime.utcnow().date()
+        should_sync = False
+        if not metrics:
+            should_sync = True
+        elif start_date <= today <= end_date:
+            max_metric_date = max((m.date for m in metrics if m.spend and m.spend > 0), default=None)
+            if not max_metric_date or max_metric_date < today:
+                should_sync = True
+
+        if should_sync:
+            try:
+                sync_google_campaigns_for_client(
+                    client_id, db, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")
+                )
+                metrics = db.query(CampaignMetric).filter(
+                    CampaignMetric.client_id == client_id,
+                    platform_filter,
+                    CampaignMetric.date >= start_date,
+                    CampaignMetric.date <= end_date
+                ).all()
+            except Exception as e:
+                print(f"[Google Ads Auto-Sync] Error during on-demand sync: {e}")
+
     if platform == "google":
         grouped = {}
         for m in sorted(metrics, key=lambda x: x.date):

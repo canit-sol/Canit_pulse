@@ -34,7 +34,7 @@ def get_google_ads_client(customer_id: str = None):
 def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = None, end: str = None):
     """
     Syncs live Google Ads campaign performance for a client broken down by day (segments.date).
-    Stores accurate daily metrics so month filtering in Pulse is 100% accurate.
+    Also includes account campaigns with 0 spend so the full catalog is always visible.
     """
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
@@ -84,7 +84,7 @@ def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = N
     try:
         ga_service = google_client.get_service("GoogleAdsService")
 
-        # GAQL query with daily breakdown via segments.date
+        # 1. Fetch performance breakdown by day
         query = f"""
             SELECT
                 campaign.id,
@@ -104,56 +104,14 @@ def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = N
 
         response = ga_service.search(customer_id=customer_id, query=query)
         results = list(response)
-
-        # Fallback if 0 activity: pull all campaigns list with 0 spend so user sees their campaign catalog
-        if not results:
-            fallback_query = """
-                SELECT
-                    campaign.id,
-                    campaign.name,
-                    campaign.status,
-                    campaign.advertising_channel_type
-                FROM campaign
-                WHERE campaign.status != 'REMOVED'
-                ORDER BY campaign.name ASC
-            """
-            try:
-                fallback_resp = ga_service.search(customer_id=customer_id, query=fallback_query)
-                for row in fallback_resp:
-                    camp = row.campaign
-                    adv_type = camp.advertising_channel_type.name if hasattr(camp.advertising_channel_type, "name") else str(camp.advertising_channel_type)
-                    objective = "OUTCOME_LEADS" if adv_type in ("SEARCH", "MULTI_CHANNEL") else "OUTCOME_TRAFFIC"
-
-                    db.add(CampaignMetric(
-                        id=str(uuid.uuid4()),
-                        client_id=client_id,
-                        campaign_id=f"google_{camp.id}",
-                        campaign_name=camp.name,
-                        date=target_date,
-                        spend=0.0,
-                        reach=0,
-                        impressions=0,
-                        clicks=0,
-                        ctr=0.0,
-                        cpc=0.0,
-                        leads=0,
-                        cpl=0.0,
-                        status=camp.status.name if hasattr(camp.status, "name") else str(camp.status),
-                        objective=objective,
-                        platform="google"
-                    ))
-                db.commit()
-                client.ad_account_error = None
-                db.commit()
-                return True, f"Synced {len(list(fallback_resp))} campaigns with 0 spend for {start} to {end}."
-            except Exception as e:
-                print(f"[Google Ads] Fallback query error: {e}")
+        seen_campaign_ids = set()
 
         # Insert each daily segment with its exact date
         for row in results:
             camp = row.campaign
             metrics_row = row.metrics
             row_date = datetime.strptime(row.segments.date, "%Y-%m-%d").date()
+            seen_campaign_ids.add(str(camp.id))
 
             spend_val = round(metrics_row.cost_micros / 1_000_000, 2)
             clicks_val = int(metrics_row.clicks)
@@ -187,6 +145,45 @@ def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = N
                 platform="google"
             ))
 
+        # 2. Also fetch all account campaigns so zero-spend / paused campaigns still appear in the active campaigns table
+        catalog_query = """
+            SELECT
+                campaign.id,
+                campaign.name,
+                campaign.status,
+                campaign.advertising_channel_type
+            FROM campaign
+            WHERE campaign.status != 'REMOVED'
+            ORDER BY campaign.name ASC
+        """
+        try:
+            catalog_resp = ga_service.search(customer_id=customer_id, query=catalog_query)
+            for row in catalog_resp:
+                camp = row.campaign
+                if str(camp.id) not in seen_campaign_ids:
+                    adv_type = camp.advertising_channel_type.name if hasattr(camp.advertising_channel_type, "name") else str(camp.advertising_channel_type)
+                    objective = "OUTCOME_LEADS" if adv_type in ("SEARCH", "MULTI_CHANNEL") else "OUTCOME_TRAFFIC"
+                    db.add(CampaignMetric(
+                        id=str(uuid.uuid4()),
+                        client_id=client_id,
+                        campaign_id=f"google_{camp.id}_catalog",
+                        campaign_name=camp.name,
+                        date=target_date,
+                        spend=0.0,
+                        reach=0,
+                        impressions=0,
+                        clicks=0,
+                        ctr=0.0,
+                        cpc=0.0,
+                        leads=0,
+                        cpl=0.0,
+                        status=camp.status.name if hasattr(camp.status, "name") else str(camp.status),
+                        objective=objective,
+                        platform="google"
+                    ))
+        except Exception as e:
+            print(f"[Google Ads] Error pulling campaign catalog: {e}")
+
         client.ad_account_error = None
         db.commit()
         return True, f"Successfully synced {len(results)} daily Google Ads records."
@@ -197,3 +194,17 @@ def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = N
         client.ad_account_error = f"[Google Ads] {error_msg}"
         db.commit()
         return False, error_msg
+
+
+def sync_all_google_campaigns(db: Session):
+    """Syncs Google Ads campaigns for all clients with a connected customer ID."""
+    clients = db.query(Client).filter(Client.google_ads_customer_id.isnot(None)).all()
+    today = datetime.utcnow().date()
+    start_str = today.replace(day=1).strftime("%Y-%m-%d")
+    end_str = today.strftime("%Y-%m-%d")
+    
+    for c in clients:
+        try:
+            sync_google_campaigns_for_client(c.id, db, start_str, end_str)
+        except Exception as e:
+            print(f"[Google Ads Scheduler] Failed to sync for client {c.name}: {e}")

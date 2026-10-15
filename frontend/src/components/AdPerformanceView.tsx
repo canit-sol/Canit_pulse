@@ -20,19 +20,22 @@ export default function AdPerformanceView({ platform = "meta", theme, month, yea
   const [syncing, setSyncing] = useState(false);
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date()),
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const now = new Date();
+    return {
+      from: new Date(now.getFullYear(), now.getMonth(), 1, 12, 0, 0),
+      to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 12, 0, 0),
+    };
   });
 
   useEffect(() => {
     if (month && year) {
       const monthIdx = MONTH_NAMES.indexOf(month);
       if (monthIdx !== -1) {
-        const d = new Date(parseInt(year), monthIdx, 15);
+        const y = parseInt(year);
         setDateRange({
-          from: startOfMonth(d),
-          to: endOfMonth(d),
+          from: new Date(y, monthIdx, 1, 12, 0, 0),
+          to: new Date(y, monthIdx + 1, 0, 12, 0, 0),
         });
       }
     }

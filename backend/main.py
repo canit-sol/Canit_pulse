@@ -27,11 +27,19 @@ import ai_chat
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from services.meta_ads import sync_all_campaigns
+from services.google_ads import sync_all_google_campaigns
 
 def scheduled_meta_ads_sync():
     db = models.SessionLocal()
     try:
         sync_all_campaigns(db)
+    finally:
+        db.close()
+
+def scheduled_google_ads_sync():
+    db = models.SessionLocal()
+    try:
+        sync_all_google_campaigns(db)
     finally:
         db.close()
 
@@ -1127,10 +1135,12 @@ def startup_event():
         scheduler = BackgroundScheduler()
         # Meta Ads: every 6 hours
         scheduler.add_job(scheduled_meta_ads_sync, 'interval', hours=6)
+        # Google Ads: every 6 hours
+        scheduler.add_job(scheduled_google_ads_sync, 'interval', hours=6)
         # Organic Analytics: once a week (every 7 days)
         scheduler.add_job(scheduled_organic_snapshot_sync, 'interval', days=7)
         scheduler.start()
-        print("Meta Ads Sync Scheduler started (every 6 hours).")
+        print("Meta & Google Ads Sync Schedulers started (every 6 hours).")
         print("Organic Analytics Snapshot Scheduler started (every 7 days).")
     except Exception as e:
         print("Failed to start scheduler:", e)
