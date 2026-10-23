@@ -618,22 +618,24 @@ def get_ad_performance(
             CampaignMetric.date <= end_date
         ).all()
 
-    if platform == "google" and getattr(client, "google_ads_customer_id", None):
-        # Auto-fetch if no metrics exist in range, or if viewing current month and today's data is missing
-        today = datetime.utcnow().date()
+    today = datetime.utcnow().date()
+
+    # Self-healing on-demand sync for Google Ads
+    cid = (getattr(client, "google_ads_customer_id", None) or "").replace("-", "").strip()
+    if platform == "google" and cid and cid != "6541257286":
         should_sync = False
         if not metrics:
             should_sync = True
-        elif start_date <= today <= end_date:
+        elif start_date and end_date and start_date <= today <= end_date:
             max_metric_date = max((m.date for m in metrics if m.spend and m.spend > 0), default=None)
             if not max_metric_date or max_metric_date < today:
                 should_sync = True
 
         if should_sync:
             try:
-                sync_google_campaigns_for_client(
-                    client_id, db, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")
-                )
+                sync_s = start_date.strftime("%Y-%m-%d") if start_date else today.replace(day=1).strftime("%Y-%m-%d")
+                sync_e = end_date.strftime("%Y-%m-%d") if end_date else today.strftime("%Y-%m-%d")
+                sync_google_campaigns_for_client(client_id, db, sync_s, sync_e)
                 metrics = db.query(CampaignMetric).filter(
                     CampaignMetric.client_id == client_id,
                     platform_filter,
@@ -641,7 +643,34 @@ def get_ad_performance(
                     CampaignMetric.date <= end_date
                 ).all()
             except Exception as e:
+                db.rollback()
                 print(f"[Google Ads Auto-Sync] Error during on-demand sync: {e}")
+
+    # Self-healing on-demand sync for Meta Ads
+    fb_acc = getattr(client, "fb_ad_account_id", None)
+    if platform == "meta" and fb_acc:
+        should_sync = False
+        if not metrics:
+            should_sync = True
+        elif start_date and end_date and start_date <= today <= end_date:
+            max_metric_date = max((m.date for m in metrics if m.spend and m.spend > 0), default=None)
+            if not max_metric_date or max_metric_date < today:
+                should_sync = True
+
+        if should_sync:
+            try:
+                sync_s = start_date.strftime("%Y-%m-%d") if start_date else today.replace(day=1).strftime("%Y-%m-%d")
+                sync_e = end_date.strftime("%Y-%m-%d") if end_date else today.strftime("%Y-%m-%d")
+                sync_campaign_metrics_for_client(client_id, db, sync_s, sync_e)
+                metrics = db.query(CampaignMetric).filter(
+                    CampaignMetric.client_id == client_id,
+                    platform_filter,
+                    CampaignMetric.date >= start_date,
+                    CampaignMetric.date <= end_date
+                ).all()
+            except Exception as e:
+                db.rollback()
+                print(f"[Meta Ads Auto-Sync] Error during on-demand sync: {e}")
 
     if platform == "google":
         grouped = {}

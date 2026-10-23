@@ -1132,15 +1132,15 @@ def startup_event():
     # Start the background sync scheduler for Ad Performance and Organic Snapshots
     try:
         from services.snapshot_service import scheduled_organic_snapshot_sync
-        scheduler = BackgroundScheduler()
-        # Meta Ads: every 6 hours
-        scheduler.add_job(scheduled_meta_ads_sync, 'interval', hours=6)
-        # Google Ads: every 6 hours
-        scheduler.add_job(scheduled_google_ads_sync, 'interval', hours=6)
+        from datetime import datetime as dt
+        # Meta Ads: run immediately on boot + every 6 hours
+        scheduler.add_job(scheduled_meta_ads_sync, 'interval', hours=6, next_run_time=dt.now())
+        # Google Ads: run immediately on boot + every 6 hours
+        scheduler.add_job(scheduled_google_ads_sync, 'interval', hours=6, next_run_time=dt.now())
         # Organic Analytics: once a week (every 7 days)
         scheduler.add_job(scheduled_organic_snapshot_sync, 'interval', days=7)
         scheduler.start()
-        print("Meta & Google Ads Sync Schedulers started (every 6 hours).")
+        print("Meta & Google Ads Sync Schedulers started (running immediately on startup + every 6 hours).")
         print("Organic Analytics Snapshot Scheduler started (every 7 days).")
     except Exception as e:
         print("Failed to start scheduler:", e)
