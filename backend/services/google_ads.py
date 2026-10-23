@@ -67,7 +67,17 @@ def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = N
         target_date = today_date
         start_date_obj = target_date.replace(day=1)
 
-    # Clean existing range snapshots for this client on platform 'google'
+    if not customer_id:
+        return False, "Google Ads Customer ID not configured."
+
+    if customer_id == "6541257286":
+        return False, "Manager (MCC) accounts do not hold direct campaign metrics."
+
+    google_client = get_google_ads_client(customer_id)
+    if not google_client:
+        return False, "Google Ads credentials not configured on server."
+
+    # Clean existing range snapshots only after verifying connection
     db.query(CampaignMetric).filter(
         CampaignMetric.client_id == client_id,
         CampaignMetric.platform == "google",
@@ -75,11 +85,6 @@ def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = N
         CampaignMetric.date <= target_date
     ).delete()
     db.commit()
-
-    google_client = get_google_ads_client(customer_id) if customer_id else None
-
-    if not customer_id or not google_client:
-        return False, "Google Ads credentials or Customer ID not configured."
 
     try:
         ga_service = google_client.get_service("GoogleAdsService")
@@ -189,10 +194,14 @@ def sync_google_campaigns_for_client(client_id: str, db: Session, start: str = N
         return True, f"Successfully synced {len(results)} daily Google Ads records."
 
     except Exception as e:
+        db.rollback()
         error_msg = str(e)
         print(f"[Google Ads] Sync error for client {client_id}: {error_msg}")
-        client.ad_account_error = f"[Google Ads] {error_msg}"
-        db.commit()
+        try:
+            client.ad_account_error = f"[Google Ads] {error_msg[:250]}"
+            db.commit()
+        except Exception:
+            db.rollback()
         return False, error_msg
 
 
@@ -204,7 +213,11 @@ def sync_all_google_campaigns(db: Session):
     end_str = today.strftime("%Y-%m-%d")
     
     for c in clients:
+        cid = (c.google_ads_customer_id or "").replace("-", "").strip()
+        if cid == "6541257286":
+            continue
         try:
             sync_google_campaigns_for_client(c.id, db, start_str, end_str)
         except Exception as e:
+            db.rollback()
             print(f"[Google Ads Scheduler] Failed to sync for client {c.name}: {e}")
