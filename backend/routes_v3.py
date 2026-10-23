@@ -647,7 +647,7 @@ def get_ad_performance(
                 print(f"[Google Ads Auto-Sync] Error during on-demand sync: {e}")
 
     # Self-healing on-demand sync for Meta Ads
-    fb_acc = getattr(client, "fb_ad_account_id", None)
+    fb_acc = getattr(client, "ad_account_id", None)
     if platform == "meta" and fb_acc:
         should_sync = False
         if not metrics:
