@@ -12,7 +12,7 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=True)
 
 groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-GROQ_MODEL  = "qwen/qwen3.6-27b"
+GROQ_MODEL  = "qwen/qwen3.8-27b"
 
 gemini_client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 GEMINI_MODEL = "gemini-2.5-flash"
@@ -67,13 +67,25 @@ Instagram Data:
 Write a 3-4 sentence professional synopsis covering all connected platforms. Be specific with numbers. Mention what worked well, what the posting consistency was like, and one forward-looking insight. 
 Do NOT use bullet points. Write in flowing prose. Keep it under 80 words. Sound like a real analyst, not an AI."""
 
-    res = groq_client.chat.completions.create(
-        model=GROQ_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.7,
-        max_tokens=200,
-    )
-    return res.choices[0].message.content.strip() if res.choices[0].message.content else ""
+    try:
+        res = groq_client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=200,
+        )
+        return res.choices[0].message.content.strip() if res.choices[0].message.content else ""
+    except Exception as e:
+        print(f"[WARN] Groq synopsis failed ({e}), falling back to Gemini...")
+        try:
+            response = gemini_client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt
+            )
+            return response.text.strip() if response.text else ""
+        except Exception as e2:
+            print(f"[ERROR] Both Groq and Gemini synopsis failed: {e2}")
+            return f"Overview for {client_name} covering {month} {year} across active social media channels."
 
 
 def chat_with_report(question: str, report_data: dict, platform_data: dict, history: list, context_str: Optional[str] = None) -> str:
