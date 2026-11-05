@@ -1099,9 +1099,9 @@ def get_client_reports(
     if not client_rec:
         raise HTTPException(status_code=404, detail="Client not found.")
 
-    # ── Background Auto-Refresh for Current Month ──
-    # Check if the latest report is for the current month/year.
-    # If so, and it is older than 2 hours, trigger a background refresh to pull latest posts automatically.
+    # ── Background Auto-Refresh for Current Month & Recent Month ──
+    # Check if a report exists for current month/year and auto-refresh if missing or stale (>2 hrs).
+    # Also in early days of a new month (1-10), ensure the previous month is fully up to date.
     try:
         from database import Report
         from datetime import datetime
@@ -1121,6 +1121,38 @@ def get_client_reports(
             if time_diff > 7200: # 2 hours
                 print(f"[AUTO-REFRESH] Triggering background refresh for client {client_id} (age: {time_diff:.0f}s)")
                 background_tasks.add_task(background_auto_refresh_report, client_id, current_month_name, current_year_str)
+        else:
+            # If current month report does not exist yet and client has connected social platforms, auto-generate!
+            if client_rec.ig_access_token or client_rec.fb_page_token:
+                print(f"[AUTO-REFRESH] Initial generation of {current_month_name} for client {client_id}")
+                background_tasks.add_task(background_auto_refresh_report, client_id, current_month_name, current_year_str)
+
+        # In first 10 days of a month, verify previous month captured all late-month posts
+        if now.day <= 10 and (client_rec.ig_access_token or client_rec.fb_page_token):
+            months = [
+                "January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"
+            ]
+            prev_idx = (now.month - 2) % 12
+            prev_month_name = months[prev_idx]
+            prev_year_str = str(now.year if now.month > 1 else now.year - 1)
+            
+            prev_report = db.query(Report).filter(
+                Report.client_id == client_id,
+                Report.month == prev_month_name,
+                Report.year == prev_year_str
+            ).first()
+
+            should_refresh_prev = False
+            if not prev_report:
+                should_refresh_prev = True
+            elif (now - prev_report.created_at).total_seconds() > 43200 and prev_report.created_at.day < 28:
+                should_refresh_prev = True
+
+            if should_refresh_prev:
+                print(f"[AUTO-REFRESH] Verifying previous month ({prev_month_name}) posts for client {client_id}")
+                background_tasks.add_task(background_auto_refresh_report, client_id, prev_month_name, prev_year_str)
+
     except Exception as auto_err:
         print(f"[AUTO-REFRESH] Failed to setup check: {auto_err}")
 

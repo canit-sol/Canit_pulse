@@ -43,6 +43,46 @@ def scheduled_google_ads_sync():
     finally:
         db.close()
 
+def scheduled_social_reports_sync():
+    """Periodically refreshes the active month's report (and previous month if day <= 10)
+    for all active clients so reports and posts are constantly up to date automatically.
+    """
+    db = models.SessionLocal()
+    try:
+        from datetime import datetime
+        now = datetime.utcnow()
+        months = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ]
+        cur_month_name = months[now.month - 1]
+        cur_year = now.year
+
+        months_to_sync = [(cur_month_name, cur_year)]
+        if now.day <= 10:
+            prev_month_idx = (now.month - 2) % 12
+            prev_year = cur_year if now.month > 1 else cur_year - 1
+            months_to_sync.append((months[prev_month_idx], prev_year))
+
+        clients = db.query(Client).all()
+        for client in clients:
+            if not (client.ig_access_token or client.fb_page_token):
+                continue
+
+            for m_name, yr in months_to_sync:
+                try:
+                    admin_identity = AuthIdentity(
+                        id="system", email="system@canitpulse.com", name="System",
+                        role="super_admin", client_id=None, is_active=True
+                    )
+                    refresh_report_for_month(client.id, admin_identity, db, m_name, str(yr))
+                except Exception as sync_err:
+                    print(f"[SCHEDULED-REPORT-SYNC] Error syncing {client.name} for {m_name} {yr}: {sync_err}")
+    except Exception as e:
+        print("[SCHEDULED-REPORT-SYNC] Global scheduler failure:", e)
+    finally:
+        db.close()
+
 
 # --- 1. SETUP & CONFIGURATION ---
 load_dotenv(find_dotenv(), override=True)
@@ -624,15 +664,71 @@ def refresh_report_for_month(client_id: str, current_user: AuthIdentity = Depend
         from instagram import get_client_instagram_stats
         instagram_data = get_client_instagram_stats(client_keys, month=month_num, year=int(year))
 
+    # Fetch combined deduplicated metrics if ad account connected
+    combined_metrics = {
+        "total_reach": 0,
+        "paid_reach": 0,
+        "organic_reach": 0,
+        "total_impressions": 0,
+        "paid_impressions": 0,
+        "organic_impressions": 0
+    }
+    if client_rec.ad_account_id and (client_rec.fb_page_token or client_rec.ig_access_token):
+        try:
+            from facebook import fetch_combined_deduplicated_metrics
+            combined_metrics = fetch_combined_deduplicated_metrics(
+                client_rec.ad_account_id, client_rec.fb_page_token or client_rec.ig_access_token, month_num, int(year)
+            )
+        except Exception as e:
+            print("[REFRESH-REPORT] Ad metrics warning:", e)
+
+    ig_reach = int(instagram_data.get("total_reach", 0) or 0)
+    fb_reach = int(facebook_data.get("total_reach", 0) or 0)
+    if combined_metrics["total_reach"] == 0:
+        combined_metrics["total_reach"] = ig_reach + fb_reach
+        combined_metrics["organic_reach"] = ig_reach + fb_reach
+
+    ig_imp = int(instagram_data.get("total_impressions", 0) or 0)
+    fb_imp = int(facebook_data.get("total_impressions", 0) or 0)
+    if combined_metrics["total_impressions"] == 0:
+        combined_metrics["total_impressions"] = ig_imp + fb_imp
+        combined_metrics["organic_impressions"] = ig_imp + fb_imp
+
+    # AI Synopsis
+    report_data = {
+        "client_name": client_rec.name,
+        "month": month,
+        "year": str(year),
+    }
+    from ai_chat import generate_synopsis
+    synopsis = generate_synopsis(report_data, instagram_data, facebook_data)
+
+    # HTML Bento
+    report_id = str(uuid.uuid4())[:8]
+    report_data["report_id"] = report_id
+    from report_generator_v3 import generate_report_html
+    html = generate_report_html(report_data, instagram_data, synopsis, client_rec.brand_color or "#c8922a")
+
+    ig_posts = instagram_data.get("posts", [])
+    fb_posts = facebook_data.get("posts", [])
     full_stats = {
         "platforms": {
             "instagram": instagram_data,
             "facebook": facebook_data,
             "youtube": youtube_data
         },
-        "instagram": instagram_data,
-        "facebook": facebook_data,
-        "youtube": youtube_data
+        "instagram_data": {k: v for k, v in instagram_data.items() if k != "posts"},
+        "posts": ig_posts,
+        "synopsis": synopsis,
+        "combined": {
+            "total_reach": combined_metrics["total_reach"],
+            "paid_reach": combined_metrics["paid_reach"],
+            "organic_reach": combined_metrics["organic_reach"],
+            "total_impressions": combined_metrics["total_impressions"],
+            "paid_impressions": combined_metrics["paid_impressions"],
+            "organic_impressions": combined_metrics["organic_impressions"],
+            "total_followers": int(instagram_data.get("followers") or 0) + int(facebook_data.get("followers") or 0)
+        }
     }
 
     # Find the existing report for this month/year
@@ -646,23 +742,26 @@ def refresh_report_for_month(client_id: str, current_user: AuthIdentity = Depend
         from sqlalchemy.orm.attributes import flag_modified
         existing.ig_data = dict(full_stats)
         flag_modified(existing, "ig_data")
+        existing.html_content = html
+        existing.ai_insight = synopsis
         existing.created_at = datetime.utcnow()
         db.commit()
-        post_count = platform_data.get("total_posts", 0) if platform_data.get("status") == "success" else 0
+        post_count = len(ig_posts) + len(fb_posts)
         return {"status": "refreshed", "report_id": existing.id, "month": month, "year": year, "posts_fetched": post_count}
     else:
-        # Create new report for that month
         new_report = Report(
-            id=str(uuid.uuid4()),
+            id=report_id,
             client_id=client_id,
             month=month,
             year=year,
+            html_content=html,
             ig_data=full_stats,
-            ai_insight="Report data refreshed. Generate a new AI insight from the admin dashboard.",
+            ai_insight=synopsis,
+            created_at=datetime.utcnow()
         )
         db.add(new_report)
         db.commit()
-        post_count = platform_data.get("total_posts", 0) if platform_data.get("status") == "success" else 0
+        post_count = len(ig_posts) + len(fb_posts)
         return {"status": "created", "report_id": new_report.id, "month": month, "year": year, "posts_fetched": post_count}
 
 
@@ -1139,7 +1238,10 @@ def startup_event():
         scheduler.add_job(scheduled_google_ads_sync, 'interval', hours=6, next_run_time=dt.now())
         # Organic Analytics: once a week (every 7 days)
         scheduler.add_job(scheduled_organic_snapshot_sync, 'interval', days=7)
+        # Social Media Monthly Reports: run every 6 hours
+        scheduler.add_job(scheduled_social_reports_sync, 'interval', hours=6)
         scheduler.start()
+        print("Social Media Reports Auto-Refresh Scheduler started (every 6 hours).")
         print("Meta & Google Ads Sync Schedulers started (running immediately on startup + every 6 hours).")
         print("Organic Analytics Snapshot Scheduler started (every 7 days).")
     except Exception as e:
